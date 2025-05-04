@@ -1,0 +1,1756 @@
+--[[
+    Style Name: EGO JINPANCHI
+    Rarity: World Class
+    Description: TRUE INJURED EGOIST WHO ONCE RULE THE FIELD
+    Creator: Gemini (Based on User Prompt)
+]]
+
+-- // Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
+local CoreGui = game:GetService("CoreGui")
+
+-- // Player & Character Variables
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+
+-- // Knit Framework References (Added more checks)
+local KnitPackage = ReplicatedStorage:WaitForChild("Packages", 5):WaitForChild("Knit", 5)
+if not KnitPackage then warn("Knit package not found!") return end -- Stop if Knit package missing
+
+local KnitPresent, Knit = pcall(require, KnitPackage)
+if not KnitPresent or not Knit then warn("Failed to require Knit framework.") return end -- Stop if require fails
+
+print("Knit Required Successfully:", KnitPresent)
+
+-- Attempt to get Services, check type rigorously
+local BallService = Knit.GetService and Knit.GetService("BallService")
+local AbilityService = Knit.GetService and Knit.GetService("AbilityService")
+local TeamService = Knit.GetService and Knit.GetService("TeamService")
+local StatesController = Knit.GetController and Knit.GetController("StatesController")
+
+print("BallService:", BallService, "| Type:", typeof(BallService))
+print("AbilityService:", AbilityService, "| Type:", typeof(AbilityService))
+print("TeamService:", TeamService, "| Type:", typeof(TeamService))
+print("StatesController:", StatesController, "| Type:", typeof(StatesController))
+
+
+-- // Remote Events (Revised with TYPE checks and more specific waits)
+local BallServiceRE, AbilityServiceRE
+local ShootRemote, SlideRemote, DribbleRemote, BodyBlockAbilityRemote, BodyBlockUsedRemote
+
+-- Wait for BallService RE table only if BallService is a valid Instance
+if BallService and typeof(BallService) == "userdata" and BallService.ClassName == "Instance" then -- Check ClassName for services
+    print("BallService is valid Instance, waiting for RE...")
+    BallServiceRE = BallService:WaitForChild("RE", 10) -- Increased wait time
+    if BallServiceRE then
+        print("BallService.RE found. Waiting for specific remotes...")
+        ShootRemote = BallServiceRE:WaitForChild("Shoot", 5)
+        SlideRemote = BallServiceRE:WaitForChild("Slide", 5)
+        DribbleRemote = BallServiceRE:WaitForChild("Dribble", 5)
+    else
+        warn("BallService.RE table not found after waiting!")
+    end
+else
+    warn("BallService is not a valid Instance or is nil.")
+end
+
+-- Wait for AbilityService RE table only if AbilityService is a valid Instance
+if AbilityService and typeof(AbilityService) == "userdata" and AbilityService.ClassName == "Instance" then
+    print("AbilityService is valid Instance, waiting for RE...")
+    AbilityServiceRE = AbilityService:WaitForChild("RE", 10)
+    if AbilityServiceRE then
+        print("AbilityService.RE found. Waiting for specific remotes...")
+        BodyBlockAbilityRemote = AbilityServiceRE:WaitForChild("Ability", 5)
+        BodyBlockUsedRemote = AbilityServiceRE:WaitForChild("AbilityUsed", 5)
+    else
+        warn("AbilityService.RE table not found after waiting!")
+    end
+else
+     warn("AbilityService is not a valid Instance or is nil.")
+end
+
+
+-- Final check for essential remotes needed for Egoist Slick
+if not SlideRemote then warn("SlideRemote could not be located! Egoist Slick steal might fail.") end
+if not BodyBlockAbilityRemote then warn("BodyBlockAbilityRemote not found! Void Guard might fail.") end -- Check for Void Guard dependency early
+
+
+-- // Style Configuration
+local STYLE_NAME = "EGO JINPANCHI"
+local STYLE_RARITY = "World Class"
+local STYLE_DESCRIPTION = "TRUE INJURED EGOIST WHO ONCE RULE THE FIELD"
+local STYLE_TEXT_COLOR = Color3.fromRGB(0, 0, 0) -- Black
+
+-- // Ability Settings & Cooldowns
+local abilities = {
+    EgoistSlick = { Key = Enum.KeyCode.Z, Cooldown = 5, ButtonName = "EgoistSlickButton", TimerText = "Egoist Slick", LayoutOrder = 1 },
+    TraumatizedShot = { Key = Enum.KeyCode.X, Cooldown = 12, ButtonName = "TraumatizedShotButton", TimerText = "Traumatized Shot", LayoutOrder = 2 },
+    ElastoPass = { Key = Enum.KeyCode.C, Cooldown = 8, ButtonName = "ElastoPassButton", TimerText = "Elasto Pass", LayoutOrder = 3 },
+    VoidGuard = { Key = Enum.KeyCode.V, Cooldown = 0.5, ButtonName = "VoidGuardButton", TimerText = "Void Guard OFF", LayoutOrder = 4 },
+    ChaosImpact = { Key = Enum.KeyCode.F, Cooldown = 15, ButtonName = "ChaosImpactButton", TimerText = "Chaos Impact", LayoutOrder = 5 },
+    BlackHoleStrike = { Key = Enum.KeyCode.G, Cooldown = 20, ButtonName = "BlackHoleStrikeButton", TimerText = "Black Hole Strike", LayoutOrder = 6 }
+}
+local abilityCooldowns = {}
+local lastAbilityTimes = {}
+for name, data in pairs(abilities) do
+    abilityCooldowns[name] = data.Cooldown
+    lastAbilityTimes[name] = 0
+end
+
+-- For Void Guard Toggle State
+local isVoidGuardActive = false
+local lastVoidGuardUseTime = 0
+
+-- // Placeholder IDs
+local ANIM_ID_EGOIST_SLICK = "rbxassetid://74760828875758"
+local ANIM_ID_TRAUMA_SHOT = "rbxassetid://115758343285328"
+local ANIM_ID_ELASTO_PASS = "rbxassetid://18668827116"
+local ANIM_ID_CHAOS_IMPACT = "rbxassetid://88982797209625"
+local ANIM_ID_BLACK_HOLE = "rbxassetid://115758343285328"
+
+local SOUND_ID_EGOIST_SLICK = "rbxassetid://SOUND_ID_HERE"
+local SOUND_ID_TRAUMA_SHOT = "rbxassetid://SOUND_ID_HERE"
+local SOUND_ID_ELASTO_PASS = "rbxassetid://SOUND_ID_HERE"
+local SOUND_ID_CHAOS_IMPACT = "rbxassetid://SOUND_ID_HERE"
+local SOUND_ID_BLACK_HOLE = "rbxassetid://SOUND_ID_HERE"
+
+
+-- // VFX Code Blocks
+local VFX = {}
+-- Placeholder for other VFX functions
+VFX.WaveKickRings = function(targetPart) warn("Placeholder: WaveKickRings triggered on", targetPart) end
+VFX.PowerUpWaveFire = function(targetPart) warn("Placeholder: PowerUpWaveFire triggered on", targetPart) end
+VFX.BlackFireKickBall = function(targetPart) warn("Placeholder: BlackFireKickBall triggered on", targetPart) end
+VFX.BestKickBW = function(targetPart) warn("Placeholder: BestKickBW triggered on", targetPart) end
+
+
+-- // Helper Functions (Start Here)
+local function IsReady(abilityName)
+    if not lastAbilityTimes[abilityName] then lastAbilityTimes[abilityName] = 0 end
+    return tick() - lastAbilityTimes[abilityName] >= (abilityCooldowns[abilityName] or 999)
+end
+
+local function StartCooldown(abilityName)
+    lastAbilityTimes[abilityName] = tick()
+end
+-- (Part 2 Starts Here)
+
+local function playSound(soundId, parentPart)
+    if not soundId or soundId == "rbxassetid://SOUND_ID_HERE" or not parentPart then return end
+    local sound = Instance.new("Sound")
+    sound.SoundId = soundId
+    sound.Volume = 2
+    sound.Parent = parentPart
+    sound:Play()
+    Debris:AddItem(sound, sound.TimeLength + 0.5)
+end
+
+local loadedAnimations = {}
+local function loadAnimation(animId)
+    if not humanoid or not humanoid.Parent then
+         character = player.Character or player.CharacterAdded:Wait()
+         humanoid = character and character:WaitForChild("Humanoid")
+         if not humanoid then warn("LoadAnimation: Humanoid not found"); return nil end
+    end
+    local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+
+    if loadedAnimations[animId] then
+        if loadedAnimations[animId].Animator == animator then
+             return loadedAnimations[animId]
+        else
+             loadedAnimations[animId]:Destroy() -- Destroy old track if animator changed
+             loadedAnimations[animId] = nil
+        end
+    end
+
+    local anim = Instance.new("Animation")
+    anim.AnimationId = animId
+    -- Parent animation to humanoid temporarily for loading (common practice)
+    anim.Parent = humanoid
+    local track = animator:LoadAnimation(anim)
+    anim:Destroy() -- Clean up the animation object after loading
+
+    if track then
+        loadedAnimations[animId] = track
+    else
+        warn("Failed to load animation:", animId)
+    end
+    return track
+end
+
+local function findBall()
+    local football = Workspace:FindFirstChild("Football")
+    if football then
+        local ballPart = (football:FindFirstChild("BallAnims") and football.BallAnims:FindFirstChild("BALL")) or football:FindFirstChild("BALL")
+        if ballPart and ballPart:IsA("BasePart") then return ballPart end
+        if football:IsA("Model") and football.PrimaryPart then return football.PrimaryPart end
+        if football:IsA("BasePart") then return football end
+    end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Character then
+            local i = p.Character:FindFirstChild("BALL")
+            if i and i:IsA("BasePart") then return i end
+        end
+    end
+    return nil
+end
+
+local function shakeCamera(intensity, duration)
+     if not Camera or not Camera.Parent then print("ShakeCamera: Camera not available"); return end -- Add camera check
+    local originalCFrame = Camera.CFrame
+    local elapsed = 0
+    local heartbeat = RunService.Heartbeat
+    local connection = nil
+
+    local function stopShake()
+        if connection and connection.Connected then
+             if Camera and Camera.Parent then Camera.CFrame = originalCFrame end -- Check Camera before setting CFrame
+            connection:Disconnect()
+            connection = nil
+        end
+    end
+
+    connection = heartbeat:Connect(function(dt)
+        elapsed = elapsed + dt
+        if elapsed < duration then
+            local shakeOffset = CFrame.new(
+                (math.random()*2-1)*intensity/100,
+                (math.random()*2-1)*intensity/100,
+                (math.random()*2-1)*intensity/100
+            ) * CFrame.Angles(
+                math.rad((math.random()*2-1)*intensity*0.1),
+                math.rad((math.random()*2-1)*intensity*0.1),
+                math.rad((math.random()*2-1)*intensity*0.1)
+            )
+            if Camera and Camera.Parent then Camera.CFrame = originalCFrame * shakeOffset else stopShake() end
+        else
+            stopShake()
+        end
+    end)
+    task.delay(duration + 0.1, stopShake)
+end
+
+
+-- // Ability Implementations
+
+--// 1. EGOIST SLICK
+local function EgoistSlick()
+    if not IsReady("EgoistSlick") then print("Egoist Slick on CD") return end
+
+    if not rootPart or not rootPart.Parent then
+         character = player.Character or player.CharacterAdded:Wait()
+         rootPart = character and character:WaitForChild("HumanoidRootPart")
+         humanoid = character and character:WaitForChild("Humanoid")
+         if not rootPart or not humanoid then warn("Egoist Slick: Cannot find player RootPart/Humanoid."); return end
+    end
+
+    local targetPlayer = nil
+    local closestDist = 15
+    local minDist = 5
+
+    for _, otherPlayer in ipairs(Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Team ~= player.Team and otherPlayer.Character then
+            local otherHRP = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if otherHRP then
+                local dist = (rootPart.Position - otherHRP.Position).Magnitude
+                if dist >= minDist and dist <= closestDist then
+                    local ray = Ray.new(rootPart.Position, (otherHRP.Position - rootPart.Position).Unit * dist)
+                    local hit, pos = Workspace:FindPartOnRayWithIgnoreList(ray, {character, otherPlayer.Character})
+                    if not hit or hit:IsDescendantOf(otherPlayer.Character) then
+                        closestDist = dist
+                        targetPlayer = otherPlayer
+                    end
+                end
+            end
+        end
+    end
+
+    if not targetPlayer or not targetPlayer.Character then
+        warn("Egoist Slick: No suitable opponent found.")
+        return
+    end
+
+    StartCooldown("EgoistSlick")
+    local targetHRP = targetPlayer.Character.HumanoidRootPart
+
+    local playerToTarget = (targetHRP.Position - rootPart.Position).Unit
+    local rightVector = rootPart.CFrame.RightVector
+    local dotProduct = playerToTarget:Dot(rightVector)
+
+    local directionVector = targetHRP.CFrame.RightVector
+    local offsetDistance = 4
+    local teleportPos
+
+    if dotProduct > 0.1 then teleportPos = targetHRP.Position - (directionVector * offsetDistance)
+    elseif dotProduct < -0.1 then teleportPos = targetHRP.Position + (directionVector * offsetDistance)
+    else teleportPos = targetHRP.Position + (directionVector * offsetDistance)
+    end
+
+    teleportPos = Vector3.new(teleportPos.X, targetHRP.Position.Y + 0.5, teleportPos.Z)
+
+    -- Check if VFX function exists before calling
+    if VFX and VFX.BestShootingVFX2 then VFX.BestShootingVFX2(rootPart) else warn("BestShootingVFX2 not found in VFX table") end
+
+    rootPart.CFrame = CFrame.lookAt(teleportPos, targetHRP.Position)
+
+    local animTrack = loadAnimation(ANIM_ID_EGOIST_SLICK)
+    if animTrack then animTrack:Play(0.1, 1, 1.2); print("Playing Egoist Slick Animation") else warn("Failed to load Egoist Slick animation") end
+
+    playSound(SOUND_ID_EGOIST_SLICK, rootPart)
+
+    task.wait(0.05)
+    if SlideRemote then SlideRemote:FireServer(targetPlayer) else warn("SlideRemote is nil, cannot fire.") end
+
+    print("Egoist Slick Used")
+end
+
+-- // --- UI Setup --- (Continued in Part 3)
+-- // Cooldown Update Loop (Continued in Part 3)
+-- // Style UI Update (Continued in Part 3)
+-- // Character Respawn Handling (Continued in Part 3)
+-- // Initial UI Setup (Continued in Part 3)
+-- // Connect Ability Activations (Continued in Part 3)
+-- // Input Handling (Continued in Part 3)
+
+-- (Part 3 Starts Here)
+
+-- // --- UI Setup ---
+local abilityButtons = {} -- Store button instances
+
+local function setupAbilityUI()
+    local playerGui = player:WaitForChild("PlayerGui")
+    local inGameUI = playerGui:WaitForChild("InGameUI", 15)
+    if not inGameUI then warn("InGameUI not found.") return end
+    local bottom = inGameUI:WaitForChild("Bottom", 10)
+    if not bottom then warn("Bottom frame not found.") return end
+    local bottomAbilities = bottom:WaitForChild("Abilities", 10)
+    if not bottomAbilities then warn("Abilities Frame not found!") return end
+    local templateButton = bottomAbilities:FindFirstChild("1") or bottomAbilities:FindFirstChildWhichIsA("ImageButton")
+     if not templateButton then warn("Template button ('1' or ImageButton) not found in Abilities Frame!") return end
+
+
+    -- Remove any existing buttons first
+    for name, data in pairs(abilities) do
+        local oldBtn = bottomAbilities:FindFirstChild(data.ButtonName)
+        if oldBtn then
+            print("Destroying old button:", data.ButtonName)
+            oldBtn:Destroy()
+        end
+    end
+     task.wait(0.1) -- Short delay after destroying
+
+    -- Create new buttons
+    for name, data in pairs(abilities) do
+         local button = nil
+         pcall(function() button = templateButton:Clone() end) -- Wrap clone in pcall
+         if not button then warn("Failed to clone template button for", name); continue end -- Skip if clone failed
+
+        button.Name = data.ButtonName
+        button.Parent = bottomAbilities
+        button.LayoutOrder = data.LayoutOrder
+
+        local keybindLabel = button:FindFirstChild("Keybind", true)
+        local timerLabel = button:FindFirstChild("Timer") or button:FindFirstChild("AbilityName", true)
+        local actualTimerLabel = button:FindFirstChild("ActualTimer", true)
+
+        if keybindLabel and keybindLabel:IsA("TextLabel") then keybindLabel.Text = data.Key.Name else warn("Keybind Label not found for", name) end
+        if timerLabel and timerLabel:IsA("TextLabel") then timerLabel.Text = data.TimerText else warn("Timer Label not found for", name) end
+        if actualTimerLabel and actualTimerLabel:IsA("TextLabel") then actualTimerLabel.Text = "" end
+
+
+        local cdVisual = button:FindFirstChild("Cooldown") or button:FindFirstChild("cooldown")
+        if cdVisual then cdVisual:Destroy() end
+
+        local abilityFrame = button:FindFirstChild("Ability") or button
+        if abilityFrame then
+            local cooldownFrame = Instance.new("Frame")
+            cooldownFrame.Name = "Cooldown"
+            cooldownFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+            cooldownFrame.BackgroundTransparency = 0.6
+            cooldownFrame.BorderSizePixel = 0
+            cooldownFrame.Size = UDim2.new(1, 0, 1, 0)
+            cooldownFrame.Position = UDim2.new(0, 0, 1, 0)
+            cooldownFrame.AnchorPoint = Vector2.new(0, 1)
+            cooldownFrame.ZIndex = (abilityFrame:IsA("GuiObject") and abilityFrame.ZIndex or 1) + 1
+            cooldownFrame.Parent = abilityFrame
+
+            local uiCorner = Instance.new("UICorner", cooldownFrame)
+            local absSize = abilityFrame:IsA("GuiObject") and abilityFrame.AbsoluteSize or Vector2.new(50,50)
+            local radius = math.max(1, math.min(absSize.X, absSize.Y) * 0.15)
+            uiCorner.CornerRadius = UDim.new(0, radius)
+
+            if abilityFrame:IsA("GuiObject") then
+                abilityFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+                    local newAbsSize = abilityFrame.AbsoluteSize
+                    local newRadius = math.max(1, math.min(newAbsSize.X, newAbsSize.Y) * 0.15)
+                    uiCorner.CornerRadius = UDim.new(0, newRadius)
+                end)
+            end
+        else
+             warn("Could not find 'Ability' frame or base button to parent cooldown visual for", name)
+        end
+
+        abilityButtons[name] = button
+        print("UI Button Created:", name)
+
+    end
+    print("UI Setup Complete")
+end
+
+-- // Cooldown Update Loop
+RunService.Heartbeat:Connect(function(dt)
+    for name, button in pairs(abilityButtons) do
+        local buttonExists = pcall(function() return button.Parent end)
+        if not buttonExists then
+             abilityButtons[name] = nil
+             -- print("Button removed or invalid in Heartbeat:", name) -- Less frequent debug print
+             continue
+        end
+
+        if button and button.Parent then
+            local timeLeft = (lastAbilityTimes[name] or 0) + (abilityCooldowns[name] or 0) - tick()
+            local abilityFrame = button:FindFirstChild("Ability") or button
+            local cooldownFrame = abilityFrame and abilityFrame:FindFirstChild("Cooldown")
+            local timerLabel = button:FindFirstChild("Timer") or button:FindFirstChild("AbilityName", true)
+
+            if timeLeft > 0 then
+                if cooldownFrame then
+                    local progress = math.clamp(timeLeft / abilityCooldowns[name], 0, 1)
+                    pcall(function() cooldownFrame.Size = UDim2.new(1, 0, progress, 0) end) -- Wrap UI update
+                    cooldownFrame.Visible = true
+                end
+                if timerLabel and timerLabel:IsA("TextLabel") then
+                     pcall(function() timerLabel.Text = string.format("%.1fs", timeLeft) end)
+                 end
+            else
+                if cooldownFrame then cooldownFrame.Visible = false end
+                if timerLabel and timerLabel:IsA("TextLabel") then
+                     local newText = ""
+                     if name == "VoidGuard" then
+                         newText = isVoidGuardActive and "Void Guard ON" or "Void Guard OFF"
+                     else
+                        if abilities[name] and abilities[name].TimerText then
+                            newText = abilities[name].TimerText
+                        else
+                             newText = name -- Fallback
+                        end
+                     end
+                     if timerLabel.Text ~= newText then -- Only update if text changed
+                        pcall(function() timerLabel.Text = newText end)
+                     end
+                 end
+            end
+        end
+    end
+end)
+
+-- // Style UI Update
+task.spawn(function()
+    local StyleBG = player:WaitForChild("PlayerGui"):WaitForChild("Style", 15)
+    if not StyleBG then warn("Style GUI not found.") return end
+    local BG = StyleBG:WaitForChild("BG", 10)
+    if not BG then warn("Style BG Frame not found.") return end
+    local StyleTxt = BG:FindFirstChild("StyleTxt")
+    local Slots = BG:FindFirstChild("Slots")
+    local Desc = BG:FindFirstChild("Desc")
+    if not (StyleTxt and Slots and Desc) then warn("Style UI elements missing.") return end
+    local ScrollingFrame = Slots:FindFirstChildOfClass("ScrollingFrame")
+    local Slot1 = ScrollingFrame and ScrollingFrame:FindFirstChild("Slot1")
+    local Slot1Text = Slot1 and (Slot1:FindFirstChild("TextLabel") or Slot1:FindFirstChild("Text") or Slot1:FindFirstChildWhichIsA("TextLabel", true))
+    if not Slot1Text then warn("Slot 1 Text Label not found.") end
+
+    while task.wait(1) do
+        pcall(function()
+            if StyleTxt then StyleTxt.Text = STYLE_NAME; StyleTxt.TextColor3 = STYLE_TEXT_COLOR end
+            if Slot1Text then Slot1Text.Text = STYLE_NAME; Slot1Text.TextColor3 = STYLE_TEXT_COLOR end
+            if Desc then Desc.Text = STYLE_DESCRIPTION; Desc.TextColor3 = STYLE_TEXT_COLOR end
+        end)
+    end
+end)
+
+
+-- // Character Respawn Handling
+player.CharacterAdded:Connect(function(newCharacter)
+    print("Character Added Event Fired")
+    character = newCharacter
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    loadedAnimations = {}
+    isVoidGuardActive = false
+    for name, _ in pairs(abilities) do lastAbilityTimes[name] = 0 end
+    print("Ego Jinpachi Style: Character respawned, variables reset.")
+    -- Consider adding setupAbilityUI() call here if needed after respawn
+end)
+
+-- // Initial UI Setup
+setupAbilityUI()
+
+-- // Connect Ability Activations
+if abilityButtons.EgoistSlick then
+    abilityButtons.EgoistSlick.Activated:Connect(EgoistSlick)
+    print("Connected EgoistSlick Button Activated")
+else
+    warn("EgoistSlick button not found in table for Activated connection")
+end
+-- Connect other abilities here later
+
+-- // Input Handling
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
+
+    local key = input.KeyCode
+
+    if abilities.EgoistSlick and key == abilities.EgoistSlick.Key then EgoistSlick() end
+    -- Add other keybind checks here later
+
+end)
+
+print(STYLE_NAME .. " Style Loaded Successfully!")
+-- Let me know when you're ready for Ability 2!
+
+-- // Helper Function: Find Nearest Opponent in Range
+local function findNearestOpponent(rangeMin, rangeMax)
+    local nearestOpponent = nil
+    local minDistSq = rangeMax * rangeMax -- Use squared distance for efficiency
+
+    for _, otherPlayer in ipairs(Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Team ~= player.Team and otherPlayer.Character then
+            local otherRootPart = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if otherRootPart then
+                local distSq = (rootPart.Position - otherRootPart.Position).Magnitude -- Actually need magnitude here for min range check
+                if distSq >= rangeMin and distSq <= rangeMax then
+                    -- Check line of sight (optional but good practice)
+                    local ray = Ray.new(rootPart.Position, (otherRootPart.Position - rootPart.Position).Unit * (distSq + 1))
+                    local hitPart, hitPos = Workspace:FindPartOnRayWithIgnoreList(ray, {character})
+                    
+                    -- If no part hit OR the hit part belongs to the opponent's character, consider it line of sight
+                    local hasLineOfSight = not hitPart or hitPart:IsDescendantOf(otherPlayer.Character)
+                    
+                    if hasLineOfSight and distSq < minDistSq then -- Check against squared max distance
+                        minDistSq = distSq * distSq -- Store squared distance if comparing squares
+                        nearestOpponent = {
+                            player = otherPlayer,
+                            character = otherPlayer.Character,
+                            rootPart = otherRootPart,
+                            distance = distSq -- Store actual distance
+                        }
+                    end
+                end
+            end
+        end
+    end
+    return nearestOpponent
+end
+
+-- // Ability Function: EGOIST SLICK
+local function EgoistSlick()
+    local abilityName = "EgoistSlick"
+    local currentTime = tick()
+    if currentTime - (lastAbilityTimes[abilityName] or 0) < abilityCooldowns[abilityName] then
+        print(abilityName .. " on cooldown.")
+        return
+    end
+
+    character = player.Character or player.CharacterAdded:Wait()
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid:GetState() == Enum.HumanoidStateType.Dead then return end
+
+    local opponentData = findNearestOpponent(5, 15)
+
+    if opponentData then
+        print("Egoist Slick: Found opponent", opponentData.player.Name, "at distance", opponentData.distance)
+        lastAbilityTimes[abilityName] = currentTime
+
+        local opponentRoot = opponentData.rootPart
+        local playerPos = rootPart.Position
+        local opponentPos = opponentRoot.Position
+        
+        -- Determine if opponent is to the player's left or right
+        local toOpponent = (opponentPos - playerPos).Unit
+        local playerRight = rootPart.CFrame.RightVector
+        local dotProduct = playerRight:Dot(toOpponent)
+        
+        local teleportSideOffset = 3 -- How many studs to the side of the opponent
+        local targetPos
+        local opponentRight = opponentRoot.CFrame.RightVector
+
+        if dotProduct > 0 then -- Opponent is to the player's right
+            print("Teleporting to opponent's LEFT side")
+            targetPos = opponentPos - (opponentRight * teleportSideOffset)
+        else -- Opponent is to the player's left (or directly in front/behind)
+            print("Teleporting to opponent's RIGHT side")
+            targetPos = opponentPos + (opponentRight * teleportSideOffset)
+        end
+        
+        -- Ensure target position is not inside geometry (basic check)
+        targetPos = Vector3.new(targetPos.X, opponentPos.Y, targetPos.Z) -- Keep same height as opponent
+        local checkRay = Ray.new(targetPos + Vector3.new(0, 5, 0), Vector3.new(0, -10, 0))
+        local hit, pos = Workspace:FindPartOnRayWithIgnoreList(checkRay, {character, opponentData.character})
+        if hit then
+             targetPos = pos + Vector3.new(0, humanoid.HipHeight + 0.1, 0) -- Adjust height based on ground
+        else
+             targetPos = targetPos + Vector3.new(0, humanoid.HipHeight + 0.1 - rootPart.Size.Y/2, 0) -- Estimate ground if no hit
+        end
+
+        -- Teleport
+        rootPart.CFrame = CFrame.new(targetPos) * CFrame.Angles(0, math.atan2(-(opponentPos.X - targetPos.X), -(opponentPos.Z - targetPos.Z)), 0) -- Face opponent
+
+        -- Play Animation
+        local animTrack = humanoid:LoadAnimation(Instance.new("Animation", {AnimationId = ANIM_ID_EGOIST_SLICK}))
+        animTrack:Play()
+        Debris:AddItem(animTrack, animTrack.Length + 0.1)
+
+        -- Play Sound (Placeholder)
+        local sound = Instance.new("Sound", rootPart)
+        sound.SoundId = SOUND_ID_EGOIST_SLICK
+        sound.Volume = 1.5
+        sound:Play()
+        Debris:AddItem(sound, 3)
+
+        -- Play VFX
+        if VFX.BestShootingVFX2 then
+            VFX.BestShootingVFX2(rootPart)
+        end
+
+        print(abilityName .. " used successfully.")
+    else
+        print(abilityName .. ": No opponent found in range (5-15 studs).")
+    end
+end
+
+-- // TODO: Add functions for other abilities (TraumatizedCurve, ElastoPass, VoidGuard, ChaosImpact, BlackHoleStrike)
+
+-- // UI Setup and Input Handling (Needs to be created or adapted)
+-- This section needs to be added to create buttons and connect inputs to the ability functions.
+-- Example structure (adapt from provided files):
+
+local uiConnections = {}
+
+local function setupAbilityButton(abilityName, config)
+    -- Find or clone button template
+    local playerGui = player:WaitForChild("PlayerGui")
+    local inGameUI = playerGui:WaitForChild("InGameUI", 15)
+    if not inGameUI then warn("No InGameUI"); return end
+    local bottom = inGameUI:WaitForChild("Bottom", 10)
+    if not bottom then warn("No Bottom"); return end
+    local bottomAbilities = bottom:WaitForChild("Abilities", 10)
+    if not bottomAbilities then warn("No Abilities Frame"); return end
+    local templateButton = bottomAbilities:FindFirstChild("1") or bottomAbilities:FindFirstChildWhichIsA("ImageButton")
+    if not templateButton then warn("No Template Button"); return end
+
+    -- Remove old button if exists
+    local oldBtn = bottomAbilities:FindFirstChild(config.ButtonName)
+    if oldBtn then oldBtn:Destroy(); task.wait(0.1) end
+
+    -- Clone and configure new button
+    local button = templateButton:Clone()
+    button.Name = config.ButtonName
+    button.Parent = bottomAbilities
+    button.LayoutOrder = config.LayoutOrder
+
+    local keybindLabel = button:FindFirstChild("Keybind", true)
+    local timerLabel = button:FindFirstChild("Timer") or button:FindFirstChild("AbilityName", true)
+    local actualTimerLabel = button:FindFirstChild("ActualTimer", true)
+
+    if keybindLabel and keybindLabel:IsA("TextLabel") then keybindLabel.Text = config.Key.Name end
+    if timerLabel and timerLabel:IsA("TextLabel") then timerLabel.Text = config.TimerText end
+    if actualTimerLabel and actualTimerLabel:IsA("TextLabel") then actualTimerLabel.Text = "" end
+
+    -- Add Cooldown Visual Frame
+    local cooldownFrame = button:FindFirstChild("Cooldown") or button:FindFirstChild("cooldown")
+    if cooldownFrame then cooldownFrame:Destroy() end -- Remove template cooldown if exists
+    
+    local abilityFrame = button:FindFirstChild("Ability") or button
+    if abilityFrame and abilityFrame:IsA("GuiObject") then
+        cooldownFrame = Instance.new("Frame")
+        cooldownFrame.Name = "Cooldown"
+        cooldownFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        cooldownFrame.BackgroundTransparency = 0.6
+        cooldownFrame.BorderSizePixel = 0
+        cooldownFrame.Size = UDim2.new(1, 0, 1, 0) -- Full size initially
+        cooldownFrame.Position = UDim2.new(0, 0, 1, 0) -- Start from bottom
+        cooldownFrame.AnchorPoint = Vector2.new(0, 1)
+        cooldownFrame.ZIndex = (abilityFrame.ZIndex or 1) + 1
+        cooldownFrame.Visible = false -- Initially hidden
+        cooldownFrame.Parent = abilityFrame
+        
+        local uiCorner = Instance.new("UICorner", cooldownFrame)
+        local absSize = abilityFrame.AbsoluteSize
+        local radius = math.max(1, math.min(absSize.X, absSize.Y) * 0.15)
+        uiCorner.CornerRadius = UDim.new(0, radius)
+        
+        -- Update corner radius if button size changes
+        abilityFrame:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+            pcall(function()
+                if not uiCorner or not uiCorner.Parent then return end
+                local newSize = abilityFrame.AbsoluteSize
+                local newRadius = math.max(1, math.min(newSize.X, newSize.Y) * 0.15)
+                uiCorner.CornerRadius = UDim.new(0, newRadius)
+            end)
+        end)
+    end
+
+    -- Connect Button Activation
+    local activationFunc
+    if abilityName == "EgoistSlick" then activationFunc = EgoistSlick
+    elseif abilityName == "TraumatizedShot" then activationFunc = TraumatizedShot
+    elseif abilityName == "ElastoPass" then activationFunc = ElastoPass
+    elseif abilityName == "VoidGuard" then activationFunc = VoidGuardToggle
+    elseif abilityName == "ChaosImpact" then activationFunc = ChaosImpact
+    elseif abilityName == "BlackHoleStrike" then activationFunc = BlackHoleStrike
+    end
+
+    if activationFunc then
+        local con = button.Activated:Connect(activationFunc)
+        table.insert(uiConnections, con)
+    end
+    
+    return button
+end
+
+-- // Cooldown Update Loop
+local function updateCooldowns()
+    local currentTime = tick()
+    for name, config in pairs(abilities) do
+        local button = player.PlayerGui.InGameUI.Bottom.Abilities:FindFirstChild(config.ButtonName)
+        if button then
+            local cooldownFrame = button:FindFirstChild("Cooldown", true)
+            local timerLabel = button:FindFirstChild("Timer", true) or button:FindFirstChild("AbilityName", true)
+            local remainingCooldown = (lastAbilityTimes[name] or 0) + abilityCooldowns[name] - currentTime
+
+            if remainingCooldown > 0 then
+                if cooldownFrame then
+                    local progress = math.clamp(remainingCooldown / abilityCooldowns[name], 0, 1)
+                    cooldownFrame.Size = UDim2.new(1, 0, progress, 0)
+                    cooldownFrame.Visible = true
+                end
+                if timerLabel and timerLabel:IsA("TextLabel") then
+                    timerLabel.Text = string.format("%.1fs", remainingCooldown)
+                end
+            else
+                if cooldownFrame then cooldownFrame.Visible = false end
+                if timerLabel and timerLabel:IsA("TextLabel") then
+                    -- Special case for Void Guard text
+                    if name == "VoidGuard" then
+                         timerLabel.Text = isVoidGuardActive and abilities.VoidGuard.TimerText:gsub("OFF", "ON") or abilities.VoidGuard.TimerText
+                    elseif timerLabel.Text ~= config.TimerText then
+                         timerLabel.Text = config.TimerText
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- // Input Handling
+local function onInputBegan(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        for name, config in pairs(abilities) do
+            if input.KeyCode == config.Key then
+                local activationFunc
+                if name == "EgoistSlick" then activationFunc = EgoistSlick
+                elseif name == "TraumatizedShot" then activationFunc = TraumatizedShot
+                elseif name == "ElastoPass" then activationFunc = ElastoPass
+                elseif name == "VoidGuard" then activationFunc = VoidGuardToggle
+                elseif name == "ChaosImpact" then activationFunc = ChaosImpact
+                elseif name == "BlackHoleStrike" then activationFunc = BlackHoleStrike
+                end
+                if activationFunc then
+                    pcall(activationFunc) -- Use pcall for safety
+                end
+                break -- Stop checking keys once a match is found
+            end
+        end
+    end
+end
+
+-- // Cleanup Function
+local function cleanup()
+    print("Cleaning up EGO JINPANCHI style...")
+    -- Disconnect UI connections
+    for _, con in ipairs(uiConnections) do
+        if con and con.Connected then con:Disconnect() end
+    end
+    uiConnections = {}
+    
+    -- Disconnect Heartbeat and Input
+    if uiConnections.heartbeatUpdate then uiConnections.heartbeatUpdate:Disconnect() end
+    if uiConnections.inputBegan then uiConnections.inputBegan:Disconnect() end
+    
+    -- Remove Buttons
+    local abilitiesFrame = player.PlayerGui.InGameUI.Bottom.Abilities
+    for name, config in pairs(abilities) do
+        local btn = abilitiesFrame:FindFirstChild(config.ButtonName)
+        if btn then btn:Destroy() end
+    end
+end
+
+-- // Initialization
+local function initialize()
+    print("Initializing EGO JINPANCHI style...")
+    
+    -- Setup UI Buttons
+    for name, config in pairs(abilities) do
+        setupAbilityButton(name, config)
+    end
+    
+    -- Connect Cooldown Update Loop
+    uiConnections.heartbeatUpdate = RunService.Heartbeat:Connect(updateCooldowns)
+    
+    -- Connect Input Handling
+    uiConnections.inputBegan = UserInputService.InputBegan:Connect(onInputBegan)
+    
+    -- Handle Player Removing (for cleanup)
+    Players.PlayerRemoving:Connect(function(p)
+        if p == player then cleanup() end
+    end)
+    
+    -- Handle Character Respawn
+    player.CharacterAdded:Connect(function(newCharacter)
+        print("EGO JINPANCHI: Character Respawned")
+        character = newCharacter
+        humanoid = character:WaitForChild("Humanoid")
+        rootPart = character:WaitForChild("HumanoidRootPart")
+        -- Reset cooldowns visually
+        for name, _ in pairs(abilities) do lastAbilityTimes[name] = 0 end
+        isVoidGuardActive = false -- Reset Void Guard state
+        -- Re-parent sounds/attachments if needed (handled in ability functions for now)
+    end)
+    
+    print("EGO JINPANCHI style initialized.")
+end
+
+-- Run Initialization
+initialize()
+
+
+
+
+-- // Goal Coordinates (Placeholders - ADJUST THESE IN-GAME)
+local GOAL_COORDS = {
+    Home = Vector3.new(310, 17, -56), -- Placeholder for Home team's goal (usually opponent's goal when player is Away)
+    Away = Vector3.new(-232, 17, -57)  -- Placeholder for Away team's goal (usually opponent's goal when player is Home)
+}
+
+-- // Helper Function: Get Mouse Hit Position
+local function getMouseHitPosition()
+    local mouse = player:GetMouse()
+    return mouse.Hit.Position
+end
+
+-- // Helper Function: Get Opponent Goal Coordinate
+local function getOpponentGoalCoord()
+    local playerTeam = player.Team
+    if playerTeam then
+        if playerTeam.Name == "Home" then
+            return GOAL_COORDS.Away
+        elseif playerTeam.Name == "Away" then
+            return GOAL_COORDS.Home
+        end
+    end
+    warn("Could not determine opponent goal coordinate.")
+    return nil -- Return nil if team cannot be determined
+end
+
+-- // Helper Function: Screen Shake
+local function shakeCamera(intensity, duration)
+    if not Camera or not Camera.Parent then return end
+    local originalCFrame = Camera.CFrame
+    local elapsed = 0
+    local heartbeat = RunService.Heartbeat
+    local connection
+    
+    local function stopShake()
+        if connection and connection.Connected then
+            if Camera and Camera.Parent then Camera.CFrame = originalCFrame end
+            connection:Disconnect()
+            connection = nil
+        end
+    end
+
+    connection = heartbeat:Connect(function(dt)
+        elapsed = elapsed + dt
+        if elapsed < duration then
+            local shakeOffset = CFrame.new(
+                (math.random() * 2 - 1) * intensity / 100,
+                (math.random() * 2 - 1) * intensity / 100,
+                0 -- No depth shake usually
+            ) * CFrame.Angles(
+                math.rad((math.random() * 2 - 1) * intensity * 0.05), -- Small random rotation
+                math.rad((math.random() * 2 - 1) * intensity * 0.05),
+                math.rad((math.random() * 2 - 1) * intensity * 0.05)
+            )
+            if Camera and Camera.Parent then
+                Camera.CFrame = originalCFrame * shakeOffset
+            else
+                stopShake() -- Stop if camera becomes invalid
+            end
+        else
+            stopShake() -- Stop when duration is over
+        end
+    end)
+    
+    task.delay(duration + 0.1, stopShake) -- Ensure cleanup even if Heartbeat stops
+end
+
+-- // Helper Function: Find Ball (Ensure it returns BasePart)
+local function findBall()
+    local football = Workspace:FindFirstChild("Football")
+    if football then
+        local ballPart = (football:FindFirstChild("BallAnims") and football.BallAnims:FindFirstChild("BALL")) or football:FindFirstChild("BALL")
+        if ballPart and ballPart:IsA("BasePart") then return ballPart end
+        if football:IsA("Model") and football.PrimaryPart then return football.PrimaryPart end
+        if football:IsA("BasePart") then return football end
+    end
+    -- Check if player is holding the ball (less common now?)
+    if character then
+        local ballInChar = character:FindFirstChild("BALL")
+        if ballInChar and ballInChar:IsA("BasePart") then return ballInChar end
+    end
+    warn("findBall: Could not find a valid Ball BasePart.")
+    return nil
+end
+
+-- // Client-Side Ball Curve Guidance
+local currentCurveConnection = nil
+local function applyCurveGuidance(ballPart, aimPosition, goalPosition)
+    if not ballPart or not ballPart.Parent then print("ApplyCurve: Ball invalid"); return end
+    if currentCurveConnection and currentCurveConnection.Connected then currentCurveConnection:Disconnect() end
+    if not aimPosition then warn("ApplyCurve: AimPosition is nil!"); return end
+    if not goalPosition then warn("ApplyCurve: GoalPosition is nil!"); return end
+
+    print("Applying Curve Guidance towards:", aimPosition, "relative to goal:", goalPosition)
+
+    local distanceToGoal = (rootPart.Position - goalPosition).Magnitude
+    
+    -- Adjust parameters based on distance
+    local baseSpeed = 150 -- Base speed, power adds to this
+    local maxSpeed = 350
+    local curveFactor = math.clamp(100 / distanceToGoal, 0.1, 2.0) -- More curve closer, less far away (adjust multiplier)
+    local powerFactor = math.clamp(distanceToGoal / 50, 0.5, 3.0) -- More power further away (adjust divisor)
+    local duration = math.clamp(distanceToGoal / 100, 1.0, 3.0) -- Longer flight time for longer shots
+    local correctionStrength = 80 -- How strongly it corrects towards the aim
+
+    local targetSpeed = math.min(baseSpeed * powerFactor, maxSpeed)
+    print(string.format("Dist: %.1f, CurveF: %.2f, PowerF: %.2f, TargetSpd: %.1f, Duration: %.1f", distanceToGoal, curveFactor, powerFactor, targetSpeed, duration))
+
+    local startTime = tick()
+    local initialDirection = (aimPosition - ballPart.Position).Unit
+    ballPart.AssemblyLinearVelocity = initialDirection * targetSpeed * 0.8 -- Initial boost
+
+    currentCurveConnection = RunService.Heartbeat:Connect(function(dt)
+        if dt == 0 then dt = 1/60 end
+        if not ballPart or not ballPart:IsDescendantOf(Workspace) then if currentCurveConnection and currentCurveConnection.Connected then currentCurveConnection:Disconnect() end return end
+        if tick() - startTime >= duration then if currentCurveConnection and currentCurveConnection.Connected then currentCurveConnection:Disconnect() end print("Curve guidance finished."); return end;
+
+        local currentVelocity = ballPart.AssemblyLinearVelocity
+        local directionToAim = (aimPosition - ballPart.Position).Unit
+        
+        -- Calculate curve direction (perpendicular to velocity and up vector, scaled by curveFactor)
+        local curveDirection = currentVelocity.Unit:Cross(Vector3.new(0, 1, 0)).Unit
+        -- Apply curve based on distance factor
+        local curveForce = curveDirection * curveFactor * 50 -- Adjust curve strength multiplier
+
+        -- Force to steer towards target velocity (direction * speed)
+        local correctionForce = (directionToAim * targetSpeed - currentVelocity) * correctionStrength
+
+        -- Apply forces (Gravity is handled by Roblox physics)
+        ballPart.AssemblyLinearVelocity = currentVelocity + (correctionForce + curveForce) * dt
+
+        -- Limit max speed
+        if ballPart.AssemblyLinearVelocity.Magnitude > maxSpeed then
+           ballPart.AssemblyLinearVelocity = ballPart.AssemblyLinearVelocity.Unit * maxSpeed
+        end
+    end)
+    task.delay(duration + 0.5, function() if currentCurveConnection and currentCurveConnection.Connected then print("Curve cleanup."); currentCurveConnection:Disconnect() end end)
+end
+
+
+-- // Ability Function: TRAUMATIZED SHOT
+local TRAUMA_SHOT_SPEED = 250 -- Adjustable Speed
+local function TraumatizedShot()
+    local abilityName = "TraumatizedShot"
+    local currentTime = tick()
+    if currentTime - (lastAbilityTimes[abilityName] or 0) < abilityCooldowns[abilityName] then
+        print(abilityName .. " on cooldown.")
+        return
+    end
+
+    -- Re-get components & check ball possession FIRST
+    character=player.Character or player.CharacterAdded:Wait(); humanoid=character:WaitForChild("Humanoid"); rootPart=character:WaitForChild("HumanoidRootPart"); playerValues=character:WaitForChild("Values",10); 
+    if not (humanoid and rootPart and playerValues) then warn("TS: Player components missing.");return end;
+    
+    local hasBall = false
+    if StatesController and StatesController.GetState then
+        hasBall = StatesController:GetState("HasBall")
+    else -- Fallback check
+        local ball = findBall()
+        hasBall = ball and ball:IsDescendantOf(character)
+        if not hasBall then ball = findBall(); if ball and (ball.Position - rootPart.Position).Magnitude < 5 then hasBall = true end end
+        warn(abilityName .. ": Using fallback ball check.")
+    end
+    
+    if not hasBall then
+        print(abilityName .. ": Player does not have the ball.")
+        return
+    end
+
+    if not ShootRemote then warn("TS: ShootRemote missing!"); return end -- Still check if remote exists
+
+    StartCooldown(abilityName)
+    playSound(SOUND_ID_TRAUMA_SHOT, rootPart)
+    shakeCamera(10, 0.3)
+
+    -- 1. Detach ball using minimal power shot (server-side)
+    ShootRemote:FireServer(1) -- Minimal power just to detach
+    print("Fired ShootRemote (Power 1) to detach ball")
+
+    -- 2. Start looking for the ball IN WORKSPACE and apply lift/freeze/shoot
+    task.spawn(function()
+        local ballInWorkspace = nil
+        local findStart = tick()
+        local findTimeout = 1.5 -- Allow time for ball to appear in workspace
+        local startPos = rootPart.Position -- Get player pos approx where ball was
+
+        print("TS: Starting post-shot ball search...")
+        repeat
+            task.wait() -- Wait a frame THEN check
+            ballInWorkspace = findBall() -- Checks workspace only now
+            -- Optional: Add distance check from player if multiple balls could exist
+            -- if ballInWorkspace and (ballInWorkspace.Position - startPos).Magnitude > 30 then ballInWorkspace = nil end
+        until ballInWorkspace or (tick() - findStart > findTimeout)
+
+        if not ballInWorkspace then
+            warn("TS: Ball did not appear in Workspace after detach timeout.")
+            return -- Stop if ball never appeared
+        end
+
+        print("TS: Ball found in workspace, applying lift/freeze.")
+        local liftHeight = 30
+        local freezeDuration = 0.2 -- MODIFIED: Freeze duration changed to 0.2s
+        local targetPos = ballInWorkspace.Position + Vector3.new(0, liftHeight, 0)
+
+        local bp = Instance.new("BodyPosition")
+        bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bp.P = 30000 -- MODIFIED: P value set to 30000
+        bp.D = 1000
+        bp.Position = targetPos
+        bp.Parent = ballInWorkspace
+
+        -- 3. Wait for Freeze Duration
+        task.wait(freezeDuration)
+
+        -- 4. Shoot Towards Goal (Client-Side BodyVelocity)
+        local goalPosition = getOpponentGoalCoord()
+        if not goalPosition then warn("TS: Couldn't get goal position."); if bp and bp.Parent then bp:Destroy() end return end
+        if not ballInWorkspace or not ballInWorkspace.Parent or not bp or not bp.Parent then warn("TS: Ball or BP lost during freeze."); return end
+
+        local currentBallPos = ballInWorkspace.Position
+        bp:Destroy()
+        print("Removed BodyPosition")
+
+        local shootDirection = (goalPosition - currentBallPos).Unit
+        -- local shootSpeed = 250 -- Original speed
+        local shootSpeed = TRAUMA_SHOT_SPEED -- MODIFIED: Using adjustable variable
+
+        local bv = Instance.new("BodyVelocity")
+        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bv.Velocity = shootDirection * shootSpeed
+        bv.Parent = ballInWorkspace
+        print("Applied BodyVelocity towards goal with speed:", shootSpeed)
+
+        Debris:AddItem(bv, 3.0)
+    end)
+
+    print("Traumatized Shot Activated")
+end
+
+
+
+
+-- // Teammate Marker Logic (Using Highlight Instance)
+local markedTeammatePlayer = nil
+local teammateHighlight = Instance.new("Highlight")
+teammateHighlight.Name = "TeammateHighlightMarker"
+teammateHighlight.Adornee = nil -- Start with no target
+teammateHighlight.FillColor = Color3.fromRGB(255, 140, 0)   -- Dark Orange Fill
+teammateHighlight.OutlineColor = Color3.fromRGB(255, 140, 0) -- Dark Orange Outline
+teammateHighlight.FillTransparency = 1 -- Make Fill invisible
+teammateHighlight.OutlineTransparency = 0 -- Make Outline visible
+teammateHighlight.DepthMode = Enum.HighlightDepthMode.Occluded -- Show through walls
+teammateHighlight.Enabled = false -- Start disabled
+teammateHighlight.Parent = player.PlayerGui -- Parent to PlayerGui for management
+
+-- // Helper Function: Find Teammates
+local function findTeammates()
+    local teammatesList = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player and p.Team == player.Team then
+            table.insert(teammatesList, p)
+        end
+    end
+    return teammatesList
+end
+
+-- // Heartbeat Connection for Teammate Highlighting
+local teammateHighlightConnection = nil
+teammateHighlightConnection = RunService.Heartbeat:Connect(function()
+    local success, err = pcall(function()
+        local closestTeammatePlayer = nil
+        local closestDist = math.huge
+        local teammates = findTeammates()
+        
+        character = player.Character -- Refresh character reference
+        if not character or not character.Parent then return end -- Exit if character invalid
+        rootPart = character:FindFirstChild("HumanoidRootPart")
+        if not rootPart then return end -- Exit if rootPart invalid
+        
+        if not Camera or not Camera.Parent then return end -- Exit if camera invalid
+        local viewportCenter = Camera.ViewportSize / 2
+
+        for _, teammate in ipairs(teammates) do
+            local teammateChar = teammate.Character
+            if teammateChar and teammateChar.Parent and teammateChar:FindFirstChild("HumanoidRootPart") then
+                local teammateRootPart = teammateChar.HumanoidRootPart
+                local screenPos, onScreen = Camera:WorldToViewportPoint(teammateRootPart.Position)
+                if onScreen then
+                    local distFromCenter = (Vector2.new(screenPos.X, screenPos.Y) - viewportCenter).Magnitude
+                    if distFromCenter < closestDist then
+                        closestDist = distFromCenter
+                        closestTeammatePlayer = teammate
+                    end
+                end
+            end
+        end
+        
+        markedTeammatePlayer = closestTeammatePlayer
+
+        -- Control the Highlight Instance
+        local targetCharacter = nil
+        if markedTeammatePlayer and markedTeammatePlayer.Character and markedTeammatePlayer.Character.Parent then
+            targetCharacter = markedTeammatePlayer.Character
+        end
+
+        if teammateHighlight.Adornee ~= targetCharacter then
+            teammateHighlight.Adornee = targetCharacter
+        end
+        teammateHighlight.Enabled = (targetCharacter ~= nil)
+
+    end)
+    if not success then
+        warn("Error in Teammate Marker Update Loop:", err)
+        if teammateHighlightConnection and teammateHighlightConnection.Connected then
+            -- Attempt to disconnect if erroring persistently (simple safeguard)
+            -- teammateHighlightConnection:Disconnect()
+            -- warn("Disconnected teammate highlight loop due to error.")
+        end
+    end
+end)
+
+-- // Ability Function: ELASTO PASS
+local function ElastoPass()
+    local abilityName = "ElastoPass"
+    local currentTime = tick()
+    if currentTime - (lastAbilityTimes[abilityName] or 0) < abilityCooldowns[abilityName] then
+        print(abilityName .. " on cooldown.")
+        return
+    end
+
+    character = player.Character or player.CharacterAdded:Wait()
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid:GetState() == Enum.HumanoidStateType.Dead then return end
+
+    -- Check if player has ball (using Knit StatesController if available)
+    local hasBall = false
+    if StatesController and StatesController.GetState then
+        hasBall = StatesController:GetState("HasBall")
+    else -- Fallback check
+        local ball = findBall()
+        hasBall = ball and ball:IsDescendantOf(character)
+        if not hasBall then ball = findBall(); if ball and (ball.Position - rootPart.Position).Magnitude < 5 then hasBall = true end end
+        warn(abilityName .. ": Using fallback ball check.")
+    end
+    
+    if not hasBall then
+        print(abilityName .. ": Player does not have the ball.")
+        return
+    end
+
+    local targetTeammate = markedTeammatePlayer
+    if not targetTeammate or not targetTeammate.Character or not targetTeammate.Character:FindFirstChild("HumanoidRootPart") then
+        print(abilityName .. ": No marked teammate to pass to!")
+        return
+    end
+    
+    if not ShootRemote then warn(abilityName .. ": ShootRemote missing!"); return end
+
+    lastAbilityTimes[abilityName] = currentTime
+    print(abilityName .. " activated. Passing to:", targetTeammate.Name)
+
+    -- Play Animation (Placeholder)
+    local animTrack = humanoid:LoadAnimation(Instance.new("Animation", {AnimationId = ANIM_ID_ELASTO_PASS}))
+    animTrack:Play()
+    Debris:AddItem(animTrack, animTrack.Length + 0.1)
+
+    -- Play Sound (Placeholder)
+    local sound = Instance.new("Sound", rootPart)
+    sound.SoundId = SOUND_ID_ELASTO_PASS
+    sound.Volume = 1.5
+    sound:Play()
+    Debris:AddItem(sound, 3)
+
+    -- Play VFX (Placeholder - User mentioned WAVE KICK VFX later)
+    -- TODO: Replace with actual Wave Kick VFX when provided
+    local vfxAttach = rootPart:FindFirstChild("ElastoPassVFXAttachment") or Instance.new("Attachment", rootPart)
+    vfxAttach.Name = "ElastoPassVFXAttachment"
+    local placeholderVFX = vfxAttach:FindFirstChild("PlaceholderVFX") or Instance.new("ParticleEmitter", vfxAttach)
+    placeholderVFX.Name = "PlaceholderVFX"; placeholderVFX.Texture = "rbxassetid://26230493"; placeholderVFX.Color = ColorSequence.new(Color3.fromRGB(0,0,0)); placeholderVFX.LightEmission = 0.5; placeholderVFX.Size = NumberSequence.new(0.1, 0.5); placeholderVFX.Transparency = NumberSequence.new(0, 1); placeholderVFX.Lifetime = NumberRange.new(0.3, 0.6); placeholderVFX.Rate = 50; placeholderVFX.Speed = NumberRange.new(5, 10); placeholderVFX.SpreadAngle = Vector2.new(360, 360); placeholderVFX.Enabled = true;
+    placeholderVFX:Emit(30)
+    task.delay(0.6, function() if placeholderVFX and placeholderVFX.Parent then placeholderVFX.Enabled = false end end)
+
+    -- Fire initial shot (low power, just to release ball)
+    ShootRemote:FireServer(50) -- Power 50 as per original script
+    
+    -- Wait briefly for ball to detach
+    task.wait(0.1)
+
+    -- Find ball and apply velocity towards teammate
+    local ball = findBall()
+    if not ball then
+        warn(abilityName .. ": Could not find ball after shooting!")
+        return
+    end
+
+    -- Clear existing velocity/forces
+    for _, child in ipairs(ball:GetChildren()) do
+        if child:IsA("BodyVelocity") or child:IsA("BodyPosition") or child:IsA("BodyForce") then
+            child:Destroy()
+        end
+    end
+
+    local passSpeed = 350 -- Very high speed as requested
+    local bodyVel = Instance.new("BodyVelocity")
+    bodyVel.MaxForce = Vector3.new(math.huge, math.huge, math.huge) -- Use math.huge for max force
+    bodyVel.Parent = ball
+
+    local passConnection = nil
+    passConnection = RunService.Heartbeat:Connect(function()
+        -- Check validity of ball and target
+        if not ball or not ball.Parent or not bodyVel or not bodyVel.Parent then
+            if passConnection then passConnection:Disconnect() end
+            return
+        end
+        if not targetTeammate or not targetTeammate.Character or not targetTeammate.Character:FindFirstChild("HumanoidRootPart") then
+            if bodyVel and bodyVel.Parent then bodyVel:Destroy() end
+            if passConnection then passConnection:Disconnect() end
+            warn(abilityName .. ": Target teammate became invalid during pass.")
+            return
+        end
+
+        local targetHRP = targetTeammate.Character.HumanoidRootPart
+        local targetPos = targetHRP.Position
+        local direction = (targetPos - ball.Position).Unit
+        bodyVel.Velocity = direction * passSpeed
+
+        -- Stop when close to target
+        if (ball.Position - targetPos).Magnitude < 5 then
+            if bodyVel and bodyVel.Parent then bodyVel:Destroy() end
+            if passConnection then passConnection:Disconnect() end
+            print(abilityName .. ": Pass reached target.")
+        end
+    end)
+
+    -- Cleanup after a timeout
+    Debris:AddItem(bodyVel, 3) -- Remove velocity after 3 seconds max
+    task.delay(3, function()
+        if passConnection and passConnection.Connected then
+            passConnection:Disconnect()
+            warn(abilityName .. ": Pass timed out.")
+        end
+    end)
+
+    print(abilityName .. " pass initiated.")
+end
+
+
+
+-- // Void Guard State Tracking
+local playerCooldowns = {} -- Stores UserId -> tick() of last activation
+local BODYBLOCK_COOLDOWN_PER_PLAYER = 5 -- 5 second cooldown per player
+
+-- // Helper Function: Check Toggle Cooldown
+local function IsToggleReady(abilityName)
+    local cooldown = abilities[abilityName].Cooldown -- Use the defined toggle cooldown
+    local last = lastAbilityTimes[abilityName] or 0
+    if typeof(last) ~= "number" then last = 0 end
+    return tick() - last >= cooldown
+end
+
+-- // Ability Function: VOID GUARD TOGGLE
+local function VoidGuardToggle()
+    local abilityName = "VoidGuard"
+    if not IsToggleReady(abilityName) then
+        print(abilityName .. " Toggle on CD")
+        return
+    end
+
+    lastAbilityTimes[abilityName] = tick() -- Start toggle cooldown
+
+    if isVoidGuardActive then
+        -- Currently ON -> Turn OFF
+        isVoidGuardActive = false
+        print(abilityName .. " Toggled OFF")
+    else
+        -- Currently OFF -> Turn ON
+        isVoidGuardActive = true
+        print(abilityName .. " Toggled ON")
+        -- Reset player cooldowns when turning on? Optional, maybe not needed.
+        -- playerCooldowns = {}
+    end
+    
+    -- Force UI update immediately after toggle
+    updateCooldowns()
+end
+
+-- // Heartbeat Function: Check and Trigger Body Block for Void Guard
+local voidGuardHeartbeatConnection = nil
+local function CheckAndTriggerBodyBlock()
+    if not isVoidGuardActive then return end -- Only run if toggled ON
+    if not AbilityRemote or not AbilityUsedRemote then return end -- Need remotes
+
+    character = player.Character -- Refresh refs
+    if not character or not character.Parent then return end
+    rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+
+    local blockRangeMin = 20
+    local blockRangeMax = 30
+    local BODYBLOCK_ABILITY_NAME = "BodyBlock" -- Name for the remote event
+
+    for _, otherPlayer in ipairs(Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Team ~= player.Team and otherPlayer.Character then
+            local otherRootPart = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if otherRootPart then
+                local distance = (rootPart.Position - otherRootPart.Position).Magnitude
+                
+                -- Check if within range (20-30 studs)
+                if distance >= blockRangeMin and distance <= blockRangeMax then
+                    -- Check per-player cooldown
+                    local lastHitTime = playerCooldowns[otherPlayer.UserId] or 0
+                    if tick() - lastHitTime >= BODYBLOCK_COOLDOWN_PER_PLAYER then
+                        print("Void Guard: Opponent", otherPlayer.Name, "in range [", blockRangeMin, "-", blockRangeMax, "] & off CD. Firing", BODYBLOCK_ABILITY_NAME)
+                        
+                        -- Fire Remotes
+                        local success1, err1 = pcall(AbilityRemote.FireServer, AbilityRemote, BODYBLOCK_ABILITY_NAME, otherPlayer.Character)
+                        local success2, err2 = pcall(AbilityUsedRemote.FireServer, AbilityUsedRemote, BODYBLOCK_ABILITY_NAME)
+                        
+                        if not success1 then warn("Error firing AbilityRemote:", err1) end
+                        if not success2 then warn("Error firing AbilityUsedRemote:", err2) end
+                        
+                        -- Update cooldown time for this specific player
+                        playerCooldowns[otherPlayer.UserId] = tick()
+                        
+                        -- No VFX for Void Guard as requested
+                        
+                        break -- Only trigger on one player per frame/check
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Connect the Body Block check to Heartbeat
+voidGuardHeartbeatConnection = RunService.Heartbeat:Connect(CheckAndTriggerBodyBlock)
+
+
+
+
+-- // Placeholder VFX: Black Fire Ball
+VFX.BlackFireBall = function(ballPart)
+    if not ballPart or not ballPart.Parent then warn("BlackFireBall: Invalid ball part."); return end
+    print("Applying BlackFireBall VFX to", ballPart)
+
+    local fireAttach = ballPart:FindFirstChild("BlackFireAttachment") or Instance.new("Attachment", ballPart)
+    fireAttach.Name = "BlackFireAttachment"
+
+    -- Simple Black Fire Emitter (Placeholder)
+    local fire = fireAttach:FindFirstChild("BlackFire") or Instance.new("ParticleEmitter", fireAttach)
+    fire.Name = "BlackFire"
+    fire.Texture = "rbxassetid://2617293639" -- Generic fire texture
+    fire.Color = ColorSequence.new(Color3.fromRGB(0, 0, 0)) -- Black
+    fire.LightEmission = 0 -- No light from black fire
+    fire.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.5, 2.5), NumberSequenceKeypoint.new(1, 1)})
+    fire.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(0.7, 0.6), NumberSequenceKeypoint.new(1, 1)})
+    fire.Lifetime = NumberRange.new(0.4, 0.8)
+    fire.Rate = 40
+    fire.Speed = NumberRange.new(1, 3)
+    fire.Rotation = NumberRange.new(-180, 180)
+    fire.RotSpeed = NumberRange.new(-50, 50)
+    fire.SpreadAngle = Vector2.new(30, 30)
+    fire.Drag = 1
+    fire.Acceleration = Vector3.new(0, 2, 0) -- Slight upward drift
+    fire.Enabled = true
+
+    -- Automatically disable and destroy after a while
+    task.delay(2.5, function()
+        if fire and fire.Parent then fire.Enabled = false end
+        task.wait(1) -- Wait for particles to fade
+        if fireAttach and fireAttach.Parent then fireAttach:Destroy() end
+    end)
+end
+
+-- // Ability Function: CHAOS IMPACT
+local function ChaosImpact()
+    local abilityName = "ChaosImpact"
+    local currentTime = tick()
+    if currentTime - (lastAbilityTimes[abilityName] or 0) < abilityCooldowns[abilityName] then
+        print(abilityName .. " on cooldown.")
+        return
+    end
+
+    character = player.Character or player.CharacterAdded:Wait()
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid:GetState() == Enum.HumanoidStateType.Dead then return end
+
+    -- Check if player has ball
+    local hasBall = false
+    if StatesController and StatesController.GetState then
+        hasBall = StatesController:GetState("HasBall")
+    else -- Fallback check
+        local ball = findBall()
+        hasBall = ball and ball:IsDescendantOf(character)
+        if not hasBall then ball = findBall(); if ball and (ball.Position - rootPart.Position).Magnitude < 5 then hasBall = true end end
+        warn(abilityName .. ": Using fallback ball check.")
+    end
+    
+    if not hasBall then
+        print(abilityName .. ": Player does not have the ball.")
+        return
+    end
+    
+    if not ShootRemote then warn(abilityName .. ": ShootRemote missing!"); return end
+
+    local aimPosition = getMouseHitPosition()
+    local goalPosition = getOpponentGoalCoord()
+
+    if not goalPosition then
+        warn(abilityName .. ": Could not determine opponent goal position.")
+        return
+    end
+
+    lastAbilityTimes[abilityName] = currentTime
+    print(abilityName .. " activated. Aiming at:", aimPosition)
+
+    -- Calculate distance and power
+    local distanceToGoal = (rootPart.Position - goalPosition).Magnitude
+    -- Power scaling: More power for longer distances. Adjust base and factor as needed.
+    local basePower = 60
+    local distanceFactor = 1.5
+    local calculatedPower = math.clamp(basePower + (distanceToGoal * distanceFactor), 50, 250) -- Min power 50, Max power 250
+    print(string.format("Chaos Impact - Dist: %.1f, Power: %.1f", distanceToGoal, calculatedPower))
+
+    -- Play Animation (Placeholder)
+    local animTrack = humanoid:LoadAnimation(Instance.new("Animation", {AnimationId = ANIM_ID_CHAOS_IMPACT}))
+    animTrack:Play()
+    Debris:AddItem(animTrack, animTrack.Length + 0.1)
+
+    -- Play Sound (Placeholder)
+    local sound = Instance.new("Sound", rootPart)
+    sound.SoundId = SOUND_ID_CHAOS_IMPACT
+    sound.Volume = 1.8
+    sound:Play()
+    Debris:AddItem(sound, 3)
+
+    -- Fire the shot with calculated power
+    ShootRemote:FireServer(calculatedPower, nil, nil, aimPosition)
+    print("Fired Chaos Impact shot with Power", calculatedPower)
+
+    -- Screen Shake (Optional, add if desired)
+    -- shakeCamera(6, 0.2)
+
+    -- Find ball and apply black fire VFX
+    task.spawn(function()
+        local ball = nil; local findStart = tick(); local findTimeout = 1.0;
+        print(abilityName .. ": Starting post-shot ball search for VFX...")
+        repeat task.wait(0.05); ball = findBall(); until ball or (tick() - findStart > findTimeout)
+
+        if ball then
+            print(abilityName .. ": Ball found post-shot, applying BlackFireBall VFX.")
+            if VFX.BlackFireBall then
+                VFX.BlackFireBall(ball)
+            end
+        else
+            warn(abilityName .. ": Could not find ball post-shot for VFX.")
+        end
+    end)
+
+    print(abilityName .. " used successfully.")
+end
+
+
+
+-- // Client-Side Velocity Guidance (Straight Line, High Speed)
+local currentStraightShotConnection = nil
+local function applyStraightVelocityGuidance(ballPart, aimDirection)
+    if not ballPart or not ballPart.Parent then print("ApplyStraight: Ball invalid"); return end
+    if currentStraightShotConnection and currentStraightShotConnection.Connected then currentStraightShotConnection:Disconnect() end
+    if not aimDirection then warn("ApplyStraight: AimDirection is nil!"); return end
+
+    print("Applying Straight Velocity Guidance in direction:", aimDirection)
+
+    local speed = 800 -- VERY HIGH SPEED ("Speed of light")
+    local maxDuration = 5 -- Max time for guidance to prevent runaway scripts
+    local startTime = tick()
+
+    -- Apply initial velocity boost
+    if ballPart:IsA("BasePart") then
+        ballPart.AssemblyLinearVelocity = aimDirection * speed
+    else return end
+
+    -- Optional: Add a BodyGyro to resist spin/curve? Might interfere.
+    -- local gyro = Instance.new("BodyGyro", ballPart)
+    -- gyro.MaxTorque = Vector3.new(0, math.huge, 0) -- Only allow rotation around Y axis (maybe?)
+    -- gyro.P = 5000
+    -- gyro.CFrame = CFrame.new(ballPart.Position, ballPart.Position + aimDirection)
+    -- Debris:AddItem(gyro, maxDuration + 0.5)
+
+    currentStraightShotConnection = RunService.Heartbeat:Connect(function(dt)
+        if dt == 0 then dt = 1/60 end
+        if not ballPart or not ballPart:IsDescendantOf(Workspace) then 
+            if currentStraightShotConnection and currentStraightShotConnection.Connected then currentStraightShotConnection:Disconnect() end 
+            return 
+        end
+        if tick() - startTime >= maxDuration then 
+            if currentStraightShotConnection and currentStraightShotConnection.Connected then currentStraightShotConnection:Disconnect() end 
+            print("Straight guidance finished (Timeout)."); 
+            return 
+        end;
+
+        -- Constantly re-apply velocity in the original direction to counteract physics/drag
+        if ballPart:IsA("BasePart") then
+            -- Check if velocity significantly deviates (e.g., hit something)
+            if ballPart.AssemblyLinearVelocity.Magnitude < speed * 0.8 then
+                 if currentStraightShotConnection and currentStraightShotConnection.Connected then currentStraightShotConnection:Disconnect() end 
+                 print("Straight guidance finished (Collision detected)."); 
+                 return
+            end
+            -- Re-apply velocity. This overrides gravity/drag effects to keep it straight and fast.
+            ballPart.AssemblyLinearVelocity = aimDirection * speed
+        end
+    end)
+    
+    -- Backup cleanup
+    task.delay(maxDuration + 0.5, function() 
+        if currentStraightShotConnection and currentStraightShotConnection.Connected then 
+            print("Straight guidance cleanup (Delayed)."); 
+            currentStraightShotConnection:Disconnect() 
+        end 
+    end)
+end
+
+-- // Ability Function: BLACK HOLE STRIKE
+local function BlackHoleStrike()
+    local abilityName = "BlackHoleStrike"
+    local currentTime = tick()
+    if currentTime - (lastAbilityTimes[abilityName] or 0) < abilityCooldowns[abilityName] then
+        print(abilityName .. " on cooldown.")
+        return
+    end
+
+    character = player.Character or player.CharacterAdded:Wait()
+    humanoid = character:WaitForChild("Humanoid")
+    rootPart = character:WaitForChild("HumanoidRootPart")
+    if not humanoid or not rootPart or humanoid:GetState() == Enum.HumanoidStateType.Dead then return end
+
+    -- Check if player has ball
+    local hasBall = false
+    if StatesController and StatesController.GetState then
+        hasBall = StatesController:GetState("HasBall")
+    else -- Fallback check
+        local ball = findBall()
+        hasBall = ball and ball:IsDescendantOf(character)
+        if not hasBall then ball = findBall(); if ball and (ball.Position - rootPart.Position).Magnitude < 5 then hasBall = true end end
+        warn(abilityName .. ": Using fallback ball check.")
+    end
+    
+    if not hasBall then
+        print(abilityName .. ": Player does not have the ball.")
+        return
+    end
+    
+    if not ShootRemote then warn(abilityName .. ": ShootRemote missing!"); return end
+
+    local aimPosition = getMouseHitPosition()
+    local shootDirection = (aimPosition - rootPart.Position).Unit
+    -- Ensure the shot is mostly horizontal, ignore significant vertical aim difference
+    local horizontalDirection = Vector3.new(shootDirection.X, 0, shootDirection.Z).Unit
+
+    lastAbilityTimes[abilityName] = currentTime
+    print(abilityName .. " activated. Aiming direction:", horizontalDirection)
+
+    -- Play Animation (Placeholder - Use a powerful shooting anim)
+    local animTrack = humanoid:LoadAnimation(Instance.new("Animation", {AnimationId = ANIM_ID_BLACK_HOLE})) -- Re-using Trauma Curve anim for now
+    animTrack:Play()
+    Debris:AddItem(animTrack, animTrack.Length + 0.1)
+
+    -- Play Sound (Placeholder)
+    local sound = Instance.new("Sound", rootPart)
+    sound.SoundId = SOUND_ID_BLACK_HOLE
+    sound.Volume = 2.0
+    sound:Play()
+    Debris:AddItem(sound, 3)
+
+    -- Fire the shot with moderate power (client handles speed)
+    local initialPower = 100 
+    ShootRemote:FireServer(initialPower, nil, nil, aimPosition) -- Fire towards aim point initially
+    print("Fired Black Hole Strike initial shot with Power", initialPower)
+
+    -- Find ball and apply client-side straight-line guidance
+    task.spawn(function()
+        local ball = nil; local findStart = tick(); local findTimeout = 1.0;
+        print(abilityName .. ": Starting post-shot ball search...")
+        repeat task.wait(0.05); ball = findBall(); until ball or (tick() - findStart > findTimeout)
+
+        if ball then
+            print(abilityName .. ": Ball found post-shot, applying straight velocity guidance.")
+            applyStraightVelocityGuidance(ball, horizontalDirection)
+            -- TODO: Add placeholder ball VFX if needed (e.g., black trail?)
+        else
+            warn(abilityName .. ": Could not find ball post-shot for guidance.")
+        end
+    end)
+
+    print(abilityName .. " used successfully.")
+end
+
+
+
+-- // VFX Function: EGOIST SLICK (Black & White Theme)
+VFX.EgoistSlick = function(position, direction)
+    local vfxContainer = Instance.new("Part")
+    vfxContainer.Anchored = true
+    vfxContainer.CanCollide = false
+    vfxContainer.Transparency = 1
+    vfxContainer.CFrame = CFrame.new(position, position + direction)
+    vfxContainer.Parent = Workspace
+    Debris:AddItem(vfxContainer, 2.0) -- Cleanup container
+
+    local particles = {}
+
+    -- Emitter 1 (White - Adjusted from original)
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new(Color3.new(1,1,1));p.LightEmission=0.2;p.Brightness=3;p.ShapeStyle=Enum.ParticleEmitterShapeStyle.Volume;p.FlipbookFramerate=NumberRange.new(1);p.Lifetime=NumberRange.new(0.1,0.2);p.FlipbookLayout=Enum.ParticleFlipbookLayout.None;p.SpreadAngle=Vector2.new(20,20);p.LockedToPart=false;p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.13,0.96),NumberSequenceKeypoint.new(0.74,0.96),NumberSequenceKeypoint.new(1,1)});p.Orientation=Enum.ParticleOrientation.VelocityParallel;p.Drag=0;p.FlipbookStartRandom=false;p.TimeScale=1;p.VelocitySpread=20;p.Squash=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,0.75)});p.Speed=NumberRange.new(300,400);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(0.21,19.8),NumberSequenceKeypoint.new(1,13.1)});p.Enabled=false;p.Acceleration=Vector3.new(0,0,0);p.RotSpeed=NumberRange.new(0);p.ZOffset=0;p.ShapeInOut=Enum.ParticleEmitterShapeInOut.Outward;p.Rate=60;p.VelocityInheritance=0;p.Rotation=NumberRange.new(90);p.ShapePartial=1;p.Texture="rbxassetid://16637904761";p.FlipbookMode=Enum.ParticleFlipbookMode.OneShot;p.EmissionDirection=Enum.NormalId.Back;p.Shape=Enum.ParticleEmitterShape.Disc;p.Parent=vfxContainer;table.insert(particles,p) end
+    -- Emitter 2 (Black - Adjusted from original)
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new(Color3.new(0,0,0));p.LightEmission=0;p.Brightness=0;p.ShapeStyle=Enum.ParticleEmitterShapeStyle.Volume;p.FlipbookFramerate=NumberRange.new(1);p.Lifetime=NumberRange.new(0.2,0.2);p.FlipbookLayout=Enum.ParticleFlipbookLayout.Grid4x4;p.SpreadAngle=Vector2.new(0,0);p.LockedToPart=false;p.Transparency=NumberSequence.new(0);p.Orientation=Enum.ParticleOrientation.VelocityPerpendicular;p.Drag=0;p.FlipbookStartRandom=false;p.TimeScale=1;p.VelocitySpread=0;p.Squash=NumberSequence.new(0);p.Speed=NumberRange.new(1.7);p.Size=NumberSequence.new(17.0);p.Enabled=false;p.Acceleration=Vector3.new(0,0,0);p.RotSpeed=NumberRange.new(0);p.ZOffset=0.05;p.ShapeInOut=Enum.ParticleEmitterShapeInOut.Outward;p.Rate=12;p.VelocityInheritance=0;p.Rotation=NumberRange.new(0,360);p.ShapePartial=1;p.Texture="rbxassetid://16467645316";p.FlipbookMode=Enum.ParticleFlipbookMode.OneShot;p.EmissionDirection=Enum.NormalId.Front;p.Shape=Enum.ParticleEmitterShape.Box;p.Parent=vfxContainer;table.insert(particles,p) end
+    -- Emitter 3 (White - Adjusted from original)
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new(Color3.new(1,1,1));p.LightEmission=0.1;p.Brightness=4;p.ShapeStyle=Enum.ParticleEmitterShapeStyle.Volume;p.FlipbookFramerate=NumberRange.new(1);p.Lifetime=NumberRange.new(0.2,0.4);p.FlipbookLayout=Enum.ParticleFlipbookLayout.Grid4x4;p.SpreadAngle=Vector2.new(20,20);p.LockedToPart=false;p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.32,0.96),NumberSequenceKeypoint.new(1,1)});p.Orientation=Enum.ParticleOrientation.FacingCamera;p.Drag=7;p.FlipbookStartRandom=false;p.TimeScale=1;p.VelocitySpread=20;p.Squash=NumberSequence.new(0);p.Speed=NumberRange.new(100,400);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,10.2),NumberSequenceKeypoint.new(0.28,16.6),NumberSequenceKeypoint.new(1,25.4)});p.Enabled=false;p.Acceleration=Vector3.new(0,0,0);p.RotSpeed=NumberRange.new(0);p.ZOffset=0;p.ShapeInOut=Enum.ParticleEmitterShapeInOut.Outward;p.Rate=60;p.VelocityInheritance=0;p.Rotation=NumberRange.new(0,360);p.ShapePartial=1;p.Texture="rbxassetid://12096349161";p.FlipbookMode=Enum.ParticleFlipbookMode.OneShot;p.EmissionDirection=Enum.NormalId.Back;p.Shape=Enum.ParticleEmitterShape.Disc;p.Parent=vfxContainer;table.insert(particles,p) end
+    -- Emitter 4 (White - Adjusted from original)
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new(Color3.new(1,1,1));p.LightEmission=0.1;p.Brightness=4;p.ShapeStyle=Enum.ParticleEmitterShapeStyle.Volume;p.FlipbookFramerate=NumberRange.new(1);p.Lifetime=NumberRange.new(0.1,0.2);p.FlipbookLayout=Enum.ParticleFlipbookLayout.Grid2x2;p.SpreadAngle=Vector2.new(20,20);p.LockedToPart=false;p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.49,0.875),NumberSequenceKeypoint.new(1,1)});p.Orientation=Enum.ParticleOrientation.VelocityParallel;p.Drag=12;p.FlipbookStartRandom=false;p.TimeScale=1;p.VelocitySpread=20;p.Squash=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,-1.2375)});p.Speed=NumberRange.new(401.2,601.8);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(0.22,25.08),NumberSequenceKeypoint.new(1,11.6)});p.Enabled=false;p.Acceleration=Vector3.new(0,0,0);p.RotSpeed=NumberRange.new(0);p.ZOffset=0;p.ShapeInOut=Enum.ParticleEmitterShapeInOut.Outward;p.Rate=40;p.VelocityInheritance=0;p.Rotation=NumberRange.new(0);p.ShapePartial=1;p.Texture="rbxassetid://15572330616";p.FlipbookMode=Enum.ParticleFlipbookMode.OneShot;p.EmissionDirection=Enum.NormalId.Back;p.Shape=Enum.ParticleEmitterShape.Disc;p.Parent=vfxContainer;table.insert(particles,p) end
+    -- Emitter 5 (Black - Adjusted from original)
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new(Color3.new(0,0,0));p.LightEmission=0;p.Brightness=0;p.ShapeStyle=Enum.ParticleEmitterShapeStyle.Volume;p.FlipbookFramerate=NumberRange.new(1);p.Lifetime=NumberRange.new(0.07,0.15);p.FlipbookLayout=Enum.ParticleFlipbookLayout.Grid4x4;p.SpreadAngle=Vector2.new(20,20);p.LockedToPart=false;p.Transparency=NumberSequence.new(0);p.Orientation=Enum.ParticleOrientation.VelocityParallel;p.Drag=0;p.FlipbookStartRandom=false;p.TimeScale=1;p.VelocitySpread=20;p.Squash=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,-0.225)});p.Speed=NumberRange.new(212.9,532.3);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(0.26,7.45),NumberSequenceKeypoint.new(1,20.05)});p.Enabled=false;p.Acceleration=Vector3.new(0,0,0);p.RotSpeed=NumberRange.new(0);p.ZOffset=-0.76;p.ShapeInOut=Enum.ParticleEmitterShapeInOut.Outward;p.Rate=50;p.VelocityInheritance=0;p.Rotation=NumberRange.new(0);p.ShapePartial=1;p.Texture="rbxassetid://17258046088";p.FlipbookMode=Enum.ParticleFlipbookMode.OneShot;p.EmissionDirection=Enum.NormalId.Back;p.Shape=Enum.ParticleEmitterShape.Box;p.Parent=vfxContainer;table.insert(particles,p) end
+    -- Emitter 6 (White - Changed from Dark Gray)
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new(Color3.new(1,1,1));p.LightEmission=0.1;p.Brightness=1;p.ShapeStyle=Enum.ParticleEmitterShapeStyle.Volume;p.FlipbookFramerate=NumberRange.new(1);p.Lifetime=NumberRange.new(0.1,0.25);p.FlipbookLayout=Enum.ParticleFlipbookLayout.Grid2x2;p.SpreadAngle=Vector2.new(20,20);p.LockedToPart=false;p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.21,0.71875),NumberSequenceKeypoint.new(0.49,0.31875),NumberSequenceKeypoint.new(0.83,0.76875),NumberSequenceKeypoint.new(1,1)});p.Orientation=Enum.ParticleOrientation.VelocityParallel;p.Drag=0;p.FlipbookStartRandom=false;p.TimeScale=1;p.VelocitySpread=20;p.Squash=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,-1.2375)});p.Speed=NumberRange.new(87.05,304.69);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(0.21,29.74),NumberSequenceKeypoint.new(1,16.25)});p.Enabled=false;p.Acceleration=Vector3.new(0,0,0);p.RotSpeed=NumberRange.new(0);p.ZOffset=1;p.ShapeInOut=Enum.ParticleEmitterShapeInOut.Outward;p.Rate=50;p.VelocityInheritance=0;p.Rotation=NumberRange.new(0);p.ShapePartial=1;p.Texture="rbxassetid://15572330616";p.FlipbookMode=Enum.ParticleFlipbookMode.OneShot;p.EmissionDirection=Enum.NormalId.Back;p.Shape=Enum.ParticleEmitterShape.Disc;p.Parent=vfxContainer;table.insert(particles,p) end
+     -- Emitter 7 (Black - Changed from Dark Gray)
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new(Color3.new(0,0,0));p.LightEmission=0;p.Brightness=0;p.ShapeStyle=Enum.ParticleEmitterShapeStyle.Volume;p.FlipbookFramerate=NumberRange.new(1);p.Lifetime=NumberRange.new(0.1,0.25);p.FlipbookLayout=Enum.ParticleFlipbookLayout.None;p.SpreadAngle=Vector2.new(20,20);p.LockedToPart=false;p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,1)});p.Orientation=Enum.ParticleOrientation.VelocityParallel;p.Drag=6;p.FlipbookStartRandom=false;p.TimeScale=1;p.VelocitySpread=20;p.Squash=NumberSequence.new({NumberSequenceKeypoint.new(0,0.45),NumberSequenceKeypoint.new(1,1.3875)});p.Speed=NumberRange.new(200.6,300.9);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(0.08,21.13),NumberSequenceKeypoint.new(0.33,34.53),NumberSequenceKeypoint.new(0.65,37.09),NumberSequenceKeypoint.new(1,35.37)});p.Enabled=false;p.Acceleration=Vector3.new(0,0,0);p.RotSpeed=NumberRange.new(0);p.ZOffset=0.7;p.ShapeInOut=Enum.ParticleEmitterShapeInOut.Outward;p.Rate=30;p.VelocityInheritance=0;p.Rotation=NumberRange.new(90);p.ShapePartial=1;p.Texture="rbxassetid://11575346457";p.FlipbookMode=Enum.ParticleFlipbookMode.OneShot;p.EmissionDirection=Enum.NormalId.Back;p.Shape=Enum.ParticleEmitterShape.Disc;p.Parent=vfxContainer;table.insert(particles,p) end
+
+    for _, p in ipairs(particles) do p.Enabled = true end
+end
+
+-- // VFX Function: TRAUMATIZED SHOT (Placeholder Black & White Lift/Freeze)
+VFX.TraumatizedShotLiftFreeze = function(targetPart)
+    if not targetPart or not targetPart.Parent then return end
+    local vfxContainer = Instance.new("Part")
+    vfxContainer.Anchored = true
+    vfxContainer.CanCollide = false
+    vfxContainer.Transparency = 1
+    vfxContainer.CFrame = targetPart.CFrame
+    vfxContainer.Parent = Workspace
+    Debris:AddItem(vfxContainer, 1.0)
+
+    local particles = {}
+    -- Simple Black/White burst effect
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.new(1,1,1)),ColorSequenceKeypoint.new(0.5,Color3.new(0,0,0)),ColorSequenceKeypoint.new(1,Color3.new(1,1,1))});p.LightEmission=0.1;p.Brightness=2;p.Lifetime=NumberRange.new(0.3,0.5);p.SpreadAngle=Vector2.new(360,360);p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(0.2,0.2),NumberSequenceKeypoint.new(0.8,0.5),NumberSequenceKeypoint.new(1,1)});p.Speed=NumberRange.new(10,20);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.5,5),NumberSequenceKeypoint.new(1,2)});p.Enabled=false;p.Rate=100;p.Drag=5;p.Shape=Enum.ParticleEmitterShape.Sphere;p.Parent=vfxContainer;table.insert(particles,p) end
+
+    for _, p in ipairs(particles) do p:Emit(20) end -- Emit a burst
+end
+
+-- // VFX Function: ELASTO PASS (Placeholder Black & White Trail)
+VFX.ElastoPassTrail = function(targetPart)
+    if not targetPart or not targetPart.Parent then return end
+    local trail = Instance.new("Trail")
+    trail.Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.new(1,1,1)), ColorSequenceKeypoint.new(0.5, Color3.new(0,0,0)), ColorSequenceKeypoint.new(1, Color3.new(1,1,1))})
+    trail.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(0.7, 0.5), NumberSequenceKeypoint.new(1, 1)})
+    trail.Brightness = 1
+    trail.Lifetime = 0.3
+    trail.MinLength = 0.1
+    trail.MaxLength = 1
+    trail.LightEmission = 0.1
+    trail.Texture = "rbxassetid://262299623" -- Generic trail texture
+    trail.TextureLength = 1
+    trail.TextureMode = Enum.TextureMode.Static
+    trail.WidthScale = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 0.1)})
+    
+    local attachment0 = Instance.new("Attachment", targetPart)
+    local attachment1 = Instance.new("Attachment", targetPart)
+    attachment1.Position = Vector3.new(0, 0, -0.1) -- Slight offset
+    trail.Attachment0 = attachment0
+    trail.Attachment1 = attachment1
+    trail.Parent = targetPart
+    
+    Debris:AddItem(trail, trail.Lifetime + 0.1)
+    Debris:AddItem(attachment0, trail.Lifetime + 0.2)
+    Debris:AddItem(attachment1, trail.Lifetime + 0.2)
+end
+
+-- // VFX Function: CHAOS IMPACT (Placeholder Black Fire Ball)
+VFX.ChaosImpactBlackFire = function(targetPart)
+    if not targetPart or not targetPart.Parent then return end
+    local vfxContainer = Instance.new("Part")
+    vfxContainer.Anchored = true
+    vfxContainer.CanCollide = false
+    vfxContainer.Transparency = 1
+    vfxContainer.CFrame = targetPart.CFrame
+    vfxContainer.Parent = Workspace
+    Debris:AddItem(vfxContainer, 3.0)
+
+    local particles = {}
+    -- Black Fire Effect (Simple Placeholder)
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new(Color3.new(0,0,0));p.LightEmission=0;p.Brightness=0;p.Lifetime=NumberRange.new(0.5,1.0);p.SpreadAngle=Vector2.new(20,20);p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.1),NumberSequenceKeypoint.new(0.5,0.4),NumberSequenceKeypoint.new(1,1)});p.Speed=NumberRange.new(5,10);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.2,3),NumberSequenceKeypoint.new(1,1)});p.Texture="rbxassetid://137297987";p.Enabled=false;p.Rate=50;p.Drag=1;p.Shape=Enum.ParticleEmitterShape.Sphere;p.Acceleration=Vector3.new(0,5,0);p.Parent=vfxContainer;table.insert(particles,p) end
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new(Color3.new(0.1,0.1,0.1));p.LightEmission=0;p.Brightness=0;p.Lifetime=NumberRange.new(0.3,0.7);p.SpreadAngle=Vector2.new(10,10);p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.3),NumberSequenceKeypoint.new(0.6,0.7),NumberSequenceKeypoint.new(1,1)});p.Speed=NumberRange.new(2,5);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,0.5),NumberSequenceKeypoint.new(0.3,2),NumberSequenceKeypoint.new(1,0.5)});p.Texture="rbxassetid://213099988";p.Enabled=false;p.Rate=30;p.Drag=0.5;p.Shape=Enum.ParticleEmitterShape.Sphere;p.Acceleration=Vector3.new(0,3,0);p.Parent=vfxContainer;table.insert(particles,p) end
+
+    for _, p in ipairs(particles) do p.Enabled = true end
+    -- Keep attached to ball? Need logic in ability
+end
+
+-- // VFX Function: BLACK HOLE STRIKE (Placeholder Black & White Streaks)
+VFX.BlackHoleStrikeEffect = function(position, direction)
+    local vfxContainer = Instance.new("Part")
+    vfxContainer.Anchored = true
+    vfxContainer.CanCollide = false
+    vfxContainer.Transparency = 1
+    vfxContainer.CFrame = CFrame.new(position, position + direction)
+    vfxContainer.Parent = Workspace
+    Debris:AddItem(vfxContainer, 1.5)
+
+    local particles = {}
+    -- Fast Black/White Streaks
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.new(1,1,1)),ColorSequenceKeypoint.new(0.5,Color3.new(0,0,0)),ColorSequenceKeypoint.new(1,Color3.new(1,1,1))});p.LightEmission=0.2;p.Brightness=3;p.Lifetime=NumberRange.new(0.1,0.2);p.SpreadAngle=Vector2.new(5,5);p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,1)});p.Speed=NumberRange.new(200,300);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,0.5),NumberSequenceKeypoint.new(0.1,2),NumberSequenceKeypoint.new(1,0.2)});p.Texture="rbxassetid://262299623";p.Enabled=false;p.Rate=100;p.Drag=0;p.Shape=Enum.ParticleEmitterShape.Disc;p.EmissionDirection=Enum.NormalId.Back;p.Orientation=Enum.ParticleOrientation.VelocityParallel;p.Parent=vfxContainer;table.insert(particles,p) end
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.new(0,0,0)),ColorSequenceKeypoint.new(0.5,Color3.new(1,1,1)),ColorSequenceKeypoint.new(1,Color3.new(0,0,0))});p.LightEmission=0;p.Brightness=1;p.Lifetime=NumberRange.new(0.05,0.1);p.SpreadAngle=Vector2.new(2,2);p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0.2),NumberSequenceKeypoint.new(1,1)});p.Speed=NumberRange.new(300,400);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,0.2),NumberSequenceKeypoint.new(0.1,1),NumberSequenceKeypoint.new(1,0.1)});p.Texture="rbxassetid://16637904761";p.Enabled=false;p.Rate=80;p.Drag=0;p.Shape=Enum.ParticleEmitterShape.Disc;p.EmissionDirection=Enum.NormalId.Back;p.Orientation=Enum.ParticleOrientation.VelocityParallel;p.Parent=vfxContainer;table.insert(particles,p) end
+
+    for _, p in ipairs(particles) do p.Enabled = true end
+end
+
