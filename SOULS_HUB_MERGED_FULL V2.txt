@@ -1,0 +1,1394 @@
+-- SOULS_HUB_MERGED_FULL.lua
+-- This script is a result of a detailed merge of UI elements and FULL functionalities from 
+-- 'a fps games universal script souls hub.txt' (referred to as FPS_SCRIPT)
+-- into the UI framework of 'SOULS HUB GLASS THEME VERSION 2 BETA (10).txt' (referred to as GLASS_THEME),
+-- and then adding new features as requested.
+
+-- For a detailed explanation of all changes, specific code integrations, new functions,
+-- and important considerations (like the 'Drawing' object), PLEASE REFER TO THE
+-- 'final_summary_of_changes.md' and 'ui_documentation.md' files that will be provided alongside this script.
+
+-- #####################################################################
+-- # SECTION 1: SERVICES & INITIAL SETUP (Combined from both scripts) #
+-- #####################################################################
+
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local VirtualUser = game:GetService("VirtualUser") -- From FPS_SCRIPT
+local PhysicsService = game:GetService("PhysicsService") -- From FPS_SCRIPT
+local CoreGui = game:GetService("CoreGui")
+local StarterGui = game:GetService("StarterGui")
+
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Whitelisted users (from GLASS_THEME)
+local WHITELISTED_USERS = {
+    "tanveerstink", "bobbyjack_9", "Manfaceprorobloxyay", "xlzzzmain", "bestgkrivalsb1",
+    "Orange_Boy361", "ajjbsbbsb2223", "Min85500", "ArthDutta", "GivingisGood_6",
+    "HWIllLAlIlIIllWWBlIl", "sfsfafafsaf13", "Msi_astro", "dracobot_17", "untamkne330",
+    "DRIP_BACONtwo", "whohurtyoudear", "topraklife", "Ronixtest123", "ClawKnight50"
+}
+
+-- Destroy existing UI if any
+if CoreGui:FindFirstChild("SOULS_HUB") then
+    CoreGui.SOULS_HUB:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SOULS_HUB"
+screenGui.Parent = CoreGui
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling -- Ensure it's on top
+
+-- #####################################################################
+-- # SECTION 2: MAIN UI FRAME (From GLASS_THEME)                     #
+-- #####################################################################
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 700, 0, 480) -- Slightly increased height for more content
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.ZIndex = 1
+mainFrame.Visible = false -- Start hidden
+mainFrame.Parent = screenGui
+
+local outline = Instance.new("UIStroke")
+outline.Color = Color3.new(1, 1, 1)
+outline.Thickness = 2
+outline.Transparency = 0.1
+outline.Parent = mainFrame
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 16)
+corner.Parent = mainFrame
+
+local gradient = Instance.new("UIGradient")
+gradient.Rotation = 90
+gradient.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 0.6),
+    NumberSequenceKeypoint.new(1, 0.8)
+})
+gradient.Parent = mainFrame
+
+-- #####################################################################
+-- # SECTION 3: UI TOGGLE BUTTON (From GLASS_THEME)                  #
+-- #####################################################################
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleButton"
+toggleBtn.Size = UDim2.new(0, 140, 0, 40)
+toggleBtn.Position = UDim2.new(0.5, -70, 0, 20) -- Positioned at top-center when menu is hidden
+toggleBtn.AnchorPoint = Vector2.new(0.5, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+toggleBtn.BackgroundTransparency = 0.3
+toggleBtn.Text = "TOGGLE MENU"
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 14
+toggleBtn.Visible = true -- Visible when mainFrame is hidden
+toggleBtn.ZIndex = 10
+toggleBtn.Parent = screenGui
+
+local toggleTextOutline = Instance.new("UIStroke")
+toggleTextOutline.Color = Color3.new(0, 0, 0)
+toggleTextOutline.Thickness = 1
+toggleTextOutline.Parent = toggleBtn
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 12)
+toggleCorner.Parent = toggleBtn
+
+local toggleOutline = Instance.new("UIStroke")
+toggleOutline.Color = Color3.new(1, 1, 1)
+toggleOutline.Thickness = 1
+toggleOutline.Transparency = 0.2
+toggleOutline.Parent = toggleBtn
+
+-- #####################################################################
+-- # SECTION 4: DRAGGABLE & CLOSE FUNCTIONALITY (From GLASS_THEME)   #
+-- #####################################################################
+
+local function makeDraggable(frameOrButton)
+    local dragging = false
+    local dragInput, dragStart, startPos
+
+    frameOrButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if frameOrButton:IsA("GuiButton") and not frameOrButton.Modal then -- Allow dragging buttons too
+                -- Check if click is on title bar area for mainFrame
+                if frameOrButton == mainFrame then
+                    if input.Position.Y > mainFrame.AbsolutePosition.Y + 50 then return end -- Only drag by top 50px
+                end
+                dragging = true
+                dragStart = input.Position
+                startPos = frameOrButton.Position
+                dragInput = input -- Store the input object
+            elseif frameOrButton:IsA("Frame") then -- For mainFrame itself
+                 if input.Position.Y > mainFrame.AbsolutePosition.Y + 50 then return end
+                dragging = true
+                dragStart = input.Position
+                startPos = frameOrButton.Position
+                dragInput = input -- Store the input object
+            end
+        end
+    end)
+
+    frameOrButton.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if dragging and dragInput and input.UserInputInstance == dragInput.UserInputInstance then
+                dragging = false
+                dragInput = nil
+            end
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and dragInput and input.UserInputType == dragInput.UserInputType then 
+            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                if input.UserInputState == Enum.UserInputState.Change then -- Ensure it's a movement/pan
+                    local delta = input.Position - dragStart
+                    frameOrButton.Position = UDim2.new(
+                        startPos.X.Scale,
+                        startPos.X.Offset + delta.X,
+                        startPos.Y.Scale,
+                        startPos.Y.Offset + delta.Y
+                    )
+                end
+            end
+        end
+    end)
+end
+
+makeDraggable(mainFrame)
+makeDraggable(toggleBtn) -- Allow toggle button to be dragged if desired
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseButton"
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -35, 0, 10)
+closeBtn.AnchorPoint = Vector2.new(1, 0)
+closeBtn.BackgroundTransparency = 1
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.TextSize = 20
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.ZIndex = 3
+closeBtn.Parent = mainFrame
+
+local closeTextOutline = Instance.new("UIStroke")
+closeTextOutline.Color = Color3.new(0, 0, 0)
+closeTextOutline.Thickness = 1
+closeTextOutline.Parent = closeBtn
+
+closeBtn.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+    toggleBtn.Visible = true
+end)
+
+-- #####################################################################
+-- # SECTION 5: TITLE & LAYOUT STRUCTURE (From GLASS_THEME)          #
+-- #####################################################################
+
+local titleFont = Enum.Font.GothamBold -- Defined in GLASS_THEME
+local titleText = Instance.new("TextLabel")
+titleText.Name = "Title"
+titleText.Size = UDim2.new(0, 300, 0, 30) -- Wider for potentially longer title
+titleText.Position = UDim2.new(0, 20, 0, 10)
+titleText.BackgroundTransparency = 1
+titleText.Text = "SOULS HUB UNIVERSAL" -- Title from FPS_SCRIPT (adapted)
+titleText.TextColor3 = Color3.new(1, 1, 1)
+titleText.TextSize = 24
+titleText.Font = titleFont
+titleText.TextXAlignment = Enum.TextXAlignment.Left
+titleText.ZIndex = 2
+titleText.Parent = mainFrame
+
+local titleTextOutline = Instance.new("UIStroke")
+titleTextOutline.Color = Color3.new(0, 0, 0)
+titleTextOutline.Thickness = 1
+titleTextOutline.Parent = titleText
+
+-- Separators (from GLASS_THEME)
+local topSeparator = Instance.new("Frame")
+topSeparator.Name = "TopSeparator"
+topSeparator.Size = UDim2.new(1, -40, 0, 1)
+topSeparator.Position = UDim2.new(0, 20, 0, 50)
+topSeparator.BackgroundColor3 = Color3.new(1, 1, 1)
+topSeparator.BorderSizePixel = 0
+topSeparator.ZIndex = 2
+topSeparator.Parent = mainFrame
+
+local verticalSeparator = Instance.new("Frame")
+verticalSeparator.Name = "VerticalSeparator"
+verticalSeparator.Size = UDim2.new(0, 1, 1, -120)
+verticalSeparator.Position = UDim2.new(0, 170, 0, 70) -- Position of the tab/content separator
+verticalSeparator.BackgroundColor3 = Color3.new(1, 1, 1)
+verticalSeparator.BorderSizePixel = 0
+verticalSeparator.ZIndex = 2
+verticalSeparator.Parent = mainFrame
+
+-- Tab System Containers (from GLASS_THEME)
+local tabContainer = Instance.new("Frame")
+tabContainer.Name = "Tabs"
+tabContainer.Size = UDim2.new(0, 150, 1, -130) -- Adjusted to fill height better
+tabContainer.Position = UDim2.new(0, 15, 0, 70)
+tabContainer.BackgroundTransparency = 1
+tabContainer.ZIndex = 2
+tabContainer.Parent = mainFrame
+
+local uiListLayoutForTabs = Instance.new("UIListLayout")
+uiListLayoutForTabs.Padding = UDim.new(0, 5)
+uiListLayoutForTabs.SortOrder = Enum.SortOrder.LayoutOrder
+uiListLayoutForTabs.Parent = tabContainer
+
+local contentContainer = Instance.new("Frame")
+contentContainer.Name = "Content"
+contentContainer.Size = UDim2.new(1, -195, 1, -130) -- Adjusted to fill available space
+contentContainer.Position = UDim2.new(0, 180, 0, 70)
+contentContainer.BackgroundTransparency = 1
+contentContainer.ClipsDescendants = true
+contentContainer.ZIndex = 2
+contentContainer.Parent = mainFrame
+
+-- #####################################################################
+-- # SECTION 6: PLACEHOLDER DRAWING OBJECT (For FPS_SCRIPT features) #
+-- #####################################################################
+
+-- The FPS_SCRIPT uses an external 'Drawing' library. To avoid errors and external dependencies
+-- not explicitly requested for GLASS_THEME, this is a placeholder.
+-- Visual elements like FOV circles, ESP lines/boxes WILL NOT RENDER.
+-- UI controls for these features will exist, but their visual output is affected.
+-- See 'final_summary_of_changes.md' for full details.
+local Drawing = {}
+Drawing.new = function(type)
+    -- warn("[SOULS HUB Drawing] Visual element '" .. tostring(type) .. "' cannot be created. Original library not loaded.")
+    local fakeElement = {
+        Visible = false, Color = Color3.new(1,1,1), Transparency = 1, Thickness = 1, Radius = 10, Filled = false,
+        Position = Vector2.new(), From = Vector2.new(), To = Vector2.new(), Text = "", Size = 12, Font = 0, Center = false,
+        Outline = false, OutlineColor = Color3.new(0,0,0),
+        Remove = function() fakeElement.Visible = false end,
+        Clear = function() end, -- For Text
+        PointA = Vector2.new(), PointB = Vector2.new(), PointC = Vector2.new(), -- For Triangle
+        Sides = 30, -- For Circle
+        Points = {}, -- For Quad
+    }
+    local metatable = {
+        __index = function(t, k)
+            if rawget(fakeElement, k) ~= nil then return rawget(fakeElement, k) end
+            return function() end -- Return dummy function for any other property access/call
+        end,
+        __newindex = function(t, k, v)
+            rawset(fakeElement, k, v)
+        end
+    }
+    return setmetatable(fakeElement, metatable)
+end
+
+-- #####################################################################
+-- # SECTION 7: GLOBAL VARIABLES & DEFAULTS (From FPS_SCRIPT)        #
+-- #####################################################################
+
+local espEnabled = false -- General ESP toggle, though FPS_SCRIPT uses specific toggles
+local namesEspEnabled = false
+local lineEspEnabled = false
+local boxEspEnabled = false
+local highlightEspEnabled = false -- Added for clarity, FPS_SCRIPT used ESP:EnableHighlight
+
+local fullBrightEnabled = false
+local customLightingEnabled = false -- For RTX Lighting from FPS_SCRIPT
+local infJumpEnabled = false
+local spinbotEnabled = false
+local noClipEnabled = false
+local autoReloadEnabled = false
+
+local spinbotSpeed = 360
+local playerSpeed = 16 -- Default player speed
+local walkSpeedSet = 16 -- Stores the speed set by the slider
+
+local infJumpConnection
+local spinbotConnection
+local noClipConnection
+local noClipChildConnection
+
+local triggerBotEnabled = false
+local triggerBotConnection
+local lastShotTime = 0
+local fireRate = 0.1 -- For triggerbot
+
+local isMobile = UserInputService.TouchEnabled and not (UserInputService.MouseEnabled or UserInputService.KeyboardEnabled)
+
+-- Aimbot Variables (from FPS_SCRIPT)
+local aimbotEnabled = false
+local aimbotMobileEnabled = false
+local blatantAimbotEnabled = false
+local silentAimbotEnabled = false -- New feature
+local showFovCircle = true
+local fovRadius = 120
+local aiming = false -- General aiming state (PC)
+local aimbotLocked = false
+local touchStartPos = nil
+local isTouchAiming = false -- Mobile aiming state
+local activeTouchId = nil -- For mobile multi-touch safety
+local wallCheckEnabled = false
+local teamCheckEnabled = false
+local fovCircle = Drawing.new("Circle") -- Uses placeholder
+
+-- Custom Crosshair Variables (from FPS_SCRIPT)
+local customCrosshairEnabled = false
+local crosshairSize = 10
+local crosshairColorR, crosshairColorG, crosshairColorB = 255, 0, 0
+local crosshair = {
+    Top = Drawing.new("Line"), Bottom = Drawing.new("Line"),
+    Left = Drawing.new("Line"), Right = Drawing.new("Line")
+} -- Uses placeholder
+
+local cameraFovValue = 70 -- Default camera FOV
+
+-- Lighting Defaults (from FPS_SCRIPT)
+local defaultLightingSettings = {
+    ClockTime = Lighting.ClockTime,
+    Brightness = Lighting.Brightness,
+    FogEnd = Lighting.FogEnd,
+    FogStart = Lighting.FogStart,
+    FogColor = Lighting.FogColor,
+    GlobalShadows = Lighting.GlobalShadows,
+    OutdoorAmbient = Lighting.OutdoorAmbient,
+    EnvironmentDiffuseScale = Lighting.EnvironmentDiffuseScale,
+    EnvironmentSpecularScale = Lighting.EnvironmentSpecularScale,
+    Ambient = Lighting.Ambient,
+    ExposureCompensation = Lighting.ExposureCompensation
+}
+local defaultSky = Lighting:FindFirstChild("Sky") and Lighting:FindFirstChild("Sky"):Clone()
+
+-- Store original humanoid properties
+local originalWalkSpeed = 16
+local originalJumpPower = 50
+if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+    originalWalkSpeed = LocalPlayer.Character.Humanoid.WalkSpeed
+    originalJumpPower = LocalPlayer.Character.Humanoid.JumpPower
+end
+LocalPlayer.CharacterAdded:Connect(function(char)
+    local humanoid = char:WaitForChild("Humanoid")
+    originalWalkSpeed = humanoid.WalkSpeed
+    originalJumpPower = humanoid.JumpPower
+    -- Re-apply speed/jump if enabled
+    if playerSpeed ~= 16 then humanoid.WalkSpeed = playerSpeed end
+    if infJumpEnabled then humanoid.JumpPower = 100 end -- Or custom value
+end)
+
+-- #####################################################################
+-- # SECTION 8: UI CREATION FUNCTIONS (From GLASS_THEME, extended)   #
+-- #####################################################################
+
+local activeTabs = {}
+local currentTabContentFrame = nil
+local currentTabButton = nil
+
+local function createTab(tabName)
+    local tabButton = Instance.new("TextButton")
+    tabButton.Name = tabName
+    tabButton.Size = UDim2.new(1, 0, 0, 30) -- Full width of tabContainer, height 30
+    tabButton.BackgroundTransparency = 1
+    tabButton.Text = string.upper(tabName) -- Match FPS_SCRIPT style (uppercase)
+    tabButton.TextColor3 = Color3.new(1, 1, 1)
+    tabButton.TextSize = 16 -- Slightly smaller for more tabs
+    tabButton.Font = Enum.Font.GothamBold
+    tabButton.TextTransparency = 0.5 -- Default state
+    tabButton.ZIndex = 3
+    tabButton.LayoutOrder = #tabContainer:GetChildren() + 1
+    tabButton.Parent = tabContainer
+
+    local tabTextOutline = Instance.new("UIStroke")
+    tabTextOutline.Color = Color3.new(0, 0, 0)
+    tabTextOutline.Thickness = 1
+    tabTextOutline.Transparency = 0.5
+    tabTextOutline.Parent = tabButton
+
+    -- No individual outline for tab button itself in GLASS_THEME, rely on text transparency for selection
+
+    local contentFrame = Instance.new("ScrollingFrame")
+    contentFrame.Name = tabName .. "Content"
+    contentFrame.Size = UDim2.new(1, 0, 1, 0) -- Full size of contentContainer
+    contentFrame.BackgroundTransparency = 1
+    contentFrame.Visible = false -- Hidden by default
+    contentFrame.ScrollBarThickness = 6
+    contentFrame.ScrollBarImageColor3 = Color3.fromRGB(100,100,100)
+    contentFrame.CanvasSize = UDim2.new(0,0,0,0) -- Start with 0,0
+    contentFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    contentFrame.Parent = contentContainer
+
+    local uiListLayoutForContent = Instance.new("UIListLayout")
+    uiListLayoutForContent.Padding = UDim.new(0, 10)
+    uiListLayoutForContent.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    uiListLayoutForContent.SortOrder = Enum.SortOrder.LayoutOrder
+    uiListLayoutForContent.Parent = contentFrame
+
+    table.insert(activeTabs, {button = tabButton, content = contentFrame})
+
+    tabButton.MouseButton1Click:Connect(function()
+        if currentTabButton == tabButton then return end -- Already selected
+
+        for _, tabData in pairs(activeTabs) do
+            tabData.content.Visible = false
+            tabData.button.TextTransparency = 0.5 -- Deselect old
+            if tabData.button:FindFirstChild("SelectionIndicator") then
+                tabData.button.SelectionIndicator:Destroy()
+            end
+        end
+
+        contentFrame.Visible = true
+        tabButton.TextTransparency = 0 -- Select new
+        currentTabContentFrame = contentFrame
+        currentTabButton = tabButton
+        
+        -- Add a small indicator line (optional, for better selection visibility)
+        local indicator = Instance.new("Frame")
+        indicator.Name = "SelectionIndicator"
+        indicator.Size = UDim2.new(1, 0, 0, 2)
+        indicator.Position = UDim2.new(0,0,1,-2)
+        indicator.BackgroundColor3 = Color3.fromRGB(200,200,200)
+        indicator.BorderSizePixel = 0
+        indicator.Parent = tabButton
+    end)
+
+    return contentFrame -- Return the content frame for adding elements
+end
+
+local function addCategory(parentContentFrame, categoryText)
+    local categoryLabel = Instance.new("TextLabel")
+    categoryLabel.Name = categoryText .. "Category"
+    categoryLabel.Size = UDim2.new(1, -10, 0, 25) -- Full width minus padding, height 25
+    categoryLabel.BackgroundTransparency = 1
+    categoryLabel.Text = "-- " .. string.upper(categoryText) .. " --" -- Match FPS_SCRIPT style
+    categoryLabel.TextColor3 = Color3.fromRGB(200, 200, 200) -- Brighter for category
+    categoryLabel.TextSize = 16
+    categoryLabel.Font = titleFont
+    categoryLabel.TextXAlignment = Enum.TextXAlignment.Left
+    categoryLabel.ZIndex = 3
+    categoryLabel.LayoutOrder = #parentContentFrame:GetChildren() + 1
+    categoryLabel.Parent = parentContentFrame
+
+    local categoryTextOutline = Instance.new("UIStroke")
+    categoryTextOutline.Color = Color3.new(0, 0, 0)
+    categoryTextOutline.Thickness = 0.5
+    categoryTextOutline.Parent = categoryLabel
+    return categoryLabel
+end
+
+local function createButton(parentContentFrame, buttonText, onClickFunction)
+    local button = Instance.new("TextButton")
+    button.Name = buttonText
+    button.Size = UDim2.new(0, 200, 0, 35) -- Standard size
+    button.BackgroundTransparency = 0.8 -- Slightly visible background
+    button.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    button.Text = buttonText
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.Font = Enum.Font.GothamSemibold
+    button.TextSize = 14
+    button.ZIndex = 3
+    button.LayoutOrder = #parentContentFrame:GetChildren() + 1
+
+    local buttonTextOutline = Instance.new("UIStroke")
+    buttonTextOutline.Color = Color3.new(0, 0, 0)
+    buttonTextOutline.Thickness = 0.5
+    buttonTextOutline.Parent = button
+
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.new(1, 1, 1)
+    outline.Thickness = 1
+    outline.Transparency = 0.7
+    outline.Parent = button
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = button
+
+    button.MouseButton1Click:Connect(function()
+        -- Whitelist check from GLASS_THEME (can be adapted if needed per feature)
+        -- For now, apply to all buttons for simplicity, or remove if not desired for FPS_SCRIPT features
+        local isPremiumFeature = false -- Determine if this feature is premium
+        if string.find(parentContentFrame.Name:lower(), "premium") then isPremiumFeature = true end
+
+        if isPremiumFeature then
+            local playerName = LocalPlayer.Name:lower()
+            local isAllowed = false
+            for _, name in pairs(WHITELISTED_USERS) do
+                if playerName == name:lower() then isAllowed = true; break end
+            end
+            if isAllowed then
+                if onClickFunction then task.spawn(onClickFunction) end
+            else
+                StarterGui:SetCore("SendNotification", {
+                    Title = "PREMIUM ACCESS DENIED", Text = "DM soulsyt_ TO BUY", Duration = 5
+                })
+            end
+        else
+            if onClickFunction then task.spawn(onClickFunction) end
+        end
+    end)
+
+    button.MouseEnter:Connect(function() TweenService:Create(button, TweenInfo.new(0.15), {BackgroundTransparency = 0.6, TextColor3 = Color3.fromRGB(230,230,230)}):Play() end)
+    button.MouseLeave:Connect(function() TweenService:Create(button, TweenInfo.new(0.15), {BackgroundTransparency = 0.8, TextColor3 = Color3.new(1,1,1)}):Play() end)
+    
+    button.Parent = parentContentFrame
+    return button
+end
+
+local function createToggle(parentContentFrame, toggleTextPrefix, onTextSuffix, offTextSuffix, onFunction, offFunction, initialState)
+    local isEnabled = initialState or false
+    local fullOffText = toggleTextPrefix .. (offTextSuffix or "OFF")
+    local fullOnText = toggleTextPrefix .. (onTextSuffix or "ON")
+
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Name = toggleTextPrefix .. "Toggle"
+    toggleButton.Size = UDim2.new(0, 220, 0, 35) -- Wider for prefix + suffix
+    toggleButton.Text = isEnabled and fullOnText or fullOffText
+    toggleButton.TextColor3 = isEnabled and Color3.fromRGB(100, 255, 100) or Color3.fromRGB(255, 100, 100)
+    toggleButton.Font = Enum.Font.GothamSemibold
+    toggleButton.TextSize = 14
+    toggleButton.ZIndex = 3
+    toggleButton.LayoutOrder = #parentContentFrame:GetChildren() + 1
+    
+    toggleButton.BackgroundTransparency = 0.8
+    toggleButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
+
+    local toggleTextOutline = Instance.new("UIStroke")
+    toggleTextOutline.Color = Color3.new(0, 0, 0)
+    toggleTextOutline.Thickness = 0.5
+    toggleTextOutline.Parent = toggleButton
+
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.new(1, 1, 1)
+    outline.Thickness = 1
+    outline.Transparency = 0.7
+    outline.Parent = toggleButton
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = toggleButton
+
+    toggleButton.MouseButton1Click:Connect(function()
+        isEnabled = not isEnabled
+        if isEnabled then
+            toggleButton.Text = fullOnText
+            toggleButton.TextColor3 = Color3.fromRGB(100, 255, 100)
+            if onFunction then task.spawn(onFunction) end
+        else
+            toggleButton.Text = fullOffText
+            toggleButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+            if offFunction then task.spawn(offFunction) end
+        end
+    end)
+
+    toggleButton.MouseEnter:Connect(function() TweenService:Create(toggleButton, TweenInfo.new(0.15), {BackgroundTransparency = 0.6}):Play() end)
+    toggleButton.MouseLeave:Connect(function() TweenService:Create(toggleButton, TweenInfo.new(0.15), {BackgroundTransparency = 0.8}):Play() end)
+
+    toggleButton.Parent = parentContentFrame
+    return toggleButton, function(newState) -- Function to externally set state
+        isEnabled = newState
+        if isEnabled then
+            toggleButton.Text = fullOnText
+            toggleButton.TextColor3 = Color3.fromRGB(100, 255, 100)
+        else
+            toggleButton.Text = fullOffText
+            toggleButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+        end
+    end
+end
+
+-- NEW UI Creation Function: Slider (Styled like GLASS_THEME)
+local function createSlider(parentContentFrame, sliderTextPrefix, minVal, maxVal, initialVal, stepVal, onValueChangedFunction)
+    local currentValue = initialVal or minVal
+    stepVal = stepVal or 1
+
+    local sliderFrame = Instance.new("Frame")
+    sliderFrame.Name = sliderTextPrefix .. "SliderFrame"
+    sliderFrame.Size = UDim2.new(0, 250, 0, 50) -- Container for label and slider
+    sliderFrame.BackgroundTransparency = 1
+    sliderFrame.LayoutOrder = #parentContentFrame:GetChildren() + 1
+    sliderFrame.Parent = parentContentFrame
+
+    local label = Instance.new("TextLabel")
+    label.Name = "SliderLabel"
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.BackgroundTransparency = 1
+    label.Font = Enum.Font.GothamSemibold
+    label.TextSize = 14
+    label.TextColor3 = Color3.new(220, 220, 220)
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Text = sliderTextPrefix .. ": " .. string.format("%.2f", currentValue)
+    label.Parent = sliderFrame
+
+    local slider = Instance.new("Frame") -- The track
+    slider.Name = "SliderTrack"
+    slider.Size = UDim2.new(1, 0, 0, 10) -- Track height
+    slider.Position = UDim2.new(0, 0, 0, 25) 
+    slider.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    slider.BorderSizePixel = 0
+    slider.Parent = sliderFrame
+    local sliderCorner = Instance.new("UICorner")
+    sliderCorner.CornerRadius = UDim.new(0,5)
+    sliderCorner.Parent = slider
+
+    local knob = Instance.new("TextButton") -- The draggable knob
+    knob.Name = "SliderKnob"
+    knob.Size = UDim2.new(0, 16, 0, 16) -- Knob size
+    knob.AnchorPoint = Vector2.new(0.5, 0.5)
+    knob.Position = UDim2.new((currentValue - minVal) / (maxVal - minVal), 0, 0.5, 0)
+    knob.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+    knob.BorderSizePixel = 0
+    knob.Text = ""
+    knob.ZIndex = 2
+    knob.Parent = slider
+    local knobCorner = Instance.new("UICorner")
+    knobCorner.CornerRadius = UDim.new(0,8)
+    knobCorner.Parent = knob
+
+    local draggingSlider = false
+    knob.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingSlider = true
+            knob.BackgroundColor3 = Color3.fromRGB(200,200,200) -- Highlight knob
+        end
+    end)
+    knob.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingSlider = false
+            knob.BackgroundColor3 = Color3.fromRGB(150,150,150) -- Unhighlight knob
+        end
+    end)
+
+    local function updateSliderValue(inputPositionX)
+        local relativeX = inputPositionX - slider.AbsolutePosition.X
+        local percentage = math.clamp(relativeX / slider.AbsoluteSize.X, 0, 1)
+        local rawValue = minVal + percentage * (maxVal - minVal)
+        currentValue = math.floor(rawValue / stepVal + 0.5) * stepVal -- Snap to step
+        currentValue = math.clamp(currentValue, minVal, maxVal)
+
+        knob.Position = UDim2.new(math.clamp((currentValue - minVal) / (maxVal - minVal),0,1) , 0, 0.5, 0)
+        label.Text = sliderTextPrefix .. ": " .. string.format("%.2f", currentValue)
+        if onValueChangedFunction then
+            task.spawn(onValueChangedFunction, currentValue)
+        end
+    end
+
+    UserInputService.InputChanged:Connect(function(input)
+        if draggingSlider and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            updateSliderValue(input.Position.X)
+        end
+    end)
+    slider.InputBegan:Connect(function(input) -- Allow clicking on track
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            updateSliderValue(input.Position.X)
+            -- Optionally make it draggable from track click too
+            draggingSlider = true 
+            knob.BackgroundColor3 = Color3.fromRGB(200,200,200)
+        end
+    end)
+    slider.InputEnded:Connect(function(input)
+         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingSlider = false
+            knob.BackgroundColor3 = Color3.fromRGB(150,150,150)
+        end
+    end)
+
+    return sliderFrame, function(newValue) -- Function to externally set value
+        currentValue = math.clamp(newValue, minVal, maxVal)
+        knob.Position = UDim2.new(math.clamp((currentValue - minVal) / (maxVal - minVal),0,1) , 0, 0.5, 0)
+        label.Text = sliderTextPrefix .. ": " .. string.format("%.2f", currentValue)
+    end
+end
+
+-- NEW UI Creation Function: Type Box (Styled like GLASS_THEME)
+local function create_type_box(parentContentFrame, placeholderText, onEnterFunction)
+    local typeBoxFrame = Instance.new("Frame")
+    typeBoxFrame.Name = placeholderText .. "TypeBoxFrame"
+    typeBoxFrame.Size = UDim2.new(0, 250, 0, 35)
+    typeBoxFrame.BackgroundTransparency = 1
+    typeBoxFrame.LayoutOrder = #parentContentFrame:GetChildren() + 1
+    typeBoxFrame.Parent = parentContentFrame
+
+    local textBox = Instance.new("TextBox")
+    textBox.Name = "InputTextBox"
+    textBox.Size = UDim2.new(1, 0, 1, 0)
+    textBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    textBox.TextColor3 = Color3.new(220, 220, 220)
+    textBox.PlaceholderText = placeholderText
+    textBox.PlaceholderColor3 = Color3.fromRGB(150,150,150)
+    textBox.Font = Enum.Font.GothamSemibold
+    textBox.TextSize = 14
+    textBox.ClearTextOnFocus = false
+    textBox.Parent = typeBoxFrame
+
+    local tbCorner = Instance.new("UICorner")
+    tbCorner.CornerRadius = UDim.new(0,6)
+    tbCorner.Parent = textBox
+
+    local tbStroke = Instance.new("UIStroke")
+    tbStroke.Color = Color3.fromRGB(100,100,100)
+    tbStroke.Thickness = 1
+    tbStroke.Parent = textBox
+
+    textBox.FocusLost:Connect(function(enterPressed)
+        if enterPressed then
+            if onEnterFunction then
+                task.spawn(onEnterFunction, textBox.Text)
+            end
+            textBox.Text = "" -- Optionally clear after enter
+        end
+    end)
+    return textBox
+end
+
+-- NEW UI Creation Function: Indicator (Styled like GLASS_THEME)
+local function create_indicator(parentContentFrame, labelText, initialStatusText, statusColorsTable)
+    statusColorsTable = statusColorsTable or { default = Color3.new(200,200,200) }
+    initialStatusText = initialStatusText or "N/A"
+
+    local indicatorLabel = Instance.new("TextLabel")
+    indicatorLabel.Name = labelText .. "Indicator"
+    indicatorLabel.Size = UDim2.new(0, 250, 0, 25)
+    indicatorLabel.BackgroundTransparency = 1
+    indicatorLabel.Font = Enum.Font.GothamSemibold
+    indicatorLabel.TextSize = 14
+    indicatorLabel.TextXAlignment = Enum.TextXAlignment.Left
+    indicatorLabel.LayoutOrder = #parentContentFrame:GetChildren() + 1
+    indicatorLabel.Parent = parentContentFrame
+
+    local function updateStatus(newStatusText)
+        indicatorLabel.Text = labelText .. ": " .. newStatusText
+        indicatorLabel.TextColor3 = statusColorsTable[string.upper(newStatusText)] or statusColorsTable.default or Color3.new(200,200,200)
+    end
+
+    updateStatus(initialStatusText) -- Set initial state
+    return updateStatus -- Return the update function
+end
+
+-- #####################################################################
+-- # SECTION 9: CORE LOGIC FUNCTIONS (From FPS_SCRIPT, adapted)      #
+-- #####################################################################
+
+-- Note: Many functions from FPS_SCRIPT are directly copied or slightly adapted here.
+-- The ESP drawing functions (line, box) will use the placeholder 'Drawing' object.
+
+local function toggleSpinbot(state)
+    spinbotEnabled = state
+    if spinbotConnection then spinbotConnection:Disconnect(); spinbotConnection = nil end
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local existingGyro = LocalPlayer.Character.HumanoidRootPart:FindFirstChild("SpinbotGyro")
+        if existingGyro then existingGyro:Destroy() end
+    end
+    if state and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        local root = LocalPlayer.Character.HumanoidRootPart
+        local gyro = Instance.new("BodyGyro")
+        gyro.Name = "SpinbotGyro"; gyro.MaxTorque = Vector3.new(0, math.huge, 0)
+        gyro.P = 10000; gyro.D = 100; gyro.Parent = root
+        spinbotConnection = RunService.RenderStepped:Connect(function(deltaTime)
+            if spinbotEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                local humanoid = LocalPlayer.Character.Humanoid
+                if humanoid.Health <= 0 or humanoid.Sit then return end
+                local effectiveSpeed = spinbotSpeed + math.random(-50, 50)
+                gyro.CFrame = gyro.CFrame * CFrame.Angles(0, -deltaTime * math.rad(effectiveSpeed), 0)
+            end
+        end)
+    end
+end
+
+local function toggleNoClip(state)
+    noClipEnabled = state
+    if noClipConnection then noClipConnection:Disconnect(); noClipConnection = nil end
+    if noClipChildConnection then noClipChildConnection:Disconnect(); noClipChildConnection = nil end
+    local function applyNoClipToChar(character, applyState)
+        if not character then return end
+        local collisionGroupName = "NoClipPlayer_SOULS"
+        if applyState then
+            if not PhysicsService:IsCollisionGroupRegistered(collisionGroupName) then
+                PhysicsService:RegisterCollisionGroup(collisionGroupName)
+                PhysicsService:CollisionGroupSetCollidable(collisionGroupName, "Default", false)
+            end
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    pcall(PhysicsService.SetPartCollisionGroup, PhysicsService, part, collisionGroupName)
+                    part.CanCollide = false -- Ensure this too
+                end
+            end
+            noClipChildConnection = character.ChildAdded:Connect(function(child)
+                if noClipEnabled and child:IsA("BasePart") then
+                    pcall(PhysicsService.SetPartCollisionGroup, PhysicsService, child, collisionGroupName)
+                    child.CanCollide = false
+                end
+            end)
+        else -- Revert
+            for _, part in pairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    pcall(PhysicsService.SetPartCollisionGroup, PhysicsService, part, "Default")
+                    part.CanCollide = true
+                end
+            end
+            -- No need to unregister group, just stop using it for parts
+        end
+    end
+    if LocalPlayer.Character then applyNoClipToChar(LocalPlayer.Character, state) end
+    if state then
+        noClipConnection = RunService.Stepped:Connect(function()
+            if noClipEnabled and LocalPlayer.Character then
+                applyNoClipToChar(LocalPlayer.Character, true) -- Re-apply just in case
+            end
+        end)
+    end
+end
+
+-- ESP Object and Functions (from FPS_SCRIPT, highlights use Roblox Highlights)
+local ESP_System = {
+    Highlights = {},
+    Names = {},
+    Lines = {},
+    Boxes = {}
+}
+
+function ESP_System:CreateOrUpdateHighlight(player)
+    if player == LocalPlayer then return end
+    local char = player.Character
+    if not char then if ESP_System.Highlights[player] then ESP_System.Highlights[player]:Destroy(); ESP_System.Highlights[player] = nil end; return end
+    
+    local highlight = ESP_System.Highlights[player]
+    if not highlight or not highlight.Parent then
+        highlight = Instance.new("Highlight")
+        highlight.Name = "ESP_Highlight_SOULS"
+        highlight.Adornee = char
+        highlight.Parent = char -- Adorn to character model
+        ESP_System.Highlights[player] = highlight
+    end
+    highlight.FillColor = player.Team and player.Team.TeamColor.Color or Color3.new(1,0.2,0.2)
+    highlight.OutlineColor = Color3.new(0,0,0)
+    highlight.FillTransparency = 0.6
+    highlight.OutlineTransparency = 0.3
+    highlight.Enabled = highlightEspEnabled -- Control visibility via Enabled
+end
+
+function ESP_System:CreateOrUpdateName(player)
+    if player == LocalPlayer then return end
+    local char = player.Character
+    if not char or not char:FindFirstChild("Head") then if ESP_System.Names[player] then ESP_System.Names[player]:Destroy(); ESP_System.Names[player] = nil end; return end
+
+    local nameTag = ESP_System.Names[player]
+    if not nameTag or not nameTag.Parent then
+        nameTag = Instance.new("BillboardGui")
+        nameTag.Name = "ESP_Name_SOULS"
+        nameTag.Adornee = char.Head
+        nameTag.Size = UDim2.new(0, 150, 0, 40)
+        nameTag.StudsOffset = Vector3.new(0, 2.5, 0)
+        nameTag.AlwaysOnTop = true
+        nameTag.Parent = CoreGui -- Attach to CoreGui for better management
+        
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1,0,1,0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Font = Enum.Font.SourceSansSemibold
+        textLabel.TextSize = 16
+        textLabel.TextStrokeTransparency = 0.4
+        textLabel.Parent = nameTag
+        ESP_System.Names[player] = nameTag
+    end
+    nameTag.Enabled = namesEspEnabled -- Control visibility
+    local textLabel = nameTag:FindFirstChildOfClass("TextLabel")
+    if textLabel then
+        textLabel.Text = player.DisplayName .. " [" .. math.floor((LocalPlayer.Character.Head.Position - char.Head.Position).Magnitude) .. "m]"
+        textLabel.TextColor3 = player.Team and player.Team.TeamColor.Color or Color3.new(1,0.8,0.8)
+        textLabel.TextStrokeColor3 = Color3.new(0,0,0)
+    end
+end
+
+function ESP_System:ToggleHighlight(state)
+    highlightEspEnabled = state
+    if not state then
+        for _, hL in pairs(ESP_System.Highlights) do if hL and hL.Parent then hL.Enabled = false end end
+    else -- When turning on, update existing
+        for _, p in pairs(Players:GetPlayers()) do ESP_System:CreateOrUpdateHighlight(p) end
+    end
+end
+
+function ESP_System:ToggleNames(state)
+    namesEspEnabled = state
+    if not state then
+        for _, nT in pairs(ESP_System.Names) do if nT and nT.Parent then nT.Enabled = false end end
+    else
+        for _, p in pairs(Players:GetPlayers()) do ESP_System:CreateOrUpdateName(p) end
+    end
+end
+
+-- Line and Box ESP (using placeholder Drawing)
+function ESP_System:UpdateLinesAndBoxes()
+    if lineEspEnabled then
+        for player, lineObj in pairs(ESP_System.Lines) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+                local head = player.Character.Head
+                local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y - 20) -- Bottom center
+                if onScreen then
+                    lineObj.Visible = true; lineObj.From = screenCenter; lineObj.To = Vector2.new(screenPos.X, screenPos.Y)
+                    lineObj.Color = player.Team and player.Team.TeamColor.Color or Color3.new(1,1,0)
+                else lineObj.Visible = false end
+            else lineObj.Visible = false end
+        end
+    else for _, lineObj in pairs(ESP_System.Lines) do lineObj.Visible = false end end
+
+    if boxEspEnabled then 
+        for player, boxGroup in pairs(ESP_System.Boxes) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Head") then
+                local hrp = player.Character.HumanoidRootPart
+                local head = player.Character.Head
+                local cframe = hrp.CFrame
+                local size = Vector3.new(4,6,2) -- Approximate size
+                local corners = {
+                    cframe * Vector3.new(size.X/2, size.Y/2, size.Z/2), cframe * Vector3.new(size.X/2, -size.Y/2, size.Z/2),
+                    cframe * Vector3.new(-size.X/2, size.Y/2, size.Z/2), cframe * Vector3.new(-size.X/2, -size.Y/2, size.Z/2),
+                    cframe * Vector3.new(size.X/2, size.Y/2, -size.Z/2), cframe * Vector3.new(size.X/2, -size.Y/2, -size.Z/2),
+                    cframe * Vector3.new(-size.X/2, size.Y/2, -size.Z/2), cframe * Vector3.new(-size.X/2, -size.Y/2, -size.Z/2)
+                }
+                local screenPoints = {}
+                local allOnScreen = true
+                for _, cornerPos in ipairs(corners) do
+                    local sp, onScreen = Camera:WorldToScreenPoint(cornerPos)
+                    if not onScreen then allOnScreen = false; break end
+                    table.insert(screenPoints, Vector2.new(sp.X, sp.Y))
+                end
+                if allOnScreen and #screenPoints == 8 then
+                    -- Simplified: just draw a rectangle around min/max screen points for placeholder
+                    local minX, minY = math.huge, math.huge
+                    local maxX, maxY = -math.huge, -math.huge
+                    for _, sp in ipairs(screenPoints) do
+                        minX = math.min(minX, sp.X); minY = math.min(minY, sp.Y)
+                        maxX = math.max(maxX, sp.X); maxY = math.max(maxY, sp.Y)
+                    end
+                    boxGroup.Top.Visible = true; boxGroup.Top.From = Vector2.new(minX, minY); boxGroup.Top.To = Vector2.new(maxX, minY)
+                    boxGroup.Bottom.Visible = true; boxGroup.Bottom.From = Vector2.new(minX, maxY); boxGroup.Bottom.To = Vector2.new(maxX, maxY)
+                    boxGroup.Left.Visible = true; boxGroup.Left.From = Vector2.new(minX, minY); boxGroup.Left.To = Vector2.new(minX, maxY)
+                    boxGroup.Right.Visible = true; boxGroup.Right.From = Vector2.new(maxX, minY); boxGroup.Right.To = Vector2.new(maxX, maxY)
+                    for _, line in pairs(boxGroup) do line.Color = player.Team and player.Team.TeamColor.Color or Color3.new(0,1,1) end
+                else for _, line in pairs(boxGroup) do line.Visible = false end end
+            else for _, line in pairs(boxGroup) do line.Visible = false end end
+        end
+    else for _, boxGroup in pairs(ESP_System.Boxes) do for _, line in pairs(boxGroup) do line.Visible = false end end end
+end
+
+function ESP_System:ToggleLines(state)
+    lineEspEnabled = state
+    if state then
+        for _, p in pairs(Players:GetPlayers()) do if not ESP_System.Lines[p] then ESP_System.Lines[p] = Drawing.new("Line") end end
+    else for _, lineObj in pairs(ESP_System.Lines) do lineObj.Visible = false end end
+end
+
+function ESP_System:ToggleBoxes(state)
+    boxEspEnabled = state
+    if state then
+        for _, p in pairs(Players:GetPlayers()) do 
+            if not ESP_System.Boxes[p] then 
+                ESP_System.Boxes[p] = { Top = Drawing.new("Line"), Bottom = Drawing.new("Line"), Left = Drawing.new("Line"), Right = Drawing.new("Line") }
+            end 
+        end
+    else for _, boxGroup in pairs(ESP_System.Boxes) do for _, line in pairs(boxGroup) do line.Visible = false end end end
+end
+
+-- Player Added/Removed for ESP
+Players.PlayerAdded:Connect(function(player)
+    if highlightEspEnabled then ESP_System:CreateOrUpdateHighlight(player) end
+    if namesEspEnabled then ESP_System:CreateOrUpdateName(player) end
+    if lineEspEnabled and not ESP_System.Lines[player] then ESP_System.Lines[player] = Drawing.new("Line") end
+    if boxEspEnabled and not ESP_System.Boxes[player] then ESP_System.Boxes[player] = { Top = Drawing.new("Line"), Bottom = Drawing.new("Line"), Left = Drawing.new("Line"), Right = Drawing.new("Line") } end
+    player.CharacterAdded:Connect(function(char)
+        task.wait(0.5) -- Wait for character to fully load
+        if highlightEspEnabled then ESP_System:CreateOrUpdateHighlight(player) end
+        if namesEspEnabled then ESP_System:CreateOrUpdateName(player) end
+    end)
+end)
+Players.PlayerRemoving:Connect(function(player)
+    if ESP_System.Highlights[player] then ESP_System.Highlights[player]:Destroy(); ESP_System.Highlights[player] = nil end
+    if ESP_System.Names[player] then ESP_System.Names[player]:Destroy(); ESP_System.Names[player] = nil end
+    if ESP_System.Lines[player] then ESP_System.Lines[player]:Remove(); ESP_System.Lines[player] = nil end
+    if ESP_System.Boxes[player] then for _,l in pairs(ESP_System.Boxes[player]) do l:Remove() end; ESP_System.Boxes[player] = nil end
+end)
+
+-- Full Bright (from FPS_SCRIPT)
+local function enableFullBright(state)
+    fullBrightEnabled = state
+    if state then
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+        Lighting.GlobalShadows = false
+        Lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+    else -- Revert to defaults
+        Lighting.Brightness = defaultLightingSettings.Brightness
+        Lighting.ClockTime = defaultLightingSettings.ClockTime
+        Lighting.FogEnd = defaultLightingSettings.FogEnd
+        Lighting.GlobalShadows = defaultLightingSettings.GlobalShadows
+        Lighting.OutdoorAmbient = defaultLightingSettings.OutdoorAmbient
+    end
+end
+
+-- Custom Lighting / RTX (from FPS_SCRIPT)
+local function toggleCustomLighting(state)
+    customLightingEnabled = state
+    if state then
+        Lighting.Ambient = Color3.fromRGB(170,170,170)
+        Lighting.Brightness = 2.5
+        Lighting.ColorShift_Top = Color3.fromRGB(255,250,240)
+        Lighting.EnvironmentDiffuseScale = 1
+        Lighting.EnvironmentSpecularScale = 1
+        Lighting.GlobalShadows = true
+        Lighting.OutdoorAmbient = Color3.fromRGB(160,160,180)
+        Lighting.ExposureCompensation = 0.2
+        if Lighting:FindFirstChild("Atmosphere") then Lighting.Atmosphere:Destroy() end
+        if Lighting:FindFirstChild("Sky") then Lighting.Sky:Destroy() end
+        local newSky = Instance.new("Sky", Lighting)
+        newSky.SkyboxBk = "rbxassetid://9902973988" -- Example Sky
+        newSky.SkyboxDn = "rbxassetid://9902973988"
+        newSky.SkyboxFt = "rbxassetid://9902973988"
+        newSky.SkyboxLf = "rbxassetid://9902973988"
+        newSky.SkyboxRt = "rbxassetid://9902973988"
+        newSky.SkyboxUp = "rbxassetid://9902973988"
+        newSky.StarCount = 5000
+    else -- Revert
+        Lighting.Ambient = defaultLightingSettings.Ambient
+        Lighting.Brightness = defaultLightingSettings.Brightness
+        Lighting.ColorShift_Top = Color3.fromRGB(255,255,255) -- Default
+        Lighting.EnvironmentDiffuseScale = defaultLightingSettings.EnvironmentDiffuseScale
+        Lighting.EnvironmentSpecularScale = defaultLightingSettings.EnvironmentSpecularScale
+        Lighting.GlobalShadows = defaultLightingSettings.GlobalShadows
+        Lighting.OutdoorAmbient = defaultLightingSettings.OutdoorAmbient
+        Lighting.ExposureCompensation = defaultLightingSettings.ExposureCompensation
+        if Lighting:FindFirstChild("Sky") then Lighting.Sky:Destroy() end
+        if defaultSky then defaultSky:Clone().Parent = Lighting end
+    end
+end
+
+-- Custom Crosshair (from FPS_SCRIPT, uses placeholder Drawing)
+local function updateCustomCrosshair()
+    local x = Camera.ViewportSize.X / 2
+    local y = Camera.ViewportSize.Y / 2
+    local clr = Color3.fromRGB(crosshairColorR, crosshairColorG, crosshairColorB)
+    crosshair.Top.From = Vector2.new(x, y - crosshairSize / 2); crosshair.Top.To = Vector2.new(x, y - 2)
+    crosshair.Bottom.From = Vector2.new(x, y + 2); crosshair.Bottom.To = Vector2.new(x, y + crosshairSize / 2)
+    crosshair.Left.From = Vector2.new(x - crosshairSize / 2, y); crosshair.Left.To = Vector2.new(x - 2, y)
+    crosshair.Right.From = Vector2.new(x + 2, y); crosshair.Right.To = Vector2.new(x + crosshairSize / 2, y)
+    for _, line in pairs(crosshair) do
+        line.Visible = customCrosshairEnabled
+        line.Color = clr
+        line.Thickness = 1
+    end
+end
+
+-- Camera FOV (from FPS_SCRIPT)
+local function updateCameraFov(value)
+    cameraFovValue = value
+    Camera.FieldOfView = cameraFovValue
+end
+
+-- Infinite Jump (from FPS_SCRIPT)
+local function toggleInfJump(state)
+    infJumpEnabled = state
+    if infJumpConnection then infJumpConnection:Disconnect(); infJumpConnection = nil end
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character.Humanoid.JumpPower = state and 100 or originalJumpPower -- Example high jump power
+    end
+    if state then
+        infJumpConnection = UserInputService.JumpRequest:Connect(function()
+            if infJumpEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
+    end
+end
+
+-- Player Speed (from FPS_SCRIPT)
+local function updatePlayerSpeed(value)
+    playerSpeed = value -- Store the slider value
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = playerSpeed
+    end
+end
+
+-- Auto Reload (from FPS_SCRIPT)
+local function toggleAutoReload(state)
+    autoReloadEnabled = state
+    -- Logic for auto-reload would be game-specific, often involving checking ammo and simulating reload key/event
+    -- Placeholder for now
+    if state then print("[SOULS HUB] Auto Reload Enabled (Placeholder)") else print("[SOULS HUB] Auto Reload Disabled (Placeholder)") end
+end
+
+-- TriggerBot (from FPS_SCRIPT)
+local function toggleTriggerBot(state)
+    triggerBotEnabled = state
+    if triggerBotConnection then triggerBotConnection:Disconnect(); triggerBotConnection = nil end
+    if state then
+        triggerBotConnection = RunService.RenderStepped:Connect(function()
+            if not triggerBotEnabled or not LocalPlayer.Character then return end
+            local mouseTarget = LocalPlayer:GetMouse().Target
+            if mouseTarget and mouseTarget.Parent and mouseTarget.Parent:FindFirstChildOfClass("Humanoid") then
+                local targetPlayer = Players:GetPlayerFromCharacter(mouseTarget.Parent)
+                if targetPlayer and targetPlayer ~= LocalPlayer then
+                    if (not teamCheckEnabled or (targetPlayer.Team ~= LocalPlayer.Team)) then
+                        if (tick() - lastShotTime) > fireRate then
+                            VirtualUser:ClickButton1(Vector2.new()) -- Click at current mouse pos
+                            lastShotTime = tick()
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end
+
+-- Aimbot Core Logic (from FPS_SCRIPT, adapted)
+local function getClosestPlayerToPosition(position, maxDistance, checkWall, checkTeam)
+    local closestPlayer, minDist = nil, maxDistance
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChildOfClass("Humanoid") and player.Character.Humanoid.Health > 0 then
+            if checkTeam and player.Team == LocalPlayer.Team then continue end
+            
+            local headPos = player.Character.Head.Position
+            local distVec = (Camera.CFrame.Position - headPos)
+            local ray = Ray.new(Camera.CFrame.Position, -distVec.Unit * distVec.Magnitude)
+            local hit, hitPos = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, Camera})
+
+            if checkWall and hit and hit.Parent ~= player.Character and (hit.Parent and hit.Parent.Parent ~= player.Character) then continue end
+
+            local screenPos, onScreen = Camera:WorldToViewportPoint(headPos)
+            if onScreen then
+                local dist2D = (Vector2.new(screenPos.X, screenPos.Y) - position).Magnitude
+                if dist2D < minDist then
+                    minDist = dist2D
+                    closestPlayer = player
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
+
+local function applyAimbot(deltaTime)
+    if not (aimbotEnabled or (isMobile and aimbotMobileEnabled)) or not aiming then
+        aimbotLocked = false
+        fovCircle.Visible = showFovCircle and (aimbotEnabled or (isMobile and aimbotMobileEnabled)) -- Show if enabled, even if not aiming
+        return
+    end
+
+    local aimPosition = isMobile and isTouchAiming and touchStartPos or UserInputService:GetMouseLocation()
+    if not aimPosition then return end
+
+    fovCircle.Visible = showFovCircle
+    fovCircle.Position = aimPosition
+    fovCircle.Radius = fovRadius
+
+    local targetPlayer = getClosestPlayerToPosition(aimPosition, fovRadius, wallCheckEnabled, teamCheckEnabled)
+
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+        aimbotLocked = true
+        local targetPos = targetPlayer.Character.Head.Position
+        local newLookVector = (targetPos - Camera.CFrame.Position).Unit
+        local targetCFrame = CFrame.new(Camera.CFrame.Position, Camera.CFrame.Position + newLookVector)
+        
+        if blatantAimbotEnabled then
+            Camera.CFrame = targetCFrame
+        else
+            Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, math.min(1, 20 * deltaTime)) -- Smoothness factor
+        end
+        
+        -- Silent Aim Logic (conceptual, if active and firing)
+        if silentAimbotEnabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then 
+            -- This is where game-specific silent aim would hook. 
+            -- For example, by overriding arguments to a FireServer RemoteEvent.
+            -- For now, it just means aimbot is guiding, and if user clicks, it's more accurate.
+            -- True silent aim without camera snap is complex and game-dependent.
+            print("[SOULS HUB] Silent Aim active while firing at: " .. targetPlayer.Name)
+        end
+    else
+        aimbotLocked = false
+    end
+end
+
+-- #####################################################################
+-- # SECTION 10: UI ELEMENT POPULATION (Tabs, Categories, Features)  #
+-- #####################################################################
+
+-- Create Tabs (Names from FPS_SCRIPT)
+local CombatTabContent = createTab("Combat")
+local VisualTabContent = createTab("Visual")
+local PlayerTabContent = createTab("Player")
+-- local MiscTabContent = createTab("Misc") -- If needed later
+
+-- == Combat Tab Content ==
+addCategory(CombatTabContent, "Aimbot")
+createToggle(CombatTabContent, "Aimbot (PC): ", "ON", "OFF", function() aimbotEnabled = true end, function() aimbotEnabled = false end, aimbotEnabled)
+createToggle(CombatTabContent, "Aimbot (Mobile): ", "ON", "OFF", function() aimbotMobileEnabled = true end, function() aimbotMobileEnabled = false end, aimbotMobileEnabled)
+createToggle(CombatTabContent, "Blatant Aimbot: ", "ON", "OFF", function() blatantAimbotEnabled = true end, function() blatantAimbotEnabled = false end, blatantAimbotEnabled)
+createToggle(CombatTabContent, "Silent Aim: ", "ON", "OFF", function() silentAimbotEnabled = true end, function() silentAimbotEnabled = false end, silentAimbotEnabled)
+createToggle(CombatTabContent, "Show FOV Circle: ", "VISIBLE", "HIDDEN", function() showFovCircle = true end, function() showFovCircle = false; fovCircle.Visible = false end, showFovCircle)
+createSlider(CombatTabContent, "FOV Radius", 20, 500, fovRadius, 5, function(val) fovRadius = val end)
+createToggle(CombatTabContent, "Wall Check: ", "ENABLED", "DISABLED", function() wallCheckEnabled = true end, function() wallCheckEnabled = false end, wallCheckEnabled)
+createToggle(CombatTabContent, "Team Check: ", "ENABLED", "DISABLED", function() teamCheckEnabled = true end, function() teamCheckEnabled = false end, teamCheckEnabled)
+
+addCategory(CombatTabContent, "Weapon")
+createToggle(CombatTabContent, "TriggerBot: ", "ON", "OFF", function() toggleTriggerBot(true) end, function() toggleTriggerBot(false) end, triggerBotEnabled)
+createSlider(CombatTabContent, "TriggerBot FireRate", 0.05, 1, fireRate, 0.01, function(val) fireRate = val end)
+createToggle(CombatTabContent, "Auto Reload: ", "ON", "OFF", function() toggleAutoReload(true) end, function() toggleAutoReload(false) end, autoReloadEnabled)
+
+-- == Visual Tab Content ==
+addCategory(VisualTabContent, "ESP")
+createToggle(VisualTabContent, "Highlight ESP: ", "ON", "OFF", function() ESP_System:ToggleHighlight(true) end, function() ESP_System:ToggleHighlight(false) end, highlightEspEnabled)
+createToggle(VisualTabContent, "Names ESP: ", "ON", "OFF", function() ESP_System:ToggleNames(true) end, function() ESP_System:ToggleNames(false) end, namesEspEnabled)
+createToggle(VisualTabContent, "Line ESP: ", "ON", "OFF", function() ESP_System:ToggleLines(true) end, function() ESP_System:ToggleLines(false) end, lineEspEnabled)
+createToggle(VisualTabContent, "Box ESP: ", "ON", "OFF", function() ESP_System:ToggleBoxes(true) end, function() ESP_System:ToggleBoxes(false) end, boxEspEnabled)
+
+addCategory(VisualTabContent, "World & Lighting")
+createToggle(VisualTabContent, "Full Bright: ", "ON", "OFF", function() enableFullBright(true) end, function() enableFullBright(false) end, fullBrightEnabled)
+createToggle(VisualTabContent, "RTX Lighting: ", "ON", "OFF", function() toggleCustomLighting(true) end, function() toggleCustomLighting(false) end, customLightingEnabled)
+
+addCategory(VisualTabContent, "Crosshair & FOV")
+createToggle(VisualTabContent, "Custom Crosshair: ", "ON", "OFF", function() customCrosshairEnabled = true; updateCustomCrosshair() end, function() customCrosshairEnabled = false; updateCustomCrosshair() end, customCrosshairEnabled)
+createSlider(VisualTabContent, "Crosshair Size", 2, 50, crosshairSize, 1, function(val) crosshairSize = val; updateCustomCrosshair() end)
+createSlider(VisualTabContent, "Crosshair R", 0, 255, crosshairColorR, 1, function(val) crosshairColorR = val; updateCustomCrosshair() end)
+createSlider(VisualTabContent, "Crosshair G", 0, 255, crosshairColorG, 1, function(val) crosshairColorG = val; updateCustomCrosshair() end)
+createSlider(VisualTabContent, "Crosshair B", 0, 255, crosshairColorB, 1, function(val) crosshairColorB = val; updateCustomCrosshair() end)
+createSlider(VisualTabContent, "Camera FOV", 30, 120, cameraFovValue, 1, function(val) updateCameraFov(val) end)
+
+-- == Player Tab Content ==
+addCategory(PlayerTabContent, "Movement")
+createToggle(PlayerTabContent, "Infinite Jump: ", "ON", "OFF", function() toggleInfJump(true) end, function() toggleInfJump(false) end, infJumpEnabled)
+createSlider(PlayerTabContent, "WalkSpeed", 16, 100, playerSpeed, 1, function(val) updatePlayerSpeed(val) end)
+createToggle(PlayerTabContent, "NoClip (Experimental): ", "ON", "OFF", function() toggleNoClip(true) end, function() toggleNoClip(false) end, noClipEnabled)
+
+addCategory(PlayerTabContent, "Misc")
+createToggle(PlayerTabContent, "SpinBot: ", "ON", "OFF", function() toggleSpinbot(true) end, function() toggleSpinbot(false) end, spinbotEnabled)
+createSlider(PlayerTabContent, "SpinBot Speed", 90, 720, spinbotSpeed, 10, function(val) spinbotSpeed = val end)
+
+-- Example of new Type Box and Indicator in Player Tab
+addCategory(PlayerTabContent, "Testing New Elements")
+create_type_box(PlayerTabContent, "Enter command...", function(text)
+    StarterGui:SetCore("SendNotification", { Title = "Command", Text = "Entered: " .. text, Duration = 3 })
+end)
+local updateStatusIndicator = create_indicator(PlayerTabContent, "System Status", "OKAY", 
+    {OKAY = Color3.fromRGB(0,255,0), WARNING = Color3.fromRGB(255,255,0), ERROR = Color3.fromRGB(255,0,0)})
+createButton(PlayerTabContent, "Set Status to WARNING", function() updateStatusIndicator("WARNING") end)
+
+-- #####################################################################
+-- # SECTION 11: EVENT CONNECTIONS (RenderStepped, Input)            #
+-- #####################################################################
+
+-- UI Toggle Logic (Main Frame & Button)
+local function toggleMainUI(visibility)
+    mainFrame.Visible = visibility
+    toggleBtn.Visible = not visibility
+end
+
+toggleBtn.MouseButton1Click:Connect(function() toggleMainUI(true) end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if gameProcessedEvent then return end
+
+    if input.KeyCode == Enum.KeyCode.RightShift then -- Toggle key from FPS_SCRIPT
+        toggleMainUI(not mainFrame.Visible)
+    end
+
+    -- Aimbot Input (PC)
+    if not isMobile and (aimbotEnabled or silentAimbotEnabled) and input.UserInputType == Enum.UserInputType.MouseButton2 then
+        if input.UserInputState == Enum.UserInputState.Begin then aiming = true end
+    end
+    
+    -- Aimbot Input (Mobile)
+    if isMobile and aimbotMobileEnabled and input.UserInputType == Enum.UserInputType.Touch then
+        if input.UserInputState == Enum.UserInputState.Begin and not activeTouchId then -- Start aiming with first touch
+            activeTouchId = input.PointerIndex
+            isTouchAiming = true
+            aiming = true -- General aiming flag for applyAimbot
+            touchStartPos = input.Position
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    -- Aimbot Input (PC)
+    if not isMobile and (aimbotEnabled or silentAimbotEnabled) and input.UserInputType == Enum.UserInputType.MouseButton2 then
+        aiming = false
+        aimbotLocked = false
+    end
+
+    -- Aimbot Input (Mobile)
+    if isMobile and aimbotMobileEnabled and input.UserInputType == Enum.UserInputType.Touch then
+        if input.PointerIndex == activeTouchId then -- Only end if it's the aiming touch
+            isTouchAiming = false
+            aiming = false
+            aimbotLocked = false
+            activeTouchId = nil
+            touchStartPos = nil
+        end
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    -- Mobile aim position update
+    if isMobile and isTouchAiming and input.UserInputType == Enum.UserInputType.Touch and input.PointerIndex == activeTouchId then
+        if input.UserInputState == Enum.UserInputState.Change then
+            touchStartPos = input.Position
+        end
+    end
+end)
+
+RunService.RenderStepped:Connect(function(deltaTime)
+    if mainFrame.Visible then -- Only run these if UI is active, or if features are enabled
+        -- ESP Updates
+        if highlightEspEnabled or namesEspEnabled then
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character then
+                    if highlightEspEnabled then ESP_System:CreateOrUpdateHighlight(player) end
+                    if namesEspEnabled then ESP_System:CreateOrUpdateName(player) end
+                end
+            end
+        end
+        ESP_System:UpdateLinesAndBoxes() -- Uses placeholder Drawing
+
+        -- Custom Crosshair Update
+        if customCrosshairEnabled then updateCustomCrosshair() end
+
+        -- Aimbot Logic
+        applyAimbot(deltaTime)
+    else
+        -- If UI is not visible, ensure FOV circle is also hidden if it was managed by aimbot
+        if fovCircle.Visible then fovCircle.Visible = false end
+    end
+end)
+
+-- #####################################################################
+-- # SECTION 12: INITIALIZATION & FINAL MESSAGE                      #
+-- #####################################################################
+
+-- Select the first tab by default
+if #activeTabs > 0 then
+    activeTabs[1].button.TextTransparency = 0
+    activeTabs[1].content.Visible = true
+    currentTabButton = activeTabs[1].button
+    currentTabContentFrame = activeTabs[1].content
+    local indicator = Instance.new("Frame")
+    indicator.Name = "SelectionIndicator"; indicator.Size = UDim2.new(1, 0, 0, 2)
+    indicator.Position = UDim2.new(0,0,1,-2); indicator.BackgroundColor3 = Color3.fromRGB(200,200,200)
+    indicator.BorderSizePixel = 0; indicator.Parent = activeTabs[1].button
+else
+    warn("[SOULS HUB] No tabs were created!")
+end
+
+-- Initial state of UI
+toggleMainUI(false) -- Start with UI hidden, toggle button visible
+
+print("[SOULS HUB UNIVERSAL - FULL MERGE] Loaded successfully.")
+print("[SOULS HUB] UI Toggle: RightShift key or the dedicated 'TOGGLE MENU' button.")
+print("[SOULS HUB] Please refer to 'final_summary_of_changes.md' for full details on features and the 'Drawing' object limitations.")
+
