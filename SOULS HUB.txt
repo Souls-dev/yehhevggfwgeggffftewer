@@ -1,0 +1,2100 @@
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+
+-- Whitelisted users
+local WHITELISTED_USERS = {
+    "tanveerstink",  -- Your username
+    "bobbyjack_9" ,  -- Add other whitelisted users here
+    "Manfaceprorobloxyay",
+    "xlzzzmain",
+    "bestgkrivalsb1",
+    "Orange_Boy361",
+    "ajjbsbbsb2223",
+    "Min85500",
+    "ArthDutta",
+    "GivingisGood_6",
+    "HWIllLAlIlIIllWWBlIl",
+    "sfsfafafsaf13",
+    "Msi_astro",
+    "dracobot_17",
+    "untamkne330",
+    "DRIP_BACONtwo",
+    "whohurtyoudear",
+    "topraklife",
+    "ronixtest123",
+    "ClawKnight50",
+    "sadwasgfsagas",
+    "TimofeyUl",
+    "SkinnyDic692",
+    "officialbacontoast_8"
+}
+
+
+if game:GetService("CoreGui"):FindFirstChild("SOULS_HUB") then
+    game:GetService("CoreGui").SOULS_HUB:Destroy()
+end
+
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SOULS_HUB"
+screenGui.Parent = game:GetService("CoreGui")
+
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 700, 0, 380)
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.ZIndex = 1
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+local outline = Instance.new("UIStroke")
+outline.Color = Color3.new(1, 1, 1)
+outline.Thickness = 2
+outline.Transparency = 0.1
+outline.Parent = mainFrame
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 16)
+corner.Parent = mainFrame
+
+local gradient = Instance.new("UIGradient")
+gradient.Rotation = 90
+gradient.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 0.6),
+    NumberSequenceKeypoint.new(1, 0.8)
+})
+gradient.Parent = mainFrame
+
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleButton"
+toggleBtn.Size = UDim2.new(0, 140, 0, 40)
+toggleBtn.Position = UDim2.new(0.5, -70, 0, 20)
+toggleBtn.AnchorPoint = Vector2.new(0.5, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+toggleBtn.BackgroundTransparency = 0.3
+toggleBtn.Text = "TOGGLE MENU"
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 14
+toggleBtn.Visible = false
+toggleBtn.ZIndex = 10
+toggleBtn.Parent = screenGui
+
+local toggleTextOutline = Instance.new("UIStroke")
+toggleTextOutline.Color = Color3.new(0, 0, 0)
+toggleTextOutline.Thickness = 1
+toggleTextOutline.Transparency = 0
+toggleTextOutline.Parent = toggleBtn
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 12)
+toggleCorner.Parent = toggleBtn
+
+local toggleOutline = Instance.new("UIStroke")
+toggleOutline.Color = Color3.new(1, 1, 1)
+toggleOutline.Thickness = 1
+toggleOutline.Transparency = 0.2
+toggleOutline.Parent = toggleBtn
+
+local function makeDraggable(frame)
+    local dragging = false
+    local dragInput, dragStart, startPos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+        end
+    end)
+
+    frame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            dragInput = nil
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            dragInput = input
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+makeDraggable(mainFrame)
+makeDraggable(toggleBtn)
+
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseButton"
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -35, 0, 10)
+closeBtn.AnchorPoint = Vector2.new(1, 0)
+closeBtn.BackgroundTransparency = 1
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.TextSize = 20
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.ZIndex = 3
+closeBtn.Parent = mainFrame
+
+local closeTextOutline = Instance.new("UIStroke")
+closeTextOutline.Color = Color3.new(0, 0, 0)
+closeTextOutline.Thickness = 1
+closeTextOutline.Transparency = 0
+closeTextOutline.Parent = closeBtn
+
+
+local titleFont = Enum.Font.GothamBold
+local titleText = Instance.new("TextLabel")
+titleText.Name = "Title"
+titleText.Size = UDim2.new(0, 200, 0, 30)
+titleText.Position = UDim2.new(0, 20, 0, 10)
+titleText.BackgroundTransparency = 1
+titleText.Text = "SOULS HUB"
+titleText.TextColor3 = Color3.new(1, 1, 1)
+titleText.TextSize = 24
+titleText.Font = titleFont
+titleText.TextXAlignment = Enum.TextXAlignment.Left
+titleText.ZIndex = 2
+titleText.Parent = mainFrame
+
+local titleTextOutline = Instance.new("UIStroke")
+titleTextOutline.Color = Color3.new(0, 0, 0)
+titleTextOutline.Thickness = 1
+titleTextOutline.Transparency = 0
+titleTextOutline.Parent = titleText
+
+local titleGlow = Instance.new("UIGradient")
+titleGlow.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+    ColorSequenceKeypoint.new(0.5, Color3.new(0.85, 0.85, 0.85)),
+    ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1))
+})
+titleGlow.Rotation = -45
+titleGlow.Transparency = NumberSequence.new(0.6)
+titleGlow.Parent = titleText
+
+-- Separators
+local topSeparator = Instance.new("Frame")
+topSeparator.Name = "TopSeparator"
+topSeparator.Size = UDim2.new(1, -40, 0, 1)
+topSeparator.Position = UDim2.new(0, 20, 0, 50)
+topSeparator.BackgroundColor3 = Color3.new(1, 1, 1)
+topSeparator.BorderSizePixel = 0
+topSeparator.ZIndex = 2
+topSeparator.Parent = mainFrame
+
+local verticalSeparator = Instance.new("Frame")
+verticalSeparator.Name = "VerticalSeparator"
+verticalSeparator.Size = UDim2.new(0, 1, 1, -120)
+verticalSeparator.Position = UDim2.new(0, 170, 0, 70)
+verticalSeparator.BackgroundColor3 = Color3.new(1, 1, 1)
+verticalSeparator.BorderSizePixel = 0
+verticalSeparator.ZIndex = 2
+verticalSeparator.Parent = mainFrame
+
+-- Tab System
+local tabContainer = Instance.new("Frame")
+tabContainer.Name = "Tabs"
+tabContainer.Size = UDim2.new(0, 150, 0, 280)
+tabContainer.Position = UDim2.new(0, 15, 0, 70)
+tabContainer.BackgroundTransparency = 1
+tabContainer.ZIndex = 2
+tabContainer.Parent = mainFrame
+
+local contentContainer = Instance.new("Frame")
+contentContainer.Name = "Content"
+contentContainer.Size = UDim2.new(0, 500, 0, 280)
+contentContainer.Position = UDim2.new(1, -515, 0, 70)
+contentContainer.BackgroundTransparency = 1
+contentContainer.ZIndex = 2
+contentContainer.Parent = mainFrame
+
+local function createTab(tabName)
+    local tab = Instance.new("TextButton")
+    tab.Name = tabName
+    tab.Size = UDim2.new(0, 140, 0, 30)
+    tab.Position = UDim2.new(0, 0, 0, #tabContainer:GetChildren() * 35)
+    tab.BackgroundTransparency = 1
+    tab.Text = tabName
+    tab.TextColor3 = Color3.new(1, 1, 1)
+    tab.TextSize = 18
+    tab.Font = Enum.Font.GothamBold
+    tab.TextTransparency = 0.5
+    tab.ZIndex = 3
+
+    local tabTextOutline = Instance.new("UIStroke")
+    tabTextOutline.Color = Color3.new(0, 0, 0)
+    tabTextOutline.Thickness = 1
+    tabTextOutline.Transparency = 0.5
+    tabTextOutline.Parent = tab
+
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.new(1, 1, 1)
+    outline.Thickness = 1
+    outline.Transparency = 0.5
+    outline.Parent = tab
+
+    local content = Instance.new("ScrollingFrame")
+    content.Name = tabName.."Content"
+    content.Size = UDim2.new(1, 0, 1, 0)
+    content.BackgroundTransparency = 1
+    content.Visible = false
+    content.ScrollBarThickness = 5
+    content.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    content.Parent = contentContainer
+
+    tab.Parent = tabContainer
+    return tab, content
+end
+
+local function addCategory(parent, text)
+    local category = Instance.new("TextLabel")
+    category.Name = text.."Category"
+    category.Size = UDim2.new(0, 200, 0, 20)
+    category.Position = UDim2.new(0, 0, 0, #parent:GetChildren() * 45)
+    category.BackgroundTransparency = 1
+    category.Text = text
+    category.TextColor3 = Color3.new(1, 1, 1)
+    category.TextSize = 16
+    category.Font = titleFont
+    category.TextXAlignment = Enum.TextXAlignment.Left
+    category.ZIndex = 3
+
+    local categoryTextOutline = Instance.new("UIStroke")
+    categoryTextOutline.Color = Color3.new(0, 0, 0)
+    categoryTextOutline.Thickness = 1
+    categoryTextOutline.Transparency = 0
+    categoryTextOutline.Parent = category
+
+    category.Parent = parent
+end
+
+local function createButton(parent, buttonText, func)
+    local button = Instance.new("TextButton")
+    button.Name = buttonText
+    button.Size = UDim2.new(0, 200, 0, 40)
+    button.Position = UDim2.new(0, 0, 0, #parent:GetChildren() * 45)
+    button.BackgroundTransparency = 1
+    button.Text = buttonText
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 14
+    button.ZIndex = 3
+
+    local buttonTextOutline = Instance.new("UIStroke")
+    buttonTextOutline.Color = Color3.new(0, 0, 0)
+    buttonTextOutline.Thickness = 1
+    buttonTextOutline.Transparency = 0.3
+    buttonTextOutline.Parent = button
+
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.new(1, 1, 1)
+    outline.Thickness = 1
+    outline.Transparency = 0.3
+    outline.Parent = button
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = button
+
+    button.MouseButton1Click:Connect(function()
+        if string.find(parent.Parent.Name:lower(), "premium") then
+            local playerName = game.Players.LocalPlayer.Name:lower()
+            local isAllowed = false
+            for _, name in pairs(WHITELISTED_USERS) do
+                if playerName == name:lower() then
+                    isAllowed = true
+                    break
+                end
+            end
+
+            if isAllowed then
+                if func then func() end
+            else
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "PREMIUM ACCESS DENIED",
+                    Text = "DM soulsyt_ TO BUY",
+                    Duration = 5
+                })
+            end
+        else
+            if func then func() end
+        end
+    end)
+
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {
+            BackgroundTransparency = 0.85,
+            TextColor3 = Color3.new(0.9, 0.9, 0.9)
+        }):Play()
+    end)
+
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {
+            BackgroundTransparency = 1,
+            TextColor3 = Color3.new(1, 1, 1)
+        }):Play()
+    end)
+
+    button.Parent = parent
+    return button
+end
+
+local function createToggle(parent, defaultText, onText, offText, onFunction, offFunction)
+    local toggleEnabled = false
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Name = "ToggleButton"
+    toggleButton.Size = UDim2.new(0, 200, 0, 40)
+    toggleButton.Position = UDim2.new(0, 0, 0, #parent:GetChildren() * 45)
+    toggleButton.BackgroundTransparency = 1
+    toggleButton.Text = defaultText or "TOGGLE"
+    toggleButton.TextColor3 = Color3.new(1, 1, 1)
+    toggleButton.Font = Enum.Font.GothamBold
+    toggleButton.TextSize = 14
+    toggleButton.ZIndex = 3
+
+    local toggleTextOutline = Instance.new("UIStroke")
+    toggleTextOutline.Color = Color3.new(0, 0, 0)
+    toggleTextOutline.Thickness = 1
+    toggleTextOutline.Transparency = 0.3
+    toggleTextOutline.Parent = toggleButton
+
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.new(1, 1, 1)
+    outline.Thickness = 1
+    outline.Transparency = 0.3
+    outline.Parent = toggleButton
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = toggleButton
+
+    toggleButton.MouseEnter:Connect(function()
+        TweenService:Create(toggleButton, TweenInfo.new(0.2), {
+            BackgroundTransparency = 0.85,
+            TextColor3 = Color3.new(0.9, 0.9, 0.9)
+        }):Play()
+    end)
+
+    toggleButton.MouseLeave:Connect(function()
+        TweenService:Create(toggleButton, TweenInfo.new(0.2), {
+            BackgroundTransparency = 1,
+            TextColor3 = Color3.new(1, 1, 1)
+        }):Play()
+    end)
+
+    toggleButton.MouseButton1Down:Connect(function()
+        game:GetService("TweenService"):Create(
+            toggleButton,
+            TweenInfo.new(0.1),
+            {Size = UDim2.new(0, 190, 0, 38)}
+        ):Play()
+    end)
+
+    toggleButton.MouseButton1Up:Connect(function()
+        game:GetService("TweenService"):Create(
+            toggleButton,
+            TweenInfo.new(0.2),
+            {Size = UDim2.new(0, 200, 0, 40)}
+        ):Play()
+    end)
+
+    toggleButton.MouseButton1Click:Connect(function()
+        toggleEnabled = not toggleEnabled
+
+        if toggleEnabled then
+            toggleButton.Text = onText or "ON"
+            if onFunction then onFunction() end
+        else
+            toggleButton.Text = offText or "OFF"
+            if offFunction then offFunction() end
+        end
+    end)
+
+    toggleButton.Parent = parent
+    return toggleButton
+end
+
+local mainTab, mainContent = createTab("MAIN FEATURES")
+local stylesTab, stylesContent = createTab("CUSTOM STYLES")
+local flowTab, flowContent = createTab("STYLE/FLOW")
+local premiumTab, premiumContent = createTab("PREMIUM")
+local creditsTab, creditsContent = createTab("CREDITS")
+local positionTab, positionContent = createTab("POSITION SELECTOR")
+local externalhubTab, externalContent = createTab("EXTERNAL HUBS")
+
+
+addCategory(mainContent, "MAIN FEATURES")
+
+local powerValue = 60
+local powerEnabled = false
+local shootButton = nil
+local customAbilityButton = nil
+
+local powerInput = Instance.new("TextBox")
+powerInput.Name = "PowerInput"
+powerInput.Size = UDim2.new(0, 300, 0, 40)
+powerInput.Position = UDim2.new(0.5, -150, 0, 30)
+powerInput.AnchorPoint = Vector2.new(0.5, 0)
+powerInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+powerInput.TextColor3 = Color3.new(1, 1, 1)
+powerInput.Font = Enum.Font.GothamBold
+powerInput.TextSize = 14
+powerInput.PlaceholderText = "Enter Power (Default: 60)"
+powerInput.Text = tostring(powerValue)
+powerInput.ZIndex = 3
+powerInput.Parent = mainContent
+
+local powerApply = Instance.new("TextButton")
+powerApply.Name = "PowerApply"
+powerApply.Size = UDim2.new(0, 200, 0, 40)
+powerApply.Position = UDim2.new(0.5, -100, 0, 80)
+powerApply.AnchorPoint = Vector2.new(0.5, 0)
+powerApply.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+powerApply.BackgroundTransparency = 0.3
+powerApply.Text = "APPLY POWER"
+powerApply.TextColor3 = Color3.new(1, 1, 1)
+powerApply.Font = Enum.Font.GothamBold
+powerApply.TextSize = 14
+powerApply.ZIndex = 3
+powerApply.Parent = mainContent
+
+local powerToggle = Instance.new("TextButton")
+powerToggle.Name = "PowerToggle"
+powerToggle.Size = UDim2.new(0, 100, 0, 30)
+powerToggle.Position = UDim2.new(0.5, 120, 0, 80)
+powerToggle.AnchorPoint = Vector2.new(0.5, 0)
+powerToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+powerToggle.BackgroundTransparency = 0.3
+powerToggle.Text = "ENABLE"
+powerToggle.TextColor3 = Color3.new(1, 1, 1)
+powerToggle.Font = Enum.Font.GothamBold
+powerToggle.TextSize = 14
+powerToggle.ZIndex = 3
+powerToggle.Parent = mainContent
+
+local function updateShootButton()
+    local playerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+    local inGameUI = playerGui:WaitForChild("InGameUI")
+    local bottomUI = inGameUI:WaitForChild("Bottom")
+    local abilities = bottomUI:WaitForChild("Abilities")
+
+    if not customAbilityButton then
+        local originalButton = abilities:WaitForChild("1")
+        customAbilityButton = originalButton:Clone()
+        customAbilityButton.Name = "custom"
+        customAbilityButton.Parent = abilities
+
+        local timerText = customAbilityButton:WaitForChild("Timer")
+        timerText.Text = "SHOOT"
+    end
+
+    if not shootButton then
+        shootButton = Instance.new("TextButton")
+        shootButton.Size = UDim2.new(0, 40, 0, 40)
+        shootButton.Position = UDim2.new(0, 593, 0, 159)
+        shootButton.BackgroundTransparency = 1
+        shootButton.Text = ""
+        shootButton.Parent = playerGui
+
+        local uiCorner = Instance.new("UICorner")
+        uiCorner.CornerRadius = UDim.new(1, 0)
+        uiCorner.Parent = shootButton
+    end
+
+    local function shootBall()
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoid = character:WaitForChild("Humanoid")
+        local cam = workspace.CurrentCamera
+
+        if not cam then
+            warn("Camera not found.")
+            return
+        end
+
+        local direction = (cam.CFrame.LookVector + Vector3.new(0, 0.25, 0)).Unit
+        local args = {
+            [1] = powerValue,        -- Power value (number)
+            [2] = nil,               -- Placeholder (unknown parameter)
+            [3] = nil,               -- Placeholder (unknown parameter)
+            [4] = direction          -- Direction (Vector3)
+        }
+
+        print("Firing Shoot event with args:")
+        print("Power:", powerValue)
+        print("Direction:", direction)
+
+        local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://18668827116"
+        local track = animator:LoadAnimation(anim)
+        track:Play()
+
+        local success, err = pcall(function()
+            game:GetService("ReplicatedStorage")
+                :WaitForChild("Packages", 9e9)
+                :WaitForChild("Knit", 9e9)
+                :WaitForChild("Services", 9e9)
+                :WaitForChild("BallService", 9e9)
+                :WaitForChild("RE", 9e9)
+                :WaitForChild("Shoot", 9e9)
+                :FireServer(unpack(args))
+        end)
+
+        if not success then
+            warn("Failed to fire Shoot event: ", err)
+        else
+            print("Shoot fired successfully with power:", powerValue, "and direction:", direction)
+        end
+    end
+
+    shootButton.Activated:Connect(shootBall)
+    customAbilityButton.Activated:Connect(shootBall)
+end
+
+local function removeShootButton()
+    if shootButton then
+        shootButton:Destroy()
+        shootButton = nil
+    end
+    if customAbilityButton then
+        customAbilityButton:Destroy()
+        customAbilityButton = nil
+    end
+end
+
+powerApply.MouseButton1Click:Connect(function()
+    local num = tonumber(powerInput.Text)
+    if num then
+        powerValue = num
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Power Updated",
+            Text = "Kick power set to: "..powerValue,
+            Duration = 3
+        })
+        if powerEnabled then
+            updateShootButton()
+        end
+    else
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Invalid Input",
+            Text = "Please enter a valid number",
+            Duration = 3
+        })
+    end
+end)
+
+powerToggle.MouseButton1Click:Connect(function()
+    powerEnabled = not powerEnabled
+
+    if powerEnabled then
+        powerToggle.Text = "DISABLE"
+        updateShootButton()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Kick Power Enabled",
+            Text = "Power: "..powerValue,
+            Duration = 3
+        })
+    else
+        powerToggle.Text = "ENABLE"
+        removeShootButton()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Kick Power Disabled",
+            Text = "",
+            Duration = 3
+        })
+    end
+end)
+
+-- AUTO FEATURES CATEGORY
+local autoCategory = Instance.new("Frame")
+autoCategory.Name = "AutoFeaturesCategory"
+autoCategory.Size = UDim2.new(1, -40, 0, 180)
+autoCategory.Position = UDim2.new(0, 20, 0, 130)
+autoCategory.BackgroundTransparency = 1
+autoCategory.Parent = mainContent
+
+local categoryLabel = Instance.new("TextLabel")
+categoryLabel.Name = "AutoFeaturesLabel"
+categoryLabel.Size = UDim2.new(1, 0, 0, 25)
+categoryLabel.Position = UDim2.new(0, 0, 0, 0)
+categoryLabel.BackgroundTransparency = 1
+categoryLabel.Text = "AUTO FEATURES"
+categoryLabel.TextColor3 = Color3.new(1, 1, 1)
+categoryLabel.TextSize = 18
+categoryLabel.Font = Enum.Font.GothamBold
+categoryLabel.TextXAlignment = Enum.TextXAlignment.Left
+categoryLabel.ZIndex = 3
+categoryLabel.Parent = autoCategory
+
+local underline = Instance.new("Frame")
+underline.Size = UDim2.new(0, 150, 0, 1)
+underline.Position = UDim2.new(0, 0, 0, 24)
+underline.BackgroundColor3 = Color3.new(1, 1, 1)
+underline.BorderSizePixel = 0
+underline.ZIndex = 3
+underline.Parent = autoCategory
+
+getgenv().AutoSettings = {
+    DribbleEnabled = false,
+    TackleEnabled = false,
+    TeleportEnabled = false,
+    DribbleRange = 15,
+    TackleRange = 10,
+    TeleportRange = 20
+}
+
+local yPosition = 35
+
+local dribbleToggle = createToggle(
+    autoCategory,
+    "AUTO DRIBBLE OFF",
+    "AUTO DRIBBLE ON",
+    "AUTO DRIBBLE OFF",
+    function() getgenv().AutoSettings.DribbleEnabled = true end,
+    function() getgenv().AutoSettings.DribbleEnabled = false end
+)
+dribbleToggle.Position = UDim2.new(0, 0, 0, yPosition)
+
+local dribbleRange = Instance.new("TextBox")
+dribbleRange.Size = UDim2.new(0, 60, 0, 25)
+dribbleRange.Position = UDim2.new(1, -60, 0, yPosition)
+dribbleRange.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+dribbleRange.TextColor3 = Color3.new(1, 1, 1)
+dribbleRange.Text = "15"
+dribbleRange.Font = Enum.Font.Gotham
+dribbleRange.TextSize = 14
+dribbleRange.Parent = autoCategory
+
+yPosition = yPosition + 45
+
+local tackleToggle = createToggle(
+    autoCategory,
+    "AUTO TACKLE OFF",
+    "AUTO TACKLE ON",
+    "AUTO TACKLE OFF",
+    function() getgenv().AutoSettings.TackleEnabled = true end,
+    function()
+        getgenv().AutoSettings.TackleEnabled = false
+        getgenv().AutoSettings.TeleportEnabled = false
+    end
+)
+tackleToggle.Position = UDim2.new(0, 0, 0, yPosition)
+
+local tackleRange = Instance.new("TextBox")
+tackleRange.Size = UDim2.new(0, 60, 0, 25)
+tackleRange.Position = UDim2.new(1, -60, 0, yPosition)
+tackleRange.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+tackleRange.TextColor3 = Color3.new(1, 1, 1)
+tackleRange.Text = "10"
+tackleRange.Font = Enum.Font.Gotham
+tackleRange.TextSize = 14
+tackleRange.Parent = autoCategory
+
+yPosition = yPosition + 45
+
+local teleportToggle = createToggle(
+    autoCategory,
+    "AUTO TP (OP) OFF",
+    "AUTO TP (OP) ON",
+    "AUTO TP (OP) OFF",
+    function()
+        if getgenv().AutoSettings.TackleEnabled then
+            getgenv().AutoSettings.TeleportEnabled = true
+        else
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "ERROR",
+                Text = "Enable Auto Tackle first!",
+                Duration = 3
+            })
+            teleportToggle.Text = "AUTO TP (OP) OFF"
+        end
+    end,
+    function() getgenv().AutoSettings.TeleportEnabled = false end
+)
+teleportToggle.Position = UDim2.new(0, 0, 0, yPosition)
+
+local teleportRange = Instance.new("TextBox")
+teleportRange.Size = UDim2.new(0, 60, 0, 25)
+teleportRange.Position = UDim2.new(1, -60, 0, yPosition)
+teleportRange.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+teleportRange.TextColor3 = Color3.new(1, 1, 1)
+teleportRange.Text = "20"
+teleportRange.Font = Enum.Font.Gotham
+teleportRange.TextSize = 14
+teleportRange.Parent = autoCategory
+
+dribbleRange.FocusLost:Connect(function()
+    local num = tonumber(dribbleRange.Text)
+    getgenv().AutoSettings.DribbleRange = num and math.clamp(num, 1, 50) or 15
+    dribbleRange.Text = tostring(getgenv().AutoSettings.DribbleRange)
+end)
+
+tackleRange.FocusLost:Connect(function()
+    local num = tonumber(tackleRange.Text)
+    getgenv().AutoSettings.TackleRange = num and math.clamp(num, 1, 50) or 10
+    tackleRange.Text = tostring(getgenv().AutoSettings.TackleRange)
+end)
+
+teleportRange.FocusLost:Connect(function()
+    local num = tonumber(teleportRange.Text)
+    getgenv().AutoSettings.TeleportRange = num and math.clamp(num, 1, 100) or 20
+    teleportRange.Text = tostring(getgenv().AutoSettings.TeleportRange)
+end)
+
+-- INF STAMINA TOGGLE
+local infStaminaEnabled = false
+local staminaLoop = nil
+
+local infStaminaToggle = createToggle(
+    mainContent,
+    "INF STAMINA OFF",
+    "INF STAMINA ON",
+    "INF STAMINA OFF",
+    function()
+        infStaminaEnabled = true
+        staminaLoop = task.spawn(function()
+            while infStaminaEnabled do
+                task.wait(0.1)
+                local player = game:GetService("Players").LocalPlayer
+                if player and player:FindFirstChild("PlayerStats") then
+                    local stats = player.PlayerStats
+                    if stats:FindFirstChild("Stamina") then
+                        stats.Stamina.Value = 100
+                    end
+                end
+            end
+        end)
+    end,
+    function()
+        infStaminaEnabled = false
+        if staminaLoop then
+            task.cancel(staminaLoop)
+            staminaLoop = nil
+        end
+    end
+)
+
+-- AUTO GOAL BUTTON
+local autoGoalButton = createButton(
+    mainContent,
+    "AUTO GOAL",
+    function()
+        loadstring(game:HttpGet("https://pastefy.app/nz0u9Mua/raw"))()
+    end
+)
+
+-- AUTO GK TOGGLE
+local gkToggle = createToggle(
+    mainContent,
+    "AUTO GK OFF",
+    "AUTO GK ON",
+    "AUTO GK OFF",
+    function()
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+        local head = character:WaitForChild("Head")
+        local humanoid = character:WaitForChild("Humanoid")
+        local playerStats = player:WaitForChild("PlayerStats")
+        local hasShot = playerStats:WaitForChild("HasShot")
+
+        local TweenService = game:GetService("TweenService")
+        local tweenSpeedForCatch = 0.10
+        local waitforacatchtime = 0.3
+        scriptEnabled = true
+
+        local function diveAndCatch(ball)
+            if not ball or not ball:IsDescendantOf(workspace) then return end
+
+            local distance = (humanoidRootPart.Position - ball.Position).Magnitude
+            if distance <= 45 then
+                local velocity = ball.Velocity.Magnitude
+                local upward = ball.Position.Y >= head.Position.Y
+
+                game:GetService("ReplicatedStorage").Packages.Knit.Services.BallService.RE.Dive:FireServer()
+
+                local anim = Instance.new("Animation")
+                anim.AnimationId = "rbxassetid://18694494525"
+                humanoid:LoadAnimation(anim):Play()
+
+                if upward then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+                    humanoid:Move(Vector3.new(0, 70, 0))
+                end
+
+                TweenService:Create(humanoidRootPart, TweenInfo.new(tweenSpeedForCatch, Enum.EasingStyle.Linear), {
+                    CFrame = ball.CFrame
+                }):Play()
+            end
+        end
+
+        hasShot.Changed:Connect(function(val)
+            if val == true then
+                scriptEnabled = false
+                task.wait(1)
+                scriptEnabled = true
+            end
+        end)
+
+        task.spawn(function()
+            while scriptEnabled do
+                task.wait(0.05)
+                local ball = workspace:FindFirstChild("Football") and workspace.Football:FindFirstChild("Hitbox")
+                if ball then
+                    diveAndCatch(ball)
+                    task.wait(waitforacatchtime)
+                end
+            end
+        end)
+    end,
+    function()
+        scriptEnabled = false
+    end
+)
+
+-- AUTO GOAL BUTTON
+local ballfrButton = createButton(
+    mainContent,
+    "BALL CONTROL",
+    function()
+        loadstring(game:HttpGet("https://gist.githubusercontent.com/Souls-dev/e148bb06cec1993a7dd250dfea387a7f/raw/357fd00ed9492c3cc3bc4c7a1a78c87b3b07911b/Ball%2520control"))()
+    end
+)
+
+local infMoneyButton = createButton(
+    mainContent,
+    "INF MONEY",
+    function()
+        local moneyUI = Instance.new("ScreenGui", game.Players.LocalPlayer.PlayerGui)
+        moneyUI.Name = "MoneyFarmUI"
+        moneyUI.ResetOnSpawn = false
+        moneyUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+        local frame = Instance.new("Frame", moneyUI)
+        frame.Size = UDim2.new(0, 300, 0, 180)
+        frame.Position = UDim2.new(0.5, -150, 0.5, -90)
+        frame.AnchorPoint = Vector2.new(0.5, 0.5)
+        frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+        frame.Active = true
+        frame.Draggable = true
+
+        local corner = Instance.new("UICorner", frame)
+        corner.CornerRadius = UDim.new(0, 8)
+
+        local title = Instance.new("TextLabel", frame)
+        title.Text = "INFINITE MONEY FARM"
+        title.Size = UDim2.new(1, 0, 0, 30)
+        title.Position = UDim2.new(0, 0, 0, 0)
+        title.BackgroundTransparency = 1
+        title.TextColor3 = Color3.fromRGB(255, 255, 255)
+        title.Font = Enum.Font.GothamBold
+
+        local function createInput(posY, placeholder, default)
+            local box = Instance.new("TextBox", frame)
+            box.Size = UDim2.new(0, 280, 0, 30)
+            box.Position = UDim2.new(0, 10, 0, posY)
+            box.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+            box.TextColor3 = Color3.fromRGB(255, 255, 255)
+            box.PlaceholderText = placeholder
+            box.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+            box.Text = default or ""
+            Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+            return box
+        end
+
+        local usernameBox = createInput(40, "Target Username", "")
+        local delayBox = createInput(80, "Delay (0.1)", "0.1")
+        local timesBox = createInput(120, "Times (50)", "50")
+
+        local function createButton(text, pos, size, color)
+            local btn = Instance.new("TextButton", frame)
+            btn.Text = text
+            btn.Size = UDim2.new(0, size.X, 0, size.Y)
+            btn.Position = UDim2.new(0, pos.X, 0, pos.Y)
+            btn.BackgroundColor3 = color or Color3.fromRGB(50, 50, 50)
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.AutoButtonColor = false
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+            btn.MouseEnter:Connect(function()
+                game:GetService("TweenService"):Create(btn, TweenInfo.new(0.2), {
+                    BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+                }):Play()
+            end)
+
+            btn.MouseLeave:Connect(function()
+                game:GetService("TweenService"):Create(btn, TweenInfo.new(0.2), {
+                    BackgroundColor3 = color or Color3.fromRGB(50, 50, 50)
+                }):Play()
+            end)
+
+            return btn
+        end
+
+        local runButton = createButton("RUN", Vector2.new(10, 160), Vector2.new(135, 30))
+        local loopButton = createButton("LOOP", Vector2.new(155, 160), Vector2.new(135, 30))
+        local closeButton = createButton("X", Vector2.new(270, 0), Vector2.new(30, 30), Color3.fromRGB(80, 0, 0))
+
+        local AbilityRE = game:GetService("ReplicatedStorage").Packages.Knit.Services.AbilityService.RE.Ability
+        local loopRunning = false
+
+        runButton.MouseButton1Click:Connect(function()
+            local target = workspace:FindFirstChild(usernameBox.Text)
+            if target then
+                for i = 1, tonumber(timesBox.Text) or 50 do
+                    AbilityRE:FireServer("OneTwo", target)
+                    task.wait(tonumber(delayBox.Text) or 0.1)
+                end
+            else
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "Error",
+                    Text = "Target not found!",
+                    Duration = 3
+                })
+            end
+        end)
+
+        loopButton.MouseButton1Click:Connect(function()
+            local target = workspace:FindFirstChild(usernameBox.Text)
+            if target then
+                loopRunning = not loopRunning
+                loopButton.Text = loopRunning and "STOP" or "LOOP"
+                loopButton.BackgroundColor3 = loopRunning and Color3.fromRGB(80, 0, 0) or Color3.fromRGB(50, 50, 50)
+
+                if loopRunning then
+                    coroutine.wrap(function()
+                        while loopRunning and moneyUI.Parent do
+                            AbilityRE:FireServer("OneTwo", target)
+                            task.wait(tonumber(delayBox.Text) or 0.1)
+                        end
+                    end)()
+                end
+            else
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "Error",
+                    Text = "Target not found!",
+                    Duration = 3
+                })
+            end
+        end)
+
+        closeButton.MouseButton1Click:Connect(function()
+            loopRunning = false
+            moneyUI:Destroy()
+        end)
+    end
+)
+
+infMoneyButton.Position = UDim2.new(0.2, -100, 0, 450)
+ballfrButton.Position = UDim2.new(0.2, -100, 0, 500)
+infStaminaToggle.Position = UDim2.new(0.2, -100, 0, 400)
+autoGoalButton.Position = UDim2.new(0.2, -100, 0, 350)
+gkToggle.Position = UDim2.new(0.2, -100, 0, 300)
+
+-- STYLE/FLOW TAB
+local styleInput = Instance.new("TextBox")
+styleInput.Name = "StyleInput"
+styleInput.Size = UDim2.new(0, 300, 0, 40)
+styleInput.Position = UDim2.new(0.5, -150, 0, 20)
+styleInput.AnchorPoint = Vector2.new(0.5, 0)
+styleInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+styleInput.TextColor3 = Color3.new(1, 1, 1)
+styleInput.PlaceholderText = "Enter Style Name"
+styleInput.PlaceholderColor3 = Color3.new(0.7, 0.7, 0.7)
+styleInput.Font = Enum.Font.Gotham
+styleInput.TextSize = 14
+styleInput.ZIndex = 3
+styleInput.Parent = flowContent
+
+local styleApply = createButton(flowContent, "GET STYLE", function()
+    local player = game:GetService("Players").LocalPlayer
+    if player:FindFirstChild("PlayerStats") and player.PlayerStats:FindFirstChild("Style") then
+        player.PlayerStats.Style.Value = styleInput.Text
+    end
+end)
+styleApply.Position = UDim2.new(0.5, -100, 0, 70)
+styleApply.AnchorPoint = Vector2.new(0.5, 0)
+styleApply.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+styleApply.TextColor3 = Color3.new(1, 1, 1)
+styleApply.BackgroundTransparency = 0.3
+
+local flowInput = Instance.new("TextBox")
+flowInput.Name = "FlowInput"
+flowInput.Size = UDim2.new(0, 300, 0, 40)
+flowInput.Position = UDim2.new(0.5, -150, 0, 130)
+flowInput.AnchorPoint = Vector2.new(0.5, 0)
+flowInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+flowInput.TextColor3 = Color3.new(1, 1, 1)
+flowInput.PlaceholderText = "Enter Flow Name"
+flowInput.PlaceholderColor3 = Color3.new(0.7, 0.7, 0.7)
+flowInput.Font = Enum.Font.Gotham
+flowInput.TextSize = 14
+flowInput.ZIndex = 3
+flowInput.Parent = flowContent
+
+local flowApply = createButton(flowContent, "GET FLOW", function()
+    local player = game:GetService("Players").LocalPlayer
+    if player:FindFirstChild("PlayerStats") then
+        if player.PlayerStats:FindFirstChild("Flow") then
+            player.PlayerStats.Flow.Value = flowInput.Text
+        end
+        if player.PlayerStats:FindFirstChild("InFlow") then
+            player.PlayerStats.InFlow.Value = true
+        end
+    end
+end)
+flowApply.Position = UDim2.new(0.5, -100, 0, 180)
+flowApply.AnchorPoint = Vector2.new(0.5, 0)
+flowApply.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+flowApply.TextColor3 = Color3.new(1, 1, 1)
+flowApply.BackgroundTransparency = 0.3
+
+addCategory(flowContent, "")
+local noCDButton = createButton(flowContent, "NO COOLDOWN", function()
+    local C=require(game:GetService("ReplicatedStorage").Controllers.AbilityController)
+    local o=C.AbilityCooldown
+    C.AbilityCooldown=function(s,n,...)return o(s,n,0,...)end
+end)
+noCDButton.Position = UDim2.new(0.5, -100, 0, 230)
+noCDButton.AnchorPoint = Vector2.new(0.5, 0)
+noCDButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+noCDButton.TextColor3 = Color3.new(1, 1, 1)
+noCDButton.BackgroundTransparency = 0.3
+
+local infAwkToggle = createToggle(
+    flowContent,
+    "INF AWK OFF",
+    "INF AWK ON",
+    "INF AWK OFF",
+    function()
+        local player = game:GetService("Players").LocalPlayer
+        if player and player:FindFirstChild("PlayerStats") then
+            local stats = player.PlayerStats
+            if stats:FindFirstChild("InAwakening") then
+                stats.InAwakening.Value = true
+                print("INF AWK enabled")
+
+                local reo = "Reo"
+                local kaiserStyles = {"Kaiser", "Kurona", "King", "Yukimiya"}
+                local style = player.PlayerStats.Style.Value
+
+                if style == reo then
+                    game:GetService("StarterGui"):SetCore("SendNotification", {
+                        Title = "INF AWK ENABLED",
+                        Text = "USE STYLE CHANGER WITH REO",
+                        Duration = 3
+                    })
+                elseif table.find(kaiserStyles, style) then
+                    game:GetService("StarterGui"):SetCore("SendNotification", {
+                        Title = "INF AWK ENABLED",
+                        Text = "IT WILL WORK",
+                        Duration = 3
+                    })
+                else
+                    game:GetService("StarterGui"):SetCore("SendNotification", {
+                        Title = "INF AWK ENABLED",
+                        Text = "SORRY ITS NOT GOING TO WORK",
+                        Duration = 3
+                    })
+                end
+            end
+        end
+    end,
+    function()
+        local player = game:GetService("Players").LocalPlayer
+        if player and player:FindFirstChild("PlayerStats") then
+            local stats = player.PlayerStats
+            if stats:FindFirstChild("InAwakening") then
+                stats.InAwakening.Value = false
+                print("INF AWK disabled")
+            end
+        end
+    end
+)
+
+infAwkToggle.Position = UDim2.new(0.5, -100, 0, 280)
+infAwkToggle.AnchorPoint = Vector2.new(0.5, 0)
+
+local disclaimer = Instance.new("TextLabel")
+disclaimer.Name = "AwakeningDisclaimer"
+disclaimer.Size = UDim2.new(0, 300, 0, 20)
+disclaimer.Position = UDim2.new(0.5, -150, 0, 320)
+disclaimer.AnchorPoint = Vector2.new(0.5, 0)
+disclaimer.BackgroundTransparency = 1
+disclaimer.Text = "WORKS WITH: KAISER, KING, KURONA, YUKIMIYA"
+disclaimer.TextColor3 = Color3.new(1, 1, 1)
+disclaimer.Font = Enum.Font.GothamMedium
+disclaimer.TextSize = 12
+disclaimer.TextXAlignment = Enum.TextXAlignment.Center
+disclaimer.ZIndex = 3
+disclaimer.Parent = flowContent
+
+-- POSITION SELECTOR TAB
+addCategory(positionContent, "TEAM POSITION SELECTOR")
+
+local currentTeam = "Home"
+local teamToggle = Instance.new("TextButton")
+teamToggle.Name = "TeamToggle"
+teamToggle.Size = UDim2.new(0, 200, 0, 40)
+teamToggle.Position = UDim2.new(0.5, -100, 0, 30)
+teamToggle.AnchorPoint = Vector2.new(0.5, 0)
+teamToggle.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+teamToggle.BackgroundTransparency = 0.3
+teamToggle.Text = "HOME"
+teamToggle.TextColor3 = Color3.new(1, 1, 1)
+teamToggle.Font = titleFont
+teamToggle.TextSize = 14
+teamToggle.ZIndex = 3
+teamToggle.Parent = positionContent
+
+local teamToggleTextOutline = Instance.new("UIStroke")
+teamToggleTextOutline.Color = Color3.new(0, 0, 0)
+teamToggleTextOutline.Thickness = 1
+teamToggleTextOutline.Transparency = 0
+teamToggleTextOutline.Parent = teamToggle
+
+local outline = Instance.new("UIStroke")
+outline.Color = Color3.new(1, 1, 1)
+outline.Thickness = 1
+outline.Transparency = 0.3
+outline.Parent = teamToggle
+
+teamToggle.MouseButton1Click:Connect(function()
+    if currentTeam == "Home" then
+        currentTeam = "Away"
+        teamToggle.Text = "AWAY"
+    else
+        currentTeam = "Home"
+        teamToggle.Text = "HOME"
+    end
+end)
+
+local positionInput = Instance.new("TextBox")
+positionInput.Name = "positionInput"
+positionInput.Size = UDim2.new(0, 300, 0, 40)
+positionInput.Position = UDim2.new(0.5, -150, 0, 80)
+positionInput.AnchorPoint = Vector2.new(0.5, 0)
+positionInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+positionInput.TextColor3 = Color3.new(1, 1, 1)
+positionInput.PlaceholderText = "Enter Position (CF, CM, LW, RW, GK)"
+positionInput.PlaceholderColor3 = Color3.new(0.7, 0.7, 0.7)
+positionInput.Font = Enum.Font.Gotham
+positionInput.TextSize = 14
+positionInput.ZIndex = 3
+positionInput.Parent = positionContent
+
+local positionApply = createButton(positionContent, "SELECT POSITION", function()
+    local position = string.upper(positionInput.Text)
+    local validPositions = {"CF", "CM", "LW", "RW", "GK"}
+
+    if not table.find(validPositions, position) then
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Invalid Position",
+            Text = "Please enter CF, CM, LW, RW, or GK",
+            Duration = 3
+        })
+        return
+    end
+
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+    local zoneCF = CFrame.new(159.653244, -447.13562, -89.2860413, -1, 0, 0, 0, 1, 0, 0, 0, -1)
+    local zoneSize = Vector3.new(200, 200, 200)
+    local zoneMin = (zoneCF.Position - zoneSize / 2)
+    local zoneMax = (zoneCF.Position + zoneSize / 2)
+
+    local args = {
+        [1] = currentTeam,
+        [2] = position
+    }
+
+    local alreadyTriggered = false
+    local connection
+
+    local function isInZone(position)
+        return position.X >= zoneMin.X and position.X <= zoneMax.X
+            and position.Y >= zoneMin.Y and position.Y <= zoneMax.Y
+            and position.Z >= zoneMin.Z and position.Z <= zoneMax.Z
+    end
+
+    connection = RunService.Heartbeat:Connect(function()
+        local player = game.Players.LocalPlayer
+        local character = player.Character
+        local hrp = character and character:FindFirstChild("HumanoidRootPart")
+
+        if hrp and isInZone(hrp.Position) then
+            if not alreadyTriggered then
+                alreadyTriggered = true
+
+                local success = pcall(function()
+                    ReplicatedStorage:WaitForChild("Packages", 9e9)
+                        :WaitForChild("Knit", 9e9)
+                        :WaitForChild("Services", 9e9)
+                        :WaitForChild("TeamService", 9e9)
+                        :WaitForChild("RE", 9e9)
+                        :WaitForChild("Select", 9e9)
+                        :FireServer(unpack(args))
+                end)
+
+                if success then
+                    game:GetService("StarterGui"):SetCore("SendNotification", {
+                        Title = "Position Selected",
+                        Text = "Team: "..currentTeam.." | Position: "..position,
+                        Duration = 3
+                    })
+                    if connection then connection:Disconnect() end
+                end
+            end
+        else
+            alreadyTriggered = false
+        end
+    end)
+
+    delay(30, function()
+        if connection then
+            connection:Disconnect()
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Timeout",
+                Text = "Failed to select position",
+                Duration = 3
+            })
+        end
+    end)
+end)
+positionApply.Position = UDim2.new(0.5, -100, 0, 130)
+positionApply.AnchorPoint = Vector2.new(0.5, 0)
+positionApply.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+positionApply.TextColor3 = Color3.new(1, 1, 1)
+positionApply.BackgroundTransparency = 0.3
+
+-- CUSTOM STYLES TAB
+addCategory(stylesContent, "Styles Made By Xlz")
+createButton(stylesContent, "ITACHI STYLE", function()
+    loadstring(game:HttpGet("https://pastefy.app/wDsoxTbX/raw"))()
+end)
+
+createButton(stylesContent, "KAISER V2", function()
+    loadstring(game:HttpGet("https://pastefy.app/GfkQAyoz/raw"))()
+end)
+
+createButton(stylesContent, "SUNSHINE STYLE", function()
+    loadstring(game:HttpGet("https://pastefy.app/f73BWMfO/raw"))()
+end)
+
+createButton(stylesContent, "GILGAMESH STYLE", function()
+    loadstring(game:HttpGet("https://pastefy.app/C7bkZT3s/raw"))()
+end)
+
+addCategory(stylesContent, "Styles Made By Itosh")
+createButton(stylesContent, "DANCER STYLE", function()
+    loadstring(game:HttpGet("https://pastebin.com/raw/bE6nFSUZ"))()
+end)
+
+createButton(stylesContent, "NOEL NOA STYLE", function()
+    loadstring(game:HttpGet("https://pastebin.com/raw/60LM6qc8"))()
+end)
+
+createButton(stylesContent, "ACE STYLE", function()
+    loadstring(game:HttpGet("https://pastebin.com/raw/c0rnYSBd"))()
+end)
+
+createButton(stylesContent, "GOKU STYLE", function()
+    loadstring(game:HttpGet("https://pastebin.com/raw/rTqXX6tY"))()
+end)
+
+createButton(stylesContent, "JINWO STYLE", function()
+    loadstring(game:HttpGet("https://pastebin.com/raw/qFCcPNb8"))()
+end)
+
+addCategory(stylesContent, "Styles Made By Muffin")
+createButton(stylesContent, "Pablo Style", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/yamertvi/Styles/refs/heads/main/Pablo"))()
+end)
+
+createButton(stylesContent, "Prince Style", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/yamertvi/Styles/refs/heads/main/Prince"))()
+end)
+
+createButton(stylesContent, "Loki Style", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/yamertvi/Styles/refs/heads/main/Loki"))()
+end)
+
+createButton(stylesContent, "Kaiser Style", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/yamertvi/Styles/refs/heads/main/Kaiser"))()
+end)
+
+addCategory(stylesContent, "Styles Made By Sae")
+createButton(stylesContent, "CHARIZARD STYLE", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/AnthuhubX/Blue-lock-styles/refs/heads/main/Charizard.lua"))()
+end)
+
+createButton(stylesContent, "SONIC STYLE", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/AnthuhubX/Blue-lock-styles/refs/heads/main/Shadow%20style"))()
+end)
+
+createButton(stylesContent, "SHADOW STYLE", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/AnthuhubX/Blue-lock-styles/blob/main/Shadow%20style"))()
+end)
+
+createButton(stylesContent, "JK STYLE", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/AnthuhubX/Blue-lock-styles/refs/heads/main/Jkstyle.lua"))()
+end)
+
+-- EXTERNAL HUBS TAB
+addCategory(externalContent, "MUFFIN HUB")
+createButton(externalContent, "DEAD HUB", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/yamertvi/BLRGUI/refs/heads/main/Dead%20hub"))()
+end)
+
+-- CREDITS TAB
+local creditsText = Instance.new("TextLabel")
+creditsText.Name = "CreditsText"
+creditsText.Size = UDim2.new(1, -20, 1, -20)
+creditsText.Position = UDim2.new(0, 10, 0, 10)
+creditsText.Text = [[SOULS HUB PREMIUM EDITION
+
+GUI CREATED BY SOULS
+SCRIPTS CREATED BY COMMUNITY]]
+creditsText.TextColor3 = Color3.new(1, 1, 1)
+creditsText.TextSize = 16
+creditsText.Font = titleFont
+creditsText.BackgroundTransparency = 1
+creditsText.TextWrapped = true
+creditsText.TextXAlignment = Enum.TextXAlignment.Left
+creditsText.TextYAlignment = Enum.TextYAlignment.Top
+creditsText.ZIndex = 3
+creditsText.Parent = creditsContent
+
+-- PREMIUM TAB
+addCategory(premiumContent, "PREMIUM SCRIPTS")
+addCategory(premiumContent, "DM soulsyt_ TO BUY")
+
+local function isWhitelisted()
+    local playerName = game:GetService("Players").LocalPlayer.Name
+    for _, name in pairs(WHITELISTED_USERS) do
+        if playerName:lower() == name:lower() then
+            return true
+        end
+    end
+    return false
+end
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local football = workspace:WaitForChild("Football")
+local AbilityService = ReplicatedStorage.Packages.Knit.Services.AbilityService.RE
+
+local controlling = false
+local hasFiredRemote = false
+local currentVelocity = 70
+local minVelocity = 20
+local maxVelocity = 170
+local allowControlWhenSomeoneHasBall = true
+
+local originalButton, sliderFrame, sliderBar, sliderKnob, speedDisplay
+
+local function showAccessDenied()
+    StarterGui:SetCore("SendNotification", {
+        Title = "PREMIUM ACCESS DENIED",
+        Text = "DM soulsyt_ TO BUY",
+        Duration = 5
+    })
+end
+
+local premiumballToggle = createToggle(
+    premiumContent,
+    "PREMIUM BALL CONTROL OFF",
+    "PREMIUM BALL CONTROL ON",
+    "PREMIUM BALL CONTROL OFF",
+    function()
+        if not table.find(WHITELISTED_USERS, player.Name) then
+            showAccessDenied()
+            return
+        end
+
+        local abilitiesUI = player:WaitForChild("PlayerGui").InGameUI.Bottom.Abilities
+
+        if not originalButton or not originalButton.Parent then
+            originalButton = abilitiesUI:WaitForChild("1"):Clone()
+            originalButton.Parent = abilitiesUI
+            originalButton.Name = "PremiumBallControl"
+            originalButton.Timer.Text = "PREMIUM BALL CONTROL"
+
+            sliderFrame = Instance.new("Frame")
+            sliderFrame.Size = UDim2.new(0.6, 0, 0.03, 0)
+            sliderFrame.Position = UDim2.new(0.5, 0, 0.65, 0)
+            sliderFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+            sliderFrame.BackgroundTransparency = 1
+            sliderFrame.Visible = false
+            sliderFrame.ZIndex = 10
+            sliderFrame.Parent = player.PlayerGui.InGameUI
+
+            sliderBar = Instance.new("Frame")
+            sliderBar.Size = UDim2.new(1, 0, 1, 0)
+            sliderBar.BackgroundColor3 = Color3.fromRGB(220, 220, 220)
+            sliderBar.BorderSizePixel = 0
+            sliderBar.ZIndex = 10
+            sliderBar.Parent = sliderFrame
+
+            sliderKnob = Instance.new("Frame")
+            sliderKnob.Name = "SliderKnob"
+            sliderKnob.Size = UDim2.new(0, 30, 0, 30)
+            sliderKnob.Position = UDim2.new(0.5, -15, 0.5, -15)
+            sliderKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            sliderKnob.BorderSizePixel = 0
+            sliderKnob.ZIndex = 11
+            sliderKnob.Parent = sliderBar
+            sliderKnob.Active = true
+            sliderKnob.Draggable = true
+
+            speedDisplay = Instance.new("TextLabel")
+            speedDisplay.Size = UDim2.new(0, 100, 0, 30)
+            speedDisplay.Position = UDim2.new(0.5, -50, 0, -40)
+            speedDisplay.BackgroundTransparency = 1
+            speedDisplay.TextColor3 = Color3.fromRGB(255, 255, 255)
+            speedDisplay.TextScaled = true
+            speedDisplay.Font = Enum.Font.GothamBold
+            speedDisplay.Text = ""
+            speedDisplay.ZIndex = 11
+            speedDisplay.Parent = sliderFrame
+
+            local function updateSpeedDisplay()
+                speedDisplay.Text = tostring(math.floor(currentVelocity)) .. " Speed"
+            end
+
+            local function updateVelocityFromKnobPosition()
+                local barAbsPos = sliderBar.AbsolutePosition.X
+                local barAbsSize = sliderBar.AbsoluteSize.X
+                local knobAbsPos = sliderKnob.AbsolutePosition.X + sliderKnob.AbsoluteSize.X / 2
+                local inputX = math.clamp(knobAbsPos, barAbsPos, barAbsPos + barAbsSize)
+                local percent = (inputX - barAbsPos) / barAbsSize
+                currentVelocity = minVelocity + percent * (maxVelocity - minVelocity)
+                updateSpeedDisplay()
+            end
+
+            local fixedY = sliderKnob.Position.Y
+            sliderKnob:GetPropertyChangedSignal("Position"):Connect(function()
+                if controlling then
+                    local barAbsPos = sliderBar.AbsolutePosition.X
+                    local barAbsSize = sliderBar.AbsoluteSize.X
+                    local knobSizeX = sliderKnob.Size.X.Offset
+                    local knobCenterX = sliderKnob.AbsolutePosition.X + knobSizeX / 2
+                    local minX = barAbsPos + knobSizeX / 2
+                    local maxX = barAbsPos + barAbsSize - knobSizeX / 2
+                    local clampedX = math.clamp(knobCenterX, minX, maxX)
+                    local newOffsetX = clampedX - barAbsPos - knobSizeX / 2
+                    sliderKnob.Position = UDim2.new(0, newOffsetX, fixedY.Scale, fixedY.Offset)
+                    updateVelocityFromKnobPosition()
+                end
+            end)
+
+            originalButton.MouseButton1Click:Connect(function()
+                if not allowControlWhenSomeoneHasBall then
+                    for _, plr in ipairs(Players:GetPlayers()) do
+                        if plr.Character then
+                            local values = plr.Character:FindFirstChild("Values")
+                            local hasBall = values and values:FindFirstChild("HasBall")
+                            if hasBall and hasBall.Value == true then
+                                return
+                            end
+                        end
+                    end
+                end
+
+                if not controlling and not hasFiredRemote then
+                    for _, otherPlayer in ipairs(Players:GetPlayers()) do
+                        if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                            AbilityService.Ability:FireServer("OneTwo", otherPlayer.Character.HumanoidRootPart)
+                        end
+                    end
+                    hasFiredRemote = true
+                end
+
+                controlling = not controlling
+                originalButton.Timer.Text = "PREMIUM BALL CONTROL\n" .. (controlling and "(ON)" or "(OFF)")
+                sliderFrame.Visible = controlling
+
+                if controlling then
+                    camera.CameraSubject = football
+                    camera.CameraType = Enum.CameraType.Custom
+                    updateVelocityFromKnobPosition()
+                else
+                    if player.Character and player.Character:FindFirstChild("Humanoid") then
+                        camera.CameraSubject = player.Character.Humanoid
+                    end
+                    hasFiredRemote = false
+                end
+            end)
+        end
+    end,
+    function()
+        if originalButton then
+            originalButton:Destroy()
+            originalButton = nil
+        end
+        if sliderFrame then
+            sliderFrame:Destroy()
+            sliderFrame = nil
+        end
+        if controlling then
+            if player.Character and player.Character:FindFirstChild("Humanoid") then
+                camera.CameraSubject = player.Character.Humanoid
+            end
+            controlling = false
+        end
+    end
+)
+
+RunService.RenderStepped:Connect(function()
+    if controlling and football then
+        football.AssemblyLinearVelocity = camera.CFrame.LookVector * currentVelocity
+    end
+end)
+
+local pgkToggle = createToggle(
+    premiumContent,
+    "PREMIUM AUTO GK OFF",
+    "PREMIUM AUTO GK ON",
+    "PREMIUM AUTO GK OFF",
+    function()
+        local playerName = game.Players.LocalPlayer.Name
+        if table.find(WHITELISTED_USERS, playerName) then
+            local player = game.Players.LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+            local head = character:WaitForChild("Head")
+            local humanoid = character:WaitForChild("Humanoid")
+
+            local playerStats, hasShot
+            pcall(function()
+                playerStats = player:WaitForChild("PlayerStats")
+                hasShot = playerStats:WaitForChild("HasShot")
+            end)
+
+            local TweenService = game:GetService("TweenService")
+
+            local detectionRange = 30
+            local initialPosition = nil
+            local ballHeld = false
+            local shootCooldown = false
+            local lastPositionCheck = 0
+            local positionCheckDelay = 5
+
+            _G.GKScriptEnabled = true
+            initialPosition = humanoidRootPart.CFrame
+
+            local function findBall()
+                local ball = workspace:FindFirstChild("Football") and workspace.Football:FindFirstChild("Hitbox")
+                if not ball then
+                    for _, obj in pairs(workspace:GetChildren()) do
+                        if obj.Name == "Football" and obj:FindFirstChild("Hitbox") then
+                            ball = obj:FindFirstChild("Hitbox")
+                            break
+                        end
+                    end
+                end
+                if not ball then
+                    for _, obj in pairs(workspace:GetDescendants()) do
+                        if obj:IsA("BasePart") and
+                            (obj.Name == "Hitbox" or obj.Name == "Ball" or obj.Name == "FootballHitbox") then
+                            ball = obj
+                            break
+                        end
+                    end
+                end
+                return ball
+            end
+
+            local function isHoldingBall()
+                local tool = character:FindFirstChildOfClass("Tool")
+                if tool and (tool.Name:find("Ball") or tool.Name:find("Football")) then
+                    return true
+                end
+                return false
+            end
+
+            local function moveTowardsBall(ball)
+                if not ball or not ball:IsDescendantOf(workspace) then return end
+                if shootCooldown or isHoldingBall() then return end
+
+                local distance = (humanoidRootPart.Position - ball.Position).Magnitude
+                if distance <= detectionRange then
+                    if ball.Velocity.Magnitude > 10 then
+                        pcall(function()
+                            game:GetService("ReplicatedStorage").Packages.Knit.Services.BallService.RE.Dive:FireServer()
+                        end)
+
+                        local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Linear)
+                        local tween = TweenService:Create(humanoidRootPart, tweenInfo, {
+                            CFrame = CFrame.new(ball.Position)
+                        })
+                        tween:Play()
+
+                        lastPositionCheck = tick()
+                    end
+                end
+            end
+
+            local function returnToPosition()
+                if not initialPosition or shootCooldown or isHoldingBall() then return end
+
+                local currentTime = tick()
+                if currentTime - lastPositionCheck < positionCheckDelay then return end
+
+                local currentPos = humanoidRootPart.Position
+                local distanceFromInitial = (currentPos - initialPosition.Position).Magnitude
+
+                if distanceFromInitial > 15 then
+                    local tweenInfo = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                    local tween = TweenService:Create(humanoidRootPart, tweenInfo, {
+                        CFrame = initialPosition
+                    })
+                    tween:Play()
+                end
+
+                lastPositionCheck = currentTime
+            end
+
+            if hasShot then
+                hasShot.Changed:Connect(function(val)
+                    if val == true and _G.GKScriptEnabled then
+                        shootCooldown = true
+                        task.wait(3)
+                        shootCooldown = false
+                    end
+                end)
+            end
+
+            player.CharacterAdded:Connect(function(newCharacter)
+                if not _G.GKScriptEnabled then return end
+
+                task.wait(1)
+
+                character = newCharacter
+                humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+                head = character:WaitForChild("Head")
+                humanoid = character:WaitForChild("Humanoid")
+
+                ballHeld = false
+                shootCooldown = false
+
+                initialPosition = humanoidRootPart.CFrame
+
+                pcall(function()
+                    playerStats = player:WaitForChild("PlayerStats")
+                    hasShot = playerStats:WaitForChild("HasShot")
+                end)
+            end)
+
+            _G.GKMainLoop = task.spawn(function()
+                while task.wait(0.2) do
+                    if not _G.GKScriptEnabled then break end
+
+                    pcall(function()
+                        if not character or not character:IsDescendantOf(workspace) or
+                            not humanoidRootPart or not humanoidRootPart:IsDescendantOf(character) then
+                            return
+                        end
+
+                        ballHeld = isHoldingBall()
+
+                        local ball = findBall()
+                        if ball then
+                            moveTowardsBall(ball)
+                        end
+
+                        returnToPosition()
+                    end)
+                end
+            end)
+
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Auto GK",
+                Text = "Goalkeeper activated",
+                Duration = 3
+            })
+        else
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "PREMIUM ACCESS DENIED",
+                Text = "DM soulsyt_ TO BUY",
+                Duration = 5
+            })
+        end
+    end,
+    function()
+        local playerName = game.Players.LocalPlayer.Name
+        if table.find(WHITELISTED_USERS, playerName) then
+            _G.GKScriptEnabled = false
+
+            if _G.GKMainLoop then
+                task.cancel(_G.GKMainLoop)
+                _G.GKMainLoop = nil
+            end
+
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Auto GK",
+                Text = "Goalkeeper deactivated",
+                Duration = 3
+            })
+        else
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "PREMIUM ACCESS DENIED",
+                Text = "DM soulsyt_ TO BUY",
+                Duration = 5
+            })
+        end
+    end
+)
+
+local DropButton
+
+local dropToggle = createToggle(
+    premiumContent,
+    "DROP BALL OFF",
+    "DROP BALL ON",
+    "DROP BALL OFF",
+    function()
+        local playerName = game.Players.LocalPlayer.Name
+        if table.find(WHITELISTED_USERS, playerName) then
+            local Players = game:GetService("Players")
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local LocalPlayer = Players.LocalPlayer
+            local AbilitiesUI = LocalPlayer:WaitForChild("PlayerGui").InGameUI.Bottom.Abilities
+
+            if not DropButton or not DropButton.Parent then
+                DropButton = Instance.new("ImageButton")
+                DropButton.Name = "DropAbility"
+                DropButton.Size = UDim2.new(0.9, 0, 0.9, 0)
+                DropButton.Position = UDim2.new(0.5, 0, 0.5, 0)
+                DropButton.AnchorPoint = Vector2.new(0.5, 0.5)
+                DropButton.Image = "rbxassetid://94420981449604"
+                DropButton.BackgroundTransparency = 1
+                DropButton.BorderSizePixel = 0
+                DropButton.SizeConstraint = Enum.SizeConstraint.RelativeYY
+                DropButton.ZIndex = 1
+                DropButton.Parent = AbilitiesUI
+
+                local Label = Instance.new("TextLabel")
+                Label.Parent = DropButton
+                Label.Text = "DROP BALL"
+                Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+                Label.TextScaled = true
+                Label.AnchorPoint = Vector2.new(0.5, 0.5)
+                Label.Position = UDim2.new(0.5, 0, 0.5, 0)
+                Label.Size = UDim2.new(0.8, 0, 0.7, 0)
+                Label.BackgroundTransparency = 1
+                Label.ZIndex = 2
+                Label.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+
+                local AbilityRemote = ReplicatedStorage.Packages.Knit.Services.AbilityService.RE.Ability
+                local AbilityUsedRemote = ReplicatedStorage.Packages.Knit.Services.AbilityService.RE.AbilityUsed
+
+                DropButton.MouseButton1Click:Connect(function()
+                    for _, plr in ipairs(Players:GetPlayers()) do
+                        if plr ~= LocalPlayer and plr.Character and workspace:FindFirstChild(plr.Name) then
+                            local target = workspace:FindFirstChild(plr.Name)
+                            AbilityRemote:FireServer("KaiserVolley", target)
+                            AbilityUsedRemote:FireServer("KaiserVolley")
+                        end
+                    end
+                end)
+            end
+        end
+    end,
+    function()
+        local playerName = game.Players.LocalPlayer.Name
+        if table.find(WHITELISTED_USERS, playerName) then
+            if DropButton then
+                DropButton:Destroy()
+                DropButton = nil
+            end
+        end
+    end
+)
+
+local tpbButton
+
+local tpbToggle = createToggle(
+    premiumContent,
+    "TP BALL OFF",
+    "TP BALL ON",
+    "TP BALL OFF",
+    function()
+        local playerName = game.Players.LocalPlayer.Name
+        if table.find(WHITELISTED_USERS, playerName) then
+            local Players = game:GetService("Players")
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local LocalPlayer = Players.LocalPlayer
+            local AbilitiesUI = LocalPlayer:WaitForChild("PlayerGui").InGameUI.Bottom.Abilities
+
+            if not tpbButton or not tpbButton.Parent then
+                tpbButton = Instance.new("ImageButton")
+                tpbButton.Name = "tpbAbility"
+                tpbButton.Size = UDim2.new(0.9, 0, 0.9, 0)
+                tpbButton.Position = UDim2.new(0.5, 0, 0.5, 0)
+                tpbButton.AnchorPoint = Vector2.new(0.5, 0.5)
+                tpbButton.Image = "rbxassetid://94420981449604"
+                tpbButton.BackgroundTransparency = 1
+                tpbButton.BorderSizePixel = 0
+                tpbButton.SizeConstraint = Enum.SizeConstraint.RelativeYY
+                tpbButton.ZIndex = 1
+                tpbButton.Parent = AbilitiesUI
+
+                local Label = Instance.new("TextLabel")
+                Label.Parent = tpbButton
+                Label.Text = "TP BALL"
+                Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+                Label.TextScaled = true
+                Label.AnchorPoint = Vector2.new(0.5, 0.5)
+                Label.Position = UDim2.new(0.5, 0, 0.5, 0)
+                Label.Size = UDim2.new(0.8, 0, 0.7, 0)
+                Label.BackgroundTransparency = 1
+                Label.ZIndex = 2
+                Label.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+
+                local AbilityRemote = ReplicatedStorage.Packages.Knit.Services.AbilityService.RE.Ability
+                local AbilityUsedRemote = ReplicatedStorage.Packages.Knit.Services.AbilityService.RE.AbilityUsed
+
+                tpbButton.MouseButton1Click:Connect(function()
+                    for _, plr in ipairs(Players:GetPlayers()) do
+                        if plr ~= LocalPlayer and plr.Character and workspace:FindFirstChild(plr.Name) then
+                            local target = workspace:FindFirstChild(plr.Name)
+                            AbilityRemote:FireServer("OneTwo", target)
+                            AbilityUsedRemote:FireServer("OneTwo")
+                        end
+                    end
+                end)
+            end
+        end
+    end,
+    function()
+        local playerName = game.Players.LocalPlayer.Name
+        if table.find(WHITELISTED_USERS, playerName) then
+            if tpbButton then
+                tpbButton:Destroy()
+                tpbButton = nil
+            end
+        end
+    end
+)
+
+local stealbButton
+
+local stealbToggle = createToggle(
+    premiumContent,
+    "100% STEAL OFF",
+    "100% STEAL ON",
+    "100% STEAL OFF",
+    function()
+        local playerName = game.Players.LocalPlayer.Name
+        if table.find(WHITELISTED_USERS, playerName) then
+            local Players = game:GetService("Players")
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local LocalPlayer = Players.LocalPlayer
+            local AbilitiesUI = LocalPlayer:WaitForChild("PlayerGui").InGameUI.Bottom.Abilities
+
+            if not stealbButton or not stealbButton.Parent then
+                stealbButton = Instance.new("ImageButton")
+                stealbButton.Name = "stealbAbility"
+                stealbButton.Size = UDim2.new(0.9, 0, 0.9, 0)
+                stealbButton.Position = UDim2.new(0.5, 0, 0.5, 0)
+                stealbButton.AnchorPoint = Vector2.new(0.5, 0.5)
+                stealbButton.Image = "rbxassetid://94420981449604"
+                stealbButton.BackgroundTransparency = 1
+                stealbButton.BorderSizePixel = 0
+                stealbButton.SizeConstraint = Enum.SizeConstraint.RelativeYY
+                stealbButton.ZIndex = 1
+                stealbButton.Parent = AbilitiesUI
+
+                local Label = Instance.new("TextLabel")
+                Label.Parent = stealbButton
+                Label.Text = "100% STEAL"
+                Label.TextColor3 = Color3.fromRGB(255, 255, 255)
+                Label.TextScaled = true
+                Label.AnchorPoint = Vector2.new(0.5, 0.5)
+                Label.Position = UDim2.new(0.5, 0, 0.5, 0)
+                Label.Size = UDim2.new(0.8, 0, 0.7, 0)
+                Label.BackgroundTransparency = 1
+                Label.ZIndex = 2
+                Label.FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+
+                local AbilityRemote = ReplicatedStorage.Packages.Knit.Services.AbilityService.RE.Ability
+                local AbilityUsedRemote = ReplicatedStorage.Packages.Knit.Services.AbilityService.RE.AbilityUsed
+
+                stealbButton.MouseButton1Click:Connect(function()
+                    for _, plr in ipairs(Players:GetPlayers()) do
+                        if plr ~= LocalPlayer and plr.Character and workspace:FindFirstChild(plr.Name) then
+                            local target = workspace:FindFirstChild(plr.Name)
+                            AbilityRemote:FireServer("SharkSteal", target)
+                            AbilityUsedRemote:FireServer("SharkSteal")
+                        end
+                    end
+                end)
+            end
+        end
+    end,
+    function()
+        local playerName = game.Players.LocalPlayer.Name
+        if table.find(WHITELISTED_USERS, playerName) then
+            if stealbButton then
+                stealbButton:Destroy()
+                stealbButton = nil
+            end
+        end
+    end
+)
+
+-- Tab Switching System
+local function switchTab(selectedTab)
+    for _, tab in ipairs(tabContainer:GetChildren()) do
+        if tab:IsA("TextButton") then
+            local outline = tab:FindFirstChild("UIStroke")
+            tab.TextTransparency = tab.Name == selectedTab and 0 or 0.5
+            if outline then outline.Transparency = tab.Name == selectedTab and 0 or 0.5 end
+
+            local textOutline = tab:FindFirstChild("UIStroke")
+            if textOutline then
+                textOutline.Transparency = tab.Name == selectedTab and 0 or 0.5
+            end
+        end
+    end
+    for _, content in ipairs(contentContainer:GetChildren()) do
+        if content:IsA("ScrollingFrame") then
+            content.Visible = content.Name == selectedTab.."Content"
+        end
+    end
+end
+
+mainTab.MouseButton1Click:Connect(function() switchTab("MAIN FEATURES") end)
+stylesTab.MouseButton1Click:Connect(function() switchTab("CUSTOM STYLES") end)
+flowTab.MouseButton1Click:Connect(function() switchTab("STYLE/FLOW") end)
+premiumTab.MouseButton1Click:Connect(function() switchTab("PREMIUM") end)
+creditsTab.MouseButton1Click:Connect(function() switchTab("CREDITS") end)
+positionTab.MouseButton1Click:Connect(function() switchTab("POSITION SELECTOR") end)
+externalhubTab.MouseButton1Click:Connect(function() switchTab("EXTERNAL HUBS") end)
+
+-- Toggle UI
+local function toggleUI(visible)
+    mainFrame.Visible = visible
+    toggleBtn.Visible = not visible
+    if visible then
+        mainFrame:TweenSize(UDim2.new(0, 700, 0, 380), Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.3)
+    end
+end
+
+closeBtn.MouseButton1Click:Connect(function()
+    toggleUI(false)
+    toggleBtn.Visible = true
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+    toggleUI(true)
+    toggleBtn.Visible = false
+end)
+
+-- Opening Animation
+local function openAnimation()
+    toggleBtn.Visible = false
+    mainFrame.Visible = true
+    mainFrame.Size = UDim2.new(0, 700, 0, 2)
+    mainFrame.BackgroundTransparency = 1
+    titleText.TextTransparency = 1
+    closeBtn.TextTransparency = 1
+    topSeparator.Transparency = 1
+    verticalSeparator.Transparency = 1
+
+    for _, tab in ipairs(tabContainer:GetChildren()) do
+        if tab:IsA("TextButton") then
+            tab.TextTransparency = 1
+            if tab:FindFirstChild("UIStroke") then
+                tab.UIStroke.Transparency = 1
+            end
+            if tab:FindFirstChild("UIStroke") then
+                tab:FindFirstChild("UIStroke").Transparency = 1
+            end
+        end
+    end
+
+    mainFrame:TweenSize(UDim2.new(0, 700, 0, 2), Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.5, true, function()
+        mainFrame:TweenSize(UDim2.new(0, 700, 0, 380), Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.7)
+        for i = 1, 0, -0.05 do
+            mainFrame.BackgroundTransparency = i * 0.2
+            titleText.TextTransparency = i
+            closeBtn.TextTransparency = i
+            topSeparator.Transparency = i
+            verticalSeparator.Transparency = i
+            for _, tab in ipairs(tabContainer:GetChildren()) do
+                if tab:IsA("TextButton") then
+                    tab.TextTransparency = i
+                    if tab:FindFirstChild("UIStroke") then
+                        tab.UIStroke.Transparency = i
+                    end
+                    if tab:FindFirstChild("UIStroke") then
+                        tab:FindFirstChild("UIStroke").Transparency = i
+                    end
+                end
+            end
+            task.wait(0.03)
+        end
+        switchTab("MAIN FEATURES")
+    end)
+end
+
+openAnimation()
+
+game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "SOULS HUB",
+    Text = "UI successfully initialized!",
+    Duration = 5
+})
+
+local function enhanceButton(btn)
+    if not btn:IsA("TextButton") then return end
+
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {
+            BackgroundTransparency = btn == toggleBtn and 0.5 or 0.85,
+            TextColor3 = Color3.new(0.9, 0.9, 0.9)
+        }):Play()
+    end)
+
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), {
+            BackgroundTransparency = btn == toggleBtn and 0.3 or 1,
+            TextColor3 = Color3.new(1, 1, 1)
+        }):Play()
+    end)
+end
+
+for _,v in pairs(screenGui:GetDescendants()) do
+    enhanceButton(v)
+end
