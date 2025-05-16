@@ -1,0 +1,1193 @@
+--[[ Merged Script: SOULS HUB UI with tst.lua functionality (Revised) --]]
+
+-- Services
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local InsertService = game:GetService("InsertService")
+local MarketplaceService = game:GetService("MarketplaceService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local CoreGui = game:GetService("CoreGui")
+
+-- Player specific variables (from tst.lua.txt)
+local LocalPlayer = Players.LocalPlayer
+local Leaderstats = LocalPlayer:WaitForChild("leaderstats") -- Use WaitForChild for robustness
+local Backpack = LocalPlayer:WaitForChild("Backpack")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local ShecklesCount
+if Leaderstats and Leaderstats:FindFirstChild("Sheckles") then
+    ShecklesCount = Leaderstats.Sheckles
+else
+    warn("SOULS HUB: Leaderstats or Sheckles not found for LocalPlayer. Creating a dummy.")
+    ShecklesCount = Instance.new("IntValue") -- Dummy for testing if needed
+    ShecklesCount.Name = "Sheckles"
+    ShecklesCount.Value = 0
+    -- Consider parenting this to a dummy leaderstats if the game expects it
+end
+
+-- Game specific variables (from tst.lua.txt)
+local GameEvents = ReplicatedStorage:WaitForChild("GameEvents")
+local Farms = workspace:WaitForChild("Farm") -- Assuming Farm is directly in workspace
+
+-- tst.lua.txt state variables
+local SeedStock = {}
+local OwnedSeeds = {}
+local HarvestIgnores = {
+    Normal = false,
+    Gold = false,
+    Rainbow = false
+}
+
+local currentSeed = ""
+local autoPlant = false
+local autoPlantRandom = false
+local autoHarvest = false
+local selectedBuySeed = ""
+local autoBuy = false
+local autoSell = false
+local sellThreshold = 15
+local autoWalk = false
+local autoWalkAllowRandom = true
+local noClip = false
+local autoWalkMaxWait = 10
+local autoWalkStatusLabel -- UI element, will be created later
+
+-- SOULS HUB UI Setup
+if CoreGui:FindFirstChild("SOULS_HUB") then
+    CoreGui.SOULS_HUB:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SOULS_HUB"
+screenGui.Parent = CoreGui
+screenGui.Enabled = true
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling -- Ensures it renders on top of most game UI
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 700, 0, 420) -- Adjusted height
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30) -- Base color for elements
+mainFrame.BackgroundTransparency = 0.8 -- More transparent as requested
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.ZIndex = 1
+mainFrame.Visible = false -- Start hidden for animation
+mainFrame.Parent = screenGui
+
+local outline = Instance.new("UIStroke")
+outline.Color = Color3.fromRGB(200, 200, 200) -- Lighter outline for better visibility on transparent bg
+outline.Thickness = 1.5
+outline.Transparency = 0.2
+outline.Parent = mainFrame
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12) -- Slightly smaller radius from original SOULS HUB
+corner.Parent = mainFrame
+
+-- Removed mainFrame gradient for clearer transparency
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleButton"
+toggleBtn.Size = UDim2.new(0, 140, 0, 40)
+toggleBtn.Position = UDim2.new(0.5, -70, 0, 20)
+toggleBtn.AnchorPoint = Vector2.new(0.5, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+toggleBtn.BackgroundTransparency = 0.3
+toggleBtn.Text = "TOGGLE MENU"
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 14
+toggleBtn.Visible = true -- Make it visible so user can open menu
+toggleBtn.ZIndex = 10
+toggleBtn.Parent = screenGui
+
+local toggleTextOutline = Instance.new("UIStroke")
+toggleTextOutline.Color = Color3.new(0, 0, 0)
+toggleTextOutline.Thickness = 1
+toggleTextOutline.Parent = toggleBtn
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 12)
+toggleCorner.Parent = toggleBtn
+
+local toggleOutline = Instance.new("UIStroke")
+toggleOutline.Color = Color3.new(1, 1, 1)
+toggleOutline.Thickness = 1
+toggleOutline.Transparency = 0.2
+toggleOutline.Parent = toggleBtn
+
+-- Dragging Function (from SOULS HUB.txt)
+local function makeDraggable(frame)
+    local dragging = false
+    local dragInput, dragStart, startPos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            -- Monitor InputEnded on the specific input object
+            dragInput = input -- Store the input object that started the drag
+            local connection
+            connection = dragInput.Changed:Connect(function(property)
+                if property == "UserInputState" and dragInput.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                    dragInput = nil
+                    if connection then connection:Disconnect() end
+                end
+            end)
+        end
+    end)
+
+    -- Fallback for InputEnded on the frame itself, in case Changed event doesn't fire as expected
+    frame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if dragging and (not dragInput or input == dragInput) then
+                 dragging = false
+                 dragInput = nil -- Clear dragInput here as well
+            end
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and dragInput and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            -- Only proceed if the input causing the change is the one that started the drag (for touch)
+            -- For mouse, input.UserInputType == Enum.UserInputType.MouseMovement is enough if dragging is true
+            if input.UserInputType == Enum.UserInputType.Touch and input ~= dragInput then return end
+            
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+makeDraggable(mainFrame)
+-- makeDraggable(toggleBtn) -- User might not want the toggle button itself to be draggable
+
+-- Opening/Closing Animation
+local initialSize = UDim2.new(0, 700, 0, 420)
+local hiddenSize = UDim2.new(0, 700, 0, 0)
+local animationInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+mainFrame.Size = hiddenSize -- Start hidden and small
+
+toggleBtn.MouseButton1Click:Connect(function()
+    if mainFrame.Visible then
+        local tween = TweenService:Create(mainFrame, animationInfo, {Size = hiddenSize, Position = UDim2.new(0.5, 0, 0.5, 0)})
+        tween:Play()
+        tween.Completed:Connect(function()
+            mainFrame.Visible = false
+        end)
+    else
+        mainFrame.Position = UDim2.new(0.5,0,0.5,0) -- Reset position before animating size
+        mainFrame.Size = hiddenSize -- Ensure it starts from hidden size
+        mainFrame.Visible = true
+        local tween = TweenService:Create(mainFrame, animationInfo, {Size = initialSize})
+        tween:Play()
+    end
+end)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseButton"
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -35, 0, 10)
+closeBtn.AnchorPoint = Vector2.new(1, 0)
+closeBtn.BackgroundTransparency = 1
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.TextSize = 20
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.ZIndex = 3
+closeBtn.Parent = mainFrame
+
+local closeTextOutline = Instance.new("UIStroke")
+closeTextOutline.Color = Color3.new(0, 0, 0)
+closeTextOutline.Thickness = 1
+closeTextOutline.Parent = closeBtn
+
+closeBtn.MouseButton1Click:Connect(function()
+    if mainFrame.Visible then
+        local tween = TweenService:Create(mainFrame, animationInfo, {Size = hiddenSize, Position = UDim2.new(0.5,0,0.5,0)})
+        tween:Play()
+        tween.Completed:Connect(function()
+            mainFrame.Visible = false
+        end)
+    end
+end)
+
+local titleFont = Enum.Font.GothamBold
+local titleText = Instance.new("TextLabel")
+titleText.Name = "Title"
+titleText.Size = UDim2.new(0, 200, 0, 30)
+titleText.Position = UDim2.new(0, 20, 0, 10)
+titleText.BackgroundTransparency = 1
+titleText.Text = "Souls Hub" -- From tst.lua.txt context
+titleText.TextColor3 = Color3.new(1, 1, 1)
+titleText.TextSize = 24
+titleText.Font = titleFont
+titleText.TextXAlignment = Enum.TextXAlignment.Left
+titleText.ZIndex = 2
+titleText.Parent = mainFrame
+
+local titleTextOutline = Instance.new("UIStroke")
+titleTextOutline.Color = Color3.new(0, 0, 0)
+titleTextOutline.Thickness = 1
+titleTextOutline.Parent = titleText
+
+-- Separators (from SOULS HUB.txt)
+local topSeparator = Instance.new("Frame")
+topSeparator.Name = "TopSeparator"
+topSeparator.Size = UDim2.new(1, -40, 0, 1)
+topSeparator.Position = UDim2.new(0, 20, 0, 50)
+topSeparator.BackgroundColor3 = Color3.fromRGB(120, 120, 120) -- Slightly dimmer for less contrast
+topSeparator.BackgroundTransparency = 0.5
+topSeparator.BorderSizePixel = 0
+topSeparator.ZIndex = 2
+topSeparator.Parent = mainFrame
+
+local verticalSeparator = Instance.new("Frame")
+verticalSeparator.Name = "VerticalSeparator"
+verticalSeparator.Size = UDim2.new(0, 1, 1, - (50 + 20)) -- Adjusted height: Full height - top bar - bottom padding
+verticalSeparator.Position = UDim2.new(0, 170, 0, 50) -- Start below topSeparator
+verticalSeparator.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
+verticalSeparator.BackgroundTransparency = 0.5
+verticalSeparator.BorderSizePixel = 0
+verticalSeparator.ZIndex = 2
+verticalSeparator.Parent = mainFrame
+
+-- Tab System (SOULS HUB structure, manual positioning)
+local tabContainer = Instance.new("Frame")
+tabContainer.Name = "Tabs"
+tabContainer.Size = UDim2.new(0, 150, 1, -(50 + 20 + 10)) -- Full height - top bar - bottom padding - small gap
+tabContainer.Position = UDim2.new(0, 15, 0, 50 + 10) -- Below topSeparator, with some padding
+tabContainer.BackgroundTransparency = 1 -- Fully transparent container
+tabContainer.ZIndex = 2
+tabContainer.Parent = mainFrame
+
+local contentContainer = Instance.new("Frame")
+contentContainer.Name = "Content"
+contentContainer.Size = UDim2.new(1, -(170 + 15 + 15), 1, -(50 + 20 + 10)) -- Adjusted for new mainFrame height and tab pos
+contentContainer.Position = UDim2.new(0, 170 + 10, 0, 50 + 10) -- Right of separator, below top bar
+contentContainer.BackgroundTransparency = 1 -- Fully transparent container
+contentContainer.ZIndex = 2
+contentContainer.Parent = mainFrame
+
+-- UI Creation Functions (Styled like SOULS HUB, adapted for tst.lua needs)
+local currentActiveTabButton = nil
+local currentActiveTabContent = nil
+
+local function createTab(tabName) -- Using SOULS HUB style, manual positioning
+    local tabButton = Instance.new("TextButton")
+    tabButton.Name = tabName
+    tabButton.Size = UDim2.new(1, -10, 0, 30) -- Slightly less than full width for padding
+    tabButton.Position = UDim2.new(0.5, 0, 0, (#tabContainer:GetChildren() * 35) + 5) -- Centered, manual Y positioning
+    tabButton.AnchorPoint = Vector2.new(0.5, 0)
+    tabButton.BackgroundTransparency = 1 -- Transparent background for tab button
+    tabButton.Text = tabName
+    tabButton.TextColor3 = Color3.fromRGB(200, 200, 200) -- Default/Inactive text color
+    tabButton.TextSize = 16
+    tabButton.Font = Enum.Font.GothamBold
+    tabButton.TextTransparency = 0.3 -- Slightly transparent when inactive
+    tabButton.ZIndex = 3
+    tabButton.Parent = tabContainer
+
+    local tabTextOutline = Instance.new("UIStroke")
+    tabTextOutline.Color = Color3.new(0, 0, 0)
+    tabTextOutline.Thickness = 1
+    tabTextOutline.Transparency = 0.5
+    tabTextOutline.Parent = tabButton
+
+    local contentFrame = Instance.new("ScrollingFrame")
+    contentFrame.Name = tabName .. "Content"
+    contentFrame.Size = UDim2.new(1, 0, 1, 0)
+    contentFrame.BackgroundTransparency = 1 -- Content area background is transparent
+    contentFrame.BorderSizePixel = 0
+    contentFrame.Visible = false
+    contentFrame.ScrollBarThickness = 5
+    contentFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
+    contentFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    contentFrame.CanvasSize = UDim2.new(0,0,0,0)
+    contentFrame.Parent = contentContainer
+    
+    local contentPadding = Instance.new("UIPadding")
+    contentPadding.PaddingTop = UDim.new(0, 10)
+    contentPadding.PaddingBottom = UDim.new(0, 10)
+    contentPadding.PaddingLeft = UDim.new(0, 10)
+    contentPadding.PaddingRight = UDim.new(0, 10)
+    contentPadding.Parent = contentFrame
+
+    local contentLayout = Instance.new("UIListLayout")
+    contentLayout.Padding = UDim.new(0, 8)
+    contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    contentLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    contentLayout.Parent = contentFrame
+
+    tabButton.MouseButton1Click:Connect(function()
+        if currentActiveTabButton == tabButton then return end
+
+        if currentActiveTabContent then
+            currentActiveTabContent.Visible = false
+        end
+        if currentActiveTabButton then
+            currentActiveTabButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+            currentActiveTabButton.TextTransparency = 0.3
+            -- Remove active indicator if any
+            local oldIndicator = currentActiveTabButton:FindFirstChild("ActiveIndicator")
+            if oldIndicator then oldIndicator:Destroy() end
+        end
+
+        contentFrame.Visible = true
+        currentActiveTabContent = contentFrame
+        currentActiveTabButton = tabButton
+        tabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tabButton.TextTransparency = 0
+        
+        -- Add active indicator (e.g., a small bar)
+        local indicator = Instance.new("Frame")
+        indicator.Name = "ActiveIndicator"
+        indicator.Size = UDim2.new(1, 0, 0, 2) -- Full width, 2px height
+        indicator.Position = UDim2.new(0, 0, 1, -2) -- At the bottom of the tab button
+        indicator.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        indicator.BorderSizePixel = 0
+        indicator.Parent = tabButton
+    end)
+    return contentFrame
+end
+
+local function addCategory(parent, text)
+    local category = Instance.new("TextLabel")
+    category.Name = text .. "Category"
+    category.Size = UDim2.new(1, -20, 0, 25) -- Full width with padding
+    category.BackgroundTransparency = 1
+    category.Text = "--- " .. text .. " ---"
+    category.TextColor3 = Color3.fromRGB(220, 220, 220)
+    category.TextSize = 16
+    category.Font = Enum.Font.GothamBold
+    category.TextXAlignment = Enum.TextXAlignment.Center
+    category.ZIndex = 3
+    category.LayoutOrder = (#parent:GetChildren()) + 1
+    category.Parent = parent
+    return category
+end
+
+local function createButton(parent, buttonText, func)
+    local button = Instance.new("TextButton")
+    button.Name = buttonText
+    button.Size = UDim2.new(0, 220, 0, 35) -- Slightly wider for better text fit
+    button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    button.BackgroundTransparency = 0.5 -- Semi-transparent button
+    button.Text = buttonText
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 14
+    button.ZIndex = 3
+    button.LayoutOrder = (#parent:GetChildren()) + 1
+
+    local buttonTextOutline = Instance.new("UIStroke")
+    buttonTextOutline.Color = Color3.new(0, 0, 0)
+    buttonTextOutline.Thickness = 1
+    buttonTextOutline.Transparency = 0.3
+    buttonTextOutline.Parent = button
+
+    local btnOutline = Instance.new("UIStroke")
+    btnOutline.Color = Color3.fromRGB(150, 150, 150)
+    btnOutline.Thickness = 1
+    btnOutline.Transparency = 0.4
+    btnOutline.Parent = button
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = button
+
+    button.MouseButton1Click:Connect(function()
+        if func then
+            local success, err = pcall(func)
+            if not success then
+                warn("Error in button click for '" .. buttonText .. "':", err)
+            end
+        end
+    end)
+
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.15), { BackgroundTransparency = 0.3 }):Play()
+    end)
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.15), { BackgroundTransparency = 0.5 }):Play()
+    end)
+
+    button.Parent = parent
+    return button
+end
+
+local function createToggle(parent, labelText, defaultState, callback)
+    local toggleFrame = Instance.new("Frame")
+    toggleFrame.Name = labelText .. "ToggleFrame"
+    toggleFrame.Size = UDim2.new(0, 220, 0, 30)
+    toggleFrame.BackgroundTransparency = 1
+    toggleFrame.LayoutOrder = (#parent:GetChildren()) + 1
+    toggleFrame.Parent = parent
+
+    local layout = Instance.new("UIListLayout")
+    layout.FillDirection = Enum.FillDirection.Horizontal
+    layout.VerticalAlignment = Enum.VerticalAlignment.Center
+    layout.Padding = UDim.new(0,5)
+    layout.Parent = toggleFrame
+
+    local label = Instance.new("TextLabel")
+    label.Name = "Label"
+    label.Size = UDim2.new(0.7, -5, 1, 0) 
+    label.BackgroundTransparency = 1
+    label.Text = labelText .. ":"
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.ZIndex = 3
+    label.Parent = toggleFrame
+
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Name = "ToggleButtonState"
+    toggleButton.Size = UDim2.new(0.3, 0, 0, 25) -- Fixed height for button part
+    toggleButton.Text = defaultState and "ON" or "OFF"
+    toggleButton.TextColor3 = defaultState and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+    toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    toggleButton.BackgroundTransparency = 0.5
+    toggleButton.Font = Enum.Font.GothamBold
+    toggleButton.TextSize = 12
+    toggleButton.ZIndex = 4
+    toggleButton.Parent = toggleFrame
+    
+    local toggleButtonCorner = Instance.new("UICorner")
+    toggleButtonCorner.CornerRadius = UDim.new(0, 4)
+    toggleButtonCorner.Parent = toggleButton
+
+    local currentState = defaultState
+    toggleButton.MouseButton1Click:Connect(function()
+        currentState = not currentState
+        toggleButton.Text = currentState and "ON" or "OFF"
+        toggleButton.TextColor3 = currentState and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(200, 0, 0)
+        if callback then
+            pcall(callback, currentState)
+        end
+    end)
+    return toggleButton, label
+end
+
+local function createLabel(parent, text, name)
+    local label = Instance.new("TextLabel")
+    label.Name = name or "InfoLabel"
+    label.Size = UDim2.new(1, -20, 0, 20)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(220, 220, 220)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Center
+    label.ZIndex = 3
+    label.LayoutOrder = (#parent:GetChildren()) + 1
+    label.Parent = parent
+    return label
+end
+
+local function createDropdown(parent, labelText, optionsTable, callback)
+    addCategory(parent, labelText)
+    local dropdownFrame = Instance.new("Frame")
+    dropdownFrame.Name = labelText .. "DropdownFrame"
+    dropdownFrame.Size = UDim2.new(0, 220, 0, 30)
+    dropdownFrame.BackgroundTransparency = 1
+    dropdownFrame.LayoutOrder = (#parent:GetChildren()) + 1
+    dropdownFrame.Parent = parent
+
+    local currentOptionIndex = 1
+    local currentOptions = optionsTable or {}
+    
+    local selectedValueLabel = Instance.new("TextButton") -- Make it a button to open a list later if needed
+    selectedValueLabel.Name = "SelectedValueDisplay"
+    selectedValueLabel.Size = UDim2.new(1, -70, 1, 0) -- Space for nav buttons
+    selectedValueLabel.Position = UDim2.new(0,0,0,0)
+    selectedValueLabel.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    selectedValueLabel.BackgroundTransparency = 0.6
+    selectedValueLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    selectedValueLabel.Font = Enum.Font.Gotham
+    selectedValueLabel.TextSize = 12
+    selectedValueLabel.TextXAlignment = Enum.TextXAlignment.Center
+    selectedValueLabel.Parent = dropdownFrame
+    local svlCorner = Instance.new("UICorner")
+    svlCorner.CornerRadius = UDim.new(0,4)
+    svlCorner.Parent = selectedValueLabel
+
+    local function updateDropdownDisplay()
+        if #currentOptions == 0 then
+            selectedValueLabel.Text = "(No Options)"
+            if callback then pcall(callback, nil) end
+            return
+        end
+        currentOptionIndex = math.max(1, math.min(currentOptionIndex, #currentOptions))
+        selectedValueLabel.Text = tostring(currentOptions[currentOptionIndex])
+        if callback then
+            pcall(callback, currentOptions[currentOptionIndex])
+        end
+    end
+    
+    local prevButton = createButton(dropdownFrame, "<", function()
+        if #currentOptions > 0 then
+            currentOptionIndex = currentOptionIndex - 1
+            if currentOptionIndex < 1 then currentOptionIndex = #currentOptions end
+            updateDropdownDisplay()
+        end
+    end)
+    prevButton.Size = UDim2.new(0, 30, 1, 0)
+    prevButton.Position = UDim2.new(1, -65, 0, 0)
+    prevButton.AnchorPoint = Vector2.new(1,0)
+    prevButton.Parent = dropdownFrame
+
+    local nextButton = createButton(dropdownFrame, ">", function()
+        if #currentOptions > 0 then
+            currentOptionIndex = currentOptionIndex + 1
+            if currentOptionIndex > #currentOptions then currentOptionIndex = 1 end
+            updateDropdownDisplay()
+        end
+    end)
+    nextButton.Size = UDim2.new(0, 30, 1, 0)
+    nextButton.Position = UDim2.new(1, -30, 0, 0)
+    nextButton.AnchorPoint = Vector2.new(1,0)
+    nextButton.Parent = dropdownFrame
+
+    local dropdownControl = {}
+    function dropdownControl:updateOptions(newOptions)
+        currentOptions = newOptions or {}
+        currentOptionIndex = 1
+        updateDropdownDisplay()
+    end
+    
+    dropdownControl:updateOptions(optionsTable) -- Initial update
+    
+    return dropdownControl
+end
+
+local function createSlider(parent, labelText, minVal, maxVal, defaultVal, stepVal, callback)
+    addCategory(parent, labelText .. " (" .. tostring(defaultVal) .. ")")
+    local sliderFrame = Instance.new("Frame")
+    sliderFrame.Name = labelText .. "SliderFrame"
+    sliderFrame.Size = UDim2.new(0, 220, 0, 30)
+    sliderFrame.BackgroundTransparency = 1
+    sliderFrame.LayoutOrder = (#parent:GetChildren()) + 1
+    sliderFrame.Parent = parent
+
+    local currentValue = defaultVal
+    local step = stepVal or 1
+    
+    local valueLabel = Instance.new("TextLabel")
+    valueLabel.Name = "ValueLabel"
+    valueLabel.Size = UDim2.new(1, -70, 1, 0) 
+    valueLabel.Position = UDim2.new(0,0,0,0)
+    valueLabel.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    valueLabel.BackgroundTransparency = 0.6
+    valueLabel.TextColor3 = Color3.fromRGB(200,200,200)
+    valueLabel.Font = Enum.Font.Gotham
+    valueLabel.TextSize = 12
+    valueLabel.TextXAlignment = Enum.TextXAlignment.Center
+    valueLabel.Parent = sliderFrame
+    local vlCorner = Instance.new("UICorner")
+    vlCorner.CornerRadius = UDim.new(0,4)
+    vlCorner.Parent = valueLabel
+
+    local categoryLabel = parent:FindFirstChild(labelText .. "Category") -- Find the category label to update it
+
+    local function updateSliderDisplay()
+        currentValue = math.floor(math.max(minVal, math.min(currentValue, maxVal)) / step) * step -- Snap to step
+        valueLabel.Text = tostring(currentValue)
+        if categoryLabel then categoryLabel.Text = "--- " .. labelText .. " (" .. tostring(currentValue) .. ") ---" end
+        if callback then
+            pcall(callback, currentValue)
+        end
+    end
+
+    local minusButton = createButton(sliderFrame, "-", function()
+        currentValue = currentValue - step
+        updateSliderDisplay()
+    end)
+    minusButton.Size = UDim2.new(0, 30, 1, 0)
+    minusButton.Position = UDim2.new(1, -65, 0, 0)
+    minusButton.AnchorPoint = Vector2.new(1,0)
+    minusButton.Parent = sliderFrame
+
+    local plusButton = createButton(sliderFrame, "+", function()
+        currentValue = currentValue + step
+        updateSliderDisplay()
+    end)
+    plusButton.Size = UDim2.new(0, 30, 1, 0)
+    plusButton.Position = UDim2.new(1, -30, 0, 0)
+    plusButton.AnchorPoint = Vector2.new(1,0)
+    plusButton.Parent = sliderFrame
+    
+    updateSliderDisplay() -- Initialize
+    return { updateValue = function(newValue) currentValue = newValue; updateSliderDisplay() end }
+end
+
+-- Functions from tst.lua.txt (game logic) - with task.wait and pcall for safety
+local function Plant(Position: Vector3, Seed: string)
+    pcall(function() GameEvents.Plant_RE:FireServer(Position, Seed) end)
+    task.wait(.3)
+end
+
+local function GetFarms()
+    return Farms and Farms:GetChildren() or {}
+end
+
+local function GetFarmOwner(Farm: Folder): string
+    local Important = Farm and Farm:FindFirstChild("Important")
+    local Data = Important and Important:FindFirstChild("Data")
+    local Owner = Data and Data:FindFirstChild("Owner")
+    return Owner and Owner.Value or ""
+end
+
+local function GetFarm(PlayerName: string): Folder?
+    local farmsList = GetFarms()
+    for _, FarmInstance in ipairs(farmsList) do
+        if GetFarmOwner(FarmInstance) == PlayerName then
+            return FarmInstance
+        end
+    end
+    return nil
+end
+
+local IsSelling = false
+local function SellInventory()
+    if IsSelling then return end
+    IsSelling = true
+    local Character = LocalPlayer.Character
+    if not (Character and Character.PrimaryPart and ShecklesCount) then 
+        IsSelling = false
+        return 
+    end
+    local PreviousCFrame = Character:GetPivot()
+    local PreviousSheckles = ShecklesCount.Value
+
+    Character:PivotTo(CFrame.new(62, 4, -26))
+    local startTime = tick()
+    repeat
+        pcall(function() GameEvents.Sell_Inventory:FireServer() end)
+        task.wait()
+    until ShecklesCount.Value ~= PreviousSheckles or (tick() - startTime > 5) -- Timeout after 5s
+    
+    Character:PivotTo(PreviousCFrame)
+    task.wait(0.2)
+    IsSelling = false
+end
+
+local function BuySeed(Seed: string)
+    pcall(function() GameEvents.BuySeedStock:FireServer(Seed) end)
+end
+
+local function BuyAllSelectedSeeds()
+    local Seed = selectedBuySeed
+    if not Seed or Seed == "" then return end
+    local StockToBuy = SeedStock[Seed] -- This should be from GetSeedStock, which shows shop stock
+
+    if not StockToBuy or StockToBuy <= 0 then return end
+
+    for i = 1, StockToBuy do
+        BuySeed(Seed)
+        task.wait(0.1) -- Small delay between purchases
+    end
+end
+
+local function GetSeedInfo(SeedTool: Tool): (string?, number?)
+    local PlantName = SeedTool:FindFirstChild("Plant_Name")
+    local Count = SeedTool:FindFirstChild("Numbers")
+    if not PlantName then return nil, nil end
+    return PlantName.Value, Count and Count.Value or 0
+end
+
+local function CollectSeedsFromParent(Parent, SeedsTable: table)
+    for _, Tool in ipairs(Parent:GetChildren()) do
+        if Tool:IsA("Tool") then
+            local Name, Count = GetSeedInfo(Tool)
+            if Name then
+                SeedsTable[Name] = {Count = Count, Tool = Tool}
+            end
+        end
+    end
+end
+
+local function CollectCropsFromParent(Parent, CropsTable: table)
+    for _, Tool in ipairs(Parent:GetChildren()) do
+        if Tool:IsA("Tool") then
+            local Name = Tool:FindFirstChild("Item_String")
+            if Name then
+                table.insert(CropsTable, Tool)
+            end
+        end
+    end
+end
+
+local function GetOwnedSeeds(): table
+    OwnedSeeds = {} 
+    local Character = LocalPlayer.Character
+    if Character then
+        CollectSeedsFromParent(Backpack, OwnedSeeds)
+        CollectSeedsFromParent(Character, OwnedSeeds)
+    end
+    return OwnedSeeds
+end
+
+local function GetInvCrops(): table
+    local Crops = {}
+    local Character = LocalPlayer.Character
+    if Character then
+        CollectCropsFromParent(Backpack, Crops)
+        CollectCropsFromParent(Character, Crops)
+    end
+    return Crops
+end
+
+local MyFarm, MyImportant, PlantLocations, PlantsPhysical, Dirt
+local farmX1, farmZ1, farmX2, farmZ2
+
+local function GetArea(Base: BasePart)
+    local Center = Base.Position
+    local Size = Base.Size
+    local X1_local = math.ceil(Center.X - (Size.X/2))
+    local Z1_local = math.ceil(Center.Z - (Size.Z/2))
+    local X2_local = math.floor(Center.X + (Size.X/2))
+    local Z2_local = math.floor(Center.Z + (Size.Z/2))
+    return X1_local, Z1_local, X2_local, Z2_local
+end
+
+local function InitializeFarmData()
+    MyFarm = GetFarm(LocalPlayer.Name)
+    if MyFarm then
+        MyImportant = MyFarm:FindFirstChild("Important")
+        if MyImportant then
+            PlantLocations = MyImportant:FindFirstChild("Plant_Locations")
+            PlantsPhysical = MyImportant:FindFirstChild("Plants_Physical")
+            if PlantLocations then
+                Dirt = PlantLocations:FindFirstChildOfClass("Part")
+                if Dirt then
+                    farmX1, farmZ1, farmX2, farmZ2 = GetArea(Dirt)
+                else
+                    warn("SOULS HUB: Could not find Dirt part in PlantLocations for farm: " .. LocalPlayer.Name)
+                end
+            else warn("SOULS HUB: Plant_Locations not found in farm: " .. LocalPlayer.Name) end
+        else warn("SOULS HUB: Important folder not found in farm: " .. LocalPlayer.Name) end
+    else warn("SOULS HUB: Could not find player's farm: " .. LocalPlayer.Name) end
+end
+
+local function EquipCheck(ToolInstance)
+    local Character = LocalPlayer.Character
+    if not Character then return end
+    local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+    if not Humanoid then return end
+    if ToolInstance.Parent ~= Backpack then 
+        -- If not in backpack, maybe it's already equipped or in startergear
+        if ToolInstance.Parent == Character then return end -- Already equipped
+        -- Try to find it in StarterGear and clone to backpack if necessary
+        local starterGearTool = LocalPlayer.StarterGear:FindFirstChild(ToolInstance.Name)
+        if starterGearTool then
+            ToolInstance = starterGearTool:Clone()
+            ToolInstance.Parent = Backpack
+        else
+            -- warn("Tool not found in backpack or character: " .. ToolInstance.Name)
+            return
+        end
+    end
+    Humanoid:EquipTool(ToolInstance)
+end
+
+local function GetRandomFarmPoint(): Vector3
+    if not PlantLocations then InitializeFarmData() end
+    if not PlantLocations then return Vector3.new(0,4,0) end
+    local FarmLands = PlantLocations:GetChildren()
+    if #FarmLands == 0 then return Vector3.new(0,4,0) end
+    local validFarmLands = {}
+    for _, land in ipairs(FarmLands) do
+        if land:IsA("BasePart") then table.insert(validFarmLands, land) end
+    end
+    if #validFarmLands == 0 then return Vector3.new(0,4,0) end
+    local FarmLand = validFarmLands[math.random(1, #validFarmLands)]
+    local rX1, rZ1, rX2, rZ2 = GetArea(FarmLand)
+    local X = math.random(rX1, rX2)
+    local Z = math.random(rZ1, rZ2)
+    return Vector3.new(X, MyFarm.PrimaryPart.Position.Y + 0.5, Z) -- Use farm's Y level + offset
+end
+
+local function AutoPlantLoop()
+    if not currentSeed or currentSeed == "" then return end
+    GetOwnedSeeds() 
+    local SeedData = OwnedSeeds[currentSeed]
+    if not SeedData or SeedData.Count <= 0 then 
+        if autoWalkStatusLabel then autoWalkStatusLabel.Text = "Auto Plant: No "..currentSeed.." seeds." end
+        return 
+    end
+    
+    local Tool = SeedData.Tool
+    EquipCheck(Tool)
+    task.wait(0.3) -- Wait for equip
+
+    if not farmX1 then InitializeFarmData() end
+    if not farmX1 then 
+        warn("SOULS HUB: Farm dimensions not initialized for AutoPlantLoop.")
+        if autoWalkStatusLabel then autoWalkStatusLabel.Text = "Auto Plant: Farm not found." end
+        return
+    end
+
+    local plantedCount = 0
+    local stepSize = 1 -- Assuming step is 1 based on original script
+
+    if autoPlantRandom then
+        for i = 1, SeedData.Count do
+            local point = GetRandomFarmPoint()
+            Plant(point, currentSeed)
+            plantedCount = plantedCount + 1
+            if autoWalkStatusLabel then autoWalkStatusLabel.Text = "Auto Plant: Planted "..plantedCount.."/"..SeedData.Count end
+            task.wait(0.1) -- Small delay between plants
+        end
+    else
+        for x = farmX1, farmX2, stepSize do
+            for z = farmZ1, farmZ2, stepSize do
+                if plantedCount >= SeedData.Count then break end
+                local point = Vector3.new(x, MyFarm.PrimaryPart.Position.Y + 0.13, z) -- Use farm Y
+                Plant(point, currentSeed)
+                plantedCount = plantedCount + 1
+                if autoWalkStatusLabel then autoWalkStatusLabel.Text = "Auto Plant: Planted "..plantedCount.."/"..SeedData.Count end
+                task.wait(0.1) -- Small delay between plants
+            end
+            if plantedCount >= SeedData.Count then break end
+        end
+    end
+    if autoWalkStatusLabel then autoWalkStatusLabel.Text = "Auto Plant: Finished." end
+end
+
+local function HarvestPlant(PlantInstance: Model)
+    local Prompt = PlantInstance:FindFirstChild("ProximityPrompt", true)
+    if Prompt and Prompt.Enabled then
+        fireproximityprompt(Prompt)
+        task.wait(0.05) -- Shorter delay for harvesting
+    end
+end
+
+local function GetSeedStock(IgnoreNoStock: boolean?): table
+    local currentSeedShop = PlayerGui:FindFirstChild("Seed_Shop")
+    if not currentSeedShop then return IgnoreNoStock and {} or SeedStock end
+    
+    local ItemSizeFrame = currentSeedShop:FindFirstChild("Item_Size", true)
+    if not ItemSizeFrame or not ItemSizeFrame.Parent then return IgnoreNoStock and {} or SeedStock end
+    
+    local ItemsContainer = ItemSizeFrame.Parent
+    local NewList = {}
+    local currentFrameSeedStock = {}
+
+    for _, ItemFrame in ipairs(ItemsContainer:GetChildren()) do
+        if ItemFrame:IsA("Frame") and ItemFrame:FindFirstChild("Main_Frame") then
+            local MainFrame = ItemFrame.Main_Frame
+            local StockTextLabel = MainFrame:FindFirstChild("Stock_Text")
+            if StockTextLabel and StockTextLabel:IsA("TextLabel") then
+                local stockMatch = StockTextLabel.Text:match("(%d+)")
+                local StockCount = stockMatch and tonumber(stockMatch) or 0
+                if IgnoreNoStock then
+                    if StockCount > 0 then NewList[ItemFrame.Name] = StockCount end
+                else
+                    currentFrameSeedStock[ItemFrame.Name] = StockCount
+                end
+            end
+        end
+    end
+    if not IgnoreNoStock then SeedStock = currentFrameSeedStock end
+    return IgnoreNoStock and NewList or SeedStock
+end
+
+local function CanHarvest(PlantInstance): boolean?
+    local Prompt = PlantInstance:FindFirstChild("ProximityPrompt", true)
+    return Prompt and Prompt.Enabled
+end
+
+local function CollectHarvestable(Parent, PlantsTable, IgnoreDistance: boolean?)
+    local Character = LocalPlayer.Character
+    if not Character or not Character.PrimaryPart then return PlantsTable end
+    local PlayerPosition = Character.PrimaryPart.Position
+
+    for _, ChildInstance in ipairs(Parent:GetChildren()) do
+        if ChildInstance:IsA("Model") then
+            local Fruits = ChildInstance:FindFirstChild("Fruits")
+            if Fruits then CollectHarvestable(Fruits, PlantsTable, IgnoreDistance) end
+            
+            local PlantPrimaryPart = ChildInstance.PrimaryPart or ChildInstance:FindFirstChildWhichIsA("BasePart")
+            if not PlantPrimaryPart then continue end
+
+            local PlantPosition = PlantPrimaryPart.Position
+            local Distance = (PlayerPosition - PlantPosition).Magnitude
+            if not IgnoreDistance and Distance > 20 then continue end -- Increased range slightly
+            
+            local Variant = ChildInstance:FindFirstChild("Variant")
+            if Variant and Variant:IsA("StringValue") and HarvestIgnores[Variant.Value] == true then
+                -- Skip
+            elseif CanHarvest(ChildInstance) then
+                table.insert(PlantsTable, ChildInstance)
+            end
+        end
+    end
+    return PlantsTable
+end
+
+local function GetHarvestablePlants(IgnoreDistance: boolean?)
+    local Plants = {}
+    if not PlantsPhysical then InitializeFarmData() end
+    if PlantsPhysical then
+        CollectHarvestable(PlantsPhysical, Plants, IgnoreDistance)
+    else
+        warn("SOULS HUB: PlantsPhysical not found for harvesting.")
+    end
+    return Plants
+end
+
+local function HarvestAllPlantsFunction() 
+    if not PlantsPhysical then InitializeFarmData() end
+    if not PlantsPhysical then return end
+
+    local plantsToHarvest = GetHarvestablePlants(false) -- Harvest only nearby plants unless specified
+    if autoWalkStatusLabel then autoWalkStatusLabel.Text = "Harvesting " .. #plantsToHarvest .. " plants..." end
+    for _, PlantInstance in ipairs(plantsToHarvest) do
+        HarvestPlant(PlantInstance)
+    end
+    if autoWalkStatusLabel then autoWalkStatusLabel.Text = "Harvesting: Done." end
+end
+
+local function AutoSellCheck()
+    local CropCount = #GetInvCrops()
+    if CropCount < sellThreshold then return end
+    SellInventory()
+end
+
+local function AutoWalkLoop()
+    if IsSelling then return end
+    local Character = LocalPlayer.Character
+    if not Character or not Character:FindFirstChild("Humanoid") then return end
+    local Humanoid = Character.Humanoid
+
+    local plantsToWalkTo = GetHarvestablePlants(true) -- Consider all harvestable plants for walking
+    local statusText = "Auto Walk: Idle"
+
+    if #plantsToWalkTo == 0 or (autoWalkAllowRandom and math.random(1, 3) == 2) then
+        local Position = GetRandomFarmPoint()
+        Humanoid:MoveTo(Position)
+        statusText = "Auto Walk: To random point"
+        if #plantsToWalkTo == 0 then statusText = "Auto Walk: No plants, random walk." end
+    else
+        local TargetPlant = plantsToWalkTo[math.random(1, #plantsToWalkTo)] -- Pick a random harvestable plant
+        local PlantPosition = (TargetPlant.PrimaryPart and TargetPlant.PrimaryPart.Position) or TargetPlant:GetModelCFrame().Position
+        Humanoid:MoveTo(PlantPosition)
+        statusText = "Auto Walk: To " .. TargetPlant.Name
+    end
+    if autoWalkStatusLabel then autoWalkStatusLabel.Text = statusText end
+end
+
+local noclipActive = false
+local originalCollideStates = {}
+local function NoclipLoop()
+    local Character = LocalPlayer.Character
+    if not Character then return end
+    if noClip and not noclipActive then
+        originalCollideStates = {}
+        for _, Part in ipairs(Character:GetDescendants()) do
+            if Part:IsA("BasePart") then
+                originalCollideStates[Part] = Part.CanCollide
+                Part.CanCollide = false
+            end
+        end
+        noclipActive = true
+    elseif not noClip and noclipActive then
+        for Part, canCollide in pairs(originalCollideStates) do
+            if Part and Part.Parent then -- Check if part still exists
+                Part.CanCollide = canCollide
+            end
+        end
+        originalCollideStates = {}
+        noclipActive = false
+    end
+end
+
+local function MakeLoop(getToggle, Func, delay)
+    delay = delay or 0.1
+    coroutine.wrap(function()
+        while task.wait(delay) do
+            if getToggle() then
+                local success, err = pcall(Func)
+                if not success then
+                    warn("SOULS HUB Error in Loop (",tostring(Func),"):", err)
+                end
+            end
+        end
+    end)()
+end
+
+-- UI Elements and Logic from tst.lua.txt, adapted for SOULS HUB UI
+local farmingTabContent = createTab("Farming")
+local managementTabContent = createTab("Management")
+
+-- Populate Farming Tab
+addCategory(farmingTabContent, "Planting")
+local seedOptions_tst = {}
+local seedDropdown_control
+
+local function updateSeedOptionsAndDropdowns()
+    local currentShopStock = GetSeedStock(false) -- Get all seeds from shop for buy dropdown
+    local currentOwnedSeeds = GetOwnedSeeds() -- Get currently owned seeds for plant dropdown
+
+    seedOptions_tst = {}
+    for seedName, _ in pairs(currentOwnedSeeds) do -- Populate with owned seeds
+        table.insert(seedOptions_tst, seedName)
+    end
+    table.sort(seedOptions_tst)
+    if #seedOptions_tst > 0 and (not currentSeed or not table.find(seedOptions_tst, currentSeed)) then
+        currentSeed = seedOptions_tst[1]
+    elseif #seedOptions_tst == 0 then
+        currentSeed = ""
+    end
+    if seedDropdown_control and seedDropdown_control.updateOptions then
+        seedDropdown_control:updateOptions(seedOptions_tst)
+    end
+
+    buySeedOptions_tst = {}
+    for seedName, stockCount in pairs(currentShopStock) do
+        if stockCount > 0 then -- Only show seeds in stock for buying
+            table.insert(buySeedOptions_tst, seedName)
+        end
+    end
+    table.sort(buySeedOptions_tst)
+    if #buySeedOptions_tst > 0 and (not selectedBuySeed or not table.find(buySeedOptions_tst, selectedBuySeed)) then
+        selectedBuySeed = buySeedOptions_tst[1]
+    elseif #buySeedOptions_tst == 0 then
+        selectedBuySeed = ""
+    end
+    if buySeedDropdown_control and buySeedDropdown_control.updateOptions then
+        buySeedDropdown_control:updateOptions(buySeedOptions_tst)
+    end
+end
+
+seedDropdown_control = createDropdown(farmingTabContent, "Plant Seed", seedOptions_tst, function(selected)
+    currentSeed = selected
+end)
+
+createToggle(farmingTabContent, "Auto Plant", autoPlant, function(state) autoPlant = state end)
+createToggle(farmingTabContent, "Plant Random", autoPlantRandom, function(state) autoPlantRandom = state end)
+createButton(farmingTabContent, "Plant All Current Seeds", AutoPlantLoop)
+
+addCategory(farmingTabContent, "Harvesting")
+createToggle(farmingTabContent, "Auto Harvest", autoHarvest, function(state) autoHarvest = state end)
+for key, value in pairs(HarvestIgnores) do
+    createToggle(farmingTabContent, "Ignore " .. key, value, function(state)
+        HarvestIgnores[key] = state
+    end)
+end
+
+addCategory(farmingTabContent, "Movement & Misc")
+autoWalkStatusLabel = createLabel(farmingTabContent, "Auto Walk Status: Idle", "AutoWalkStatusLabel")
+createToggle(farmingTabContent, "Auto Walk", autoWalk, function(state) autoWalk = state end)
+createToggle(farmingTabContent, "Walk Randomly", autoWalkAllowRandom, function(state) autoWalkAllowRandom = state end)
+createToggle(farmingTabContent, "NoClip", noClip, function(state) 
+    noClip = state 
+    if not state then NoclipLoop() end -- Ensure CanCollide is restored when toggled off
+end)
+createSlider(farmingTabContent, "Max Walk Delay (s)", 1, 120, autoWalkMaxWait, 1, function(value)
+    autoWalkMaxWait = value
+end)
+
+-- Populate Management Tab
+addCategory(managementTabContent, "Seed Purchasing")
+local buySeedOptions_tst = {}
+local buySeedDropdown_control
+
+buySeedDropdown_control = createDropdown(managementTabContent, "Seed to Buy", buySeedOptions_tst, function(selected)
+    selectedBuySeed = selected
+end)
+
+createToggle(managementTabContent, "Auto Buy Selected", autoBuy, function(state) autoBuy = state end)
+createButton(managementTabContent, "Buy All Selected Seed Stock", BuyAllSelectedSeeds)
+
+addCategory(managementTabContent, "Inventory Management")
+createButton(managementTabContent, "Sell Inventory", SellInventory)
+createToggle(managementTabContent, "Auto Sell Crops", autoSell, function(state) autoSell = state end)
+createSlider(managementTabContent, "Sell Threshold", 1, 200, sellThreshold, 1, function(value)
+    sellThreshold = value
+end)
+
+-- Start background services from tst.lua.txt
+local function StartServices()
+    InitializeFarmData() -- Initial call
+    task.wait(1) -- Wait for farm data to potentially load
+    updateSeedOptionsAndDropdowns() -- Initial population of dropdowns
+
+    MakeLoop(function() return autoPlant end, AutoPlantLoop, 0.5) -- Loop with delay
+    MakeLoop(function() return autoHarvest end, HarvestAllPlantsFunction, 1) -- Loop with delay
+    MakeLoop(function() return autoBuy end, BuyAllSelectedSeeds, 2) -- Loop with delay, less frequent
+    MakeLoop(function() return autoWalk end, function()
+        AutoWalkLoop()
+        task.wait(math.random(1, math.max(1, autoWalkMaxWait))) -- Use max to avoid error with 0
+    end, 0.2) -- Base delay for walk check
+    MakeLoop(function() return noClip end, NoclipLoop, 0.1) -- Noclip needs frequent updates
+    
+    coroutine.wrap(function() -- Periodic updates for seed stocks and owned seeds
+        while task.wait(5) do
+            GetSeedStock() 
+            GetOwnedSeeds()
+            updateSeedOptionsAndDropdowns()
+            if autoSell then AutoSellCheck() end -- Check auto-sell here too
+        end
+    end)()
+end
+
+-- Activate the first tab by default
+local firstTabBtnToActivate = nil
+if tabContainer:GetChildren()[1] and tabContainer:GetChildren()[1]:IsA("TextButton") then
+    firstTabBtnToActivate = tabContainer:GetChildren()[1]
+end
+
+if firstTabBtnToActivate and firstTabBtnToActivate.MouseButton1Click then 
+    firstTabBtnToActivate.MouseButton1Click:Fire() 
+else
+    -- Fallback: if no tabs or first child is not a button, ensure content area is clear
+    if currentActiveTabContent then currentActiveTabContent.Visible = false end
+    if currentActiveTabButton then 
+        currentActiveTabButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+        currentActiveTabButton.TextTransparency = 0.3
+        local oldIndicator = currentActiveTabButton:FindFirstChild("ActiveIndicator")
+        if oldIndicator then oldIndicator:Destroy() end
+    end
+    currentActiveTabButton = nil
+    currentActiveTabContent = nil
+end
+
+StartServices()
+
+Backpack.ChildAdded:Connect(function(child)
+    if autoSell then
+        if child:IsA("Tool") and child:FindFirstChild("Item_String") then 
+            AutoSellCheck()
+        end
+    end
+    -- Update owned seeds when items are added to backpack
+    GetOwnedSeeds()
+    updateSeedOptionsAndDropdowns()
+end)
+
+Backpack.ChildRemoved:Connect(function(child)
+    -- Update owned seeds when items are removed
+    GetOwnedSeeds()
+    updateSeedOptionsAndDropdowns()
+end)
+
+-- Initial visibility of toggle button (already set to true)
+-- mainFrame.Visible = true -- For testing, otherwise keep false for toggle
+
+print("SOULS HUB with tst.lua features (Revised) loaded.")
+
