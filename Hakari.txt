@@ -1,0 +1,1646 @@
+local Players           = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService  = game:GetService("UserInputService")
+local TweenService      = game:GetService("TweenService")
+local Debris            = game:GetService("Debris")
+local RunService        = game:GetService("RunService")
+local abilityOnCD = abilityOnCD or {}
+
+local player    = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local character = player.Character or player.CharacterAdded:Wait()
+
+getgenv().cframespeedtoggle = false
+getgenv().speedvalue        = 0.1
+getgenv().shootBoostToggle  = false
+
+local unpredictableUnlocked = false
+local unpredictableActive = false
+local cargoUnlocked = false
+local doorUnlocked = false
+
+local humanoid = character:WaitForChild("Humanoid")
+
+local animUnpredictable = Instance.new("Animation")
+animUnpredictable.AnimationId = "rbxassetid://96476307240125"
+local trackUnpredictable = humanoid:LoadAnimation(animUnpredictable)
+
+local animCargoSlap = Instance.new("Animation")
+animCargoSlap.AnimationId = "rbxassetid://117050045536868"
+local trackCargoSlap = humanoid:LoadAnimation(animCargoSlap)
+
+local function startCooldown(buttonName, duration)
+
+    if abilityOnCD[buttonName] then
+        return
+    end
+
+    local ablFolder = playerGui:WaitForChild("InGameUI")
+                             :WaitForChild("Bottom")
+                             :WaitForChild("Abilities")
+    local btn = ablFolder:FindFirstChild(buttonName)
+    if not btn then
+        return
+    end
+
+    local cdFrame = btn:FindFirstChild("Cooldown")
+    if not cdFrame then
+    end
+
+    local grad = cdFrame and cdFrame:FindFirstChildOfClass("UIGradient")
+    if not grad then
+    else
+        grad.Offset = Vector2.new(0, 0)
+    end
+
+    abilityOnCD[buttonName] = true
+
+    local startTime = tick()
+    local conn
+    conn = RunService.RenderStepped:Connect(function()
+        local elapsed  = tick() - startTime
+        local progress = math.clamp(elapsed / duration, 0, 1)
+        if grad then
+            grad.Offset = Vector2.new(0, progress)
+        end
+        if progress >= 1 then
+            conn:Disconnect()
+            abilityOnCD[buttonName] = false
+        end
+    end)
+end
+
+do
+    local TweenService = game:GetService("TweenService")
+    local player = game.Players.LocalPlayer
+    local playerGui = player:WaitForChild("PlayerGui")
+
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "MuiFFFinBanner"
+    gui.ResetOnSpawn = false
+    gui.Parent = playerGui
+
+    local label = Instance.new("TextLabel")
+    label.Parent = gui
+    label.AnchorPoint = Vector2.new(0.5, 0.5)
+    label.Position = UDim2.new(0.5, 0, 0.5, 0)
+    label.Size = UDim2.new(0.4, 0, 0.1, 0)
+    label.BackgroundColor3 = Color3.new(0, 0, 0)
+    label.BackgroundTransparency = 0
+    label.Text = "made by:MuiFFFin"
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.Font = Enum.Font.SourceSansBold
+    label.TextScaled = true
+
+    task.delay(1.5, function()
+        local tweenInfo = TweenInfo.new(
+            1,                      
+            Enum.EasingStyle.Quad,  
+            Enum.EasingDirection.Out
+        )
+        local props = {
+            TextTransparency = 1,
+            BackgroundTransparency = 1,
+        }
+        local tween = TweenService:Create(label, tweenInfo, props)
+        tween:Play()
+        tween.Completed:Connect(function()
+            gui:Destroy()
+        end)
+    end)
+end
+
+do
+    local style    = playerGui:WaitForChild("Style")
+    local bg       = style:WaitForChild("BG")
+    local styleTxt = bg:WaitForChild("StyleTxt")
+    local desc     = bg:WaitForChild("Desc")
+    local c        = Color3.fromRGB(213,86,205)
+
+    styleTxt.Text       = "HAKARI"
+    styleTxt.TextColor3 = c
+    styleTxt:GetPropertyChangedSignal("Text"):Connect(function()
+        if styleTxt.Text ~= "HAKARI" then styleTxt.Text = "HAKARI" end
+    end)
+    styleTxt:GetPropertyChangedSignal("TextColor3"):Connect(function()
+        if styleTxt.TextColor3 ~= c then styleTxt.TextColor3 = c end
+    end)
+
+    desc.Text = "The luckiest person! Don't give him a gamble."
+    local dc = desc.TextColor3
+    desc:GetPropertyChangedSignal("Text"):Connect(function()
+        if desc.Text ~= "The luckiest person! Don't give him a gamble." then
+            desc.Text = "The luckiest person! Don't give him a gamble."
+        end
+    end)
+    desc:GetPropertyChangedSignal("TextColor3"):Connect(function()
+        if desc.TextColor3 ~= dc then desc.TextColor3 = dc end
+    end)
+end
+
+local function DribbleRemote()
+    local pkgs = ReplicatedStorage:FindFirstChild("Packages")
+    local svc  = pkgs and pkgs:FindFirstChild("Knit")
+                and pkgs.Knit.Services:FindFirstChild("BallService")
+    if svc and svc.RE:FindFirstChild("Dribble") then
+        svc.RE.Dribble:FireServer()
+    end
+end
+
+local function SlideRemote()
+    local pkgs = ReplicatedStorage:FindFirstChild("Packages")
+    local svc  = pkgs and pkgs:FindFirstChild("Knit")
+                and pkgs.Knit.Services:FindFirstChild("BallService")
+    if svc and svc.RE:FindFirstChild("Slide") then
+        svc.RE.Slide:FireServer()
+    end
+end
+
+local function playerHasBall()
+    local vals = character:FindFirstChild("Values")
+    local hb   = vals and vals:FindFirstChild("HasBall")
+    return hb and hb.Value
+end
+
+local function createExplosionEffect()
+    local head = character:FindFirstChild("Head")
+    if not head then return end
+    local e = Instance.new("ParticleEmitter", head)
+    e.Texture        = "rbxassetid://243660364"
+    e.Rate           = 0
+    e.Lifetime       = NumberRange.new(0.5,1)
+    e.Speed          = NumberRange.new(20,40)
+    e.VelocitySpread = 360
+    e.SpreadAngle    = Vector2.new(360,360)
+    e.Rotation       = NumberRange.new(0,360)
+    e.RotSpeed       = NumberRange.new(180,360)
+    e.Size           = NumberSequence.new{
+        NumberSequenceKeypoint.new(0,1.5),
+        NumberSequenceKeypoint.new(0.3,3.0),
+        NumberSequenceKeypoint.new(1,0.5),
+    }
+    e.Color          = ColorSequence.new(Color3.new(0,1,0), Color3.new(0.6,1,0.6))
+    e.LightEmission  = 1
+    e.LightInfluence = 0.5
+    e.ZOffset        = 1
+    e:Emit(150)
+    Debris:AddItem(e,2)
+end
+
+local function actDribble()
+	if abilityOnCD["LuckyDribble"] then return end
+    createExplosionEffect()
+    DribbleRemote()
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    local fwd, side, dur = 15,10,0.15
+    local choice = math.random(1,3)
+    local offset = (choice==1 and Vector3.new(-side,0,-fwd))
+                or (choice==2 and Vector3.new( side,0,-fwd))
+                or Vector3.new(0,0,-fwd)
+    TweenService:Create(hrp, TweenInfo.new(dur,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
+        CFrame = hrp.CFrame * CFrame.new(offset)
+    }):Play()
+    if choice~=3 and math.random()<0.5 then
+        task.delay(dur+0.05, function()
+            TweenService:Create(hrp, TweenInfo.new(dur,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
+                CFrame = hrp.CFrame * CFrame.new(0,0,-fwd)
+            }):Play()
+            createExplosionEffect()
+        end)
+    end
+	startCooldown("LuckyDribble", 1)
+end
+
+local function createAfterImage()
+    local char = player.Character
+    if not (char and char.PrimaryPart) then return end
+
+    local clone = char:Clone()
+    clone.Name, clone.Parent = "AfterImage", workspace
+
+    for _, d in ipairs(clone:GetDescendants()) do
+        if d:IsA("BasePart") then
+            d.CanCollide, d.Anchored, d.Transparency = false, true, 0.2
+        elseif (d:IsA("ParticleEmitter") or d:IsA("Beam")) and d.Name == "AuraParticle" then
+            d.Enabled = false
+        elseif d:IsA("Humanoid") or d:IsA("Animator") or d:IsA("Script") or d:IsA("LocalScript") or d:IsA("ModuleScript") then
+            d:Destroy()
+        elseif d:IsA("Decal") or d:IsA("Texture") then
+            d.Transparency = 0.2
+        end
+    end
+
+    clone:SetPrimaryPartCFrame(char.PrimaryPart.CFrame)
+
+    local ti = TweenInfo.new(1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    for _, p in ipairs(clone:GetDescendants()) do
+        if p:IsA("BasePart") or p:IsA("Decal") or p:IsA("Texture") then
+            TweenService:Create(p, ti, {Transparency = 1}):Play()
+        end
+    end
+
+    Debris:AddItem(clone, 1.2)
+end
+
+local function actUnpredictableRun()
+    if abilityOnCD["UnpredictableRun"] then return end
+    if unpredictableActive then return end
+    unpredictableActive = true
+
+    trackUnpredictable:Play()
+
+    task.spawn(function()
+        for i = 1, 15 do
+            createAfterImage()
+            task.wait(1)
+        end
+    end)
+
+    getgenv().speedvalue = getgenv().speedvalue + 0.2
+
+    local startTime = tick()
+    local DURATION  = 15    
+    local RANGE     = 4     
+
+    local conn
+    conn = RunService.Heartbeat:Connect(function()
+        local elapsed = tick() - startTime
+        if elapsed > DURATION then
+            conn:Disconnect()
+            unpredictableActive = false
+
+            trackUnpredictable:Stop()
+            return
+        end
+
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        for _, other in ipairs(Players:GetPlayers()) do
+            if other ~= player and other.Character then
+                local targetHRP = other.Character:FindFirstChild("HumanoidRootPart")
+                if targetHRP then
+                    local dist = (targetHRP.Position - hrp.Position).Magnitude
+                    if dist <= RANGE then
+                        SlideRemote()
+                        if playerHasBall() then
+                            DribbleRemote()
+                        end
+                        break
+                    end
+                end
+            end
+        end
+    end)
+	startCooldown("UnpredictableRun", 4)
+end
+
+local function actDoorJump()
+    if abilityOnCD["DoorJump"] then return end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    local spawnDist, detectRange, noTargetDist, speed = 10,70,50,100
+    local spawnPos = hrp.Position + hrp.CFrame.LookVector * spawnDist
+    local door = Instance.new("Part", workspace)
+    door.Name, door.Size        = "Door", Vector3.new(5,7.2,0.232)
+    door.BrickColor, door.Material = BrickColor.new(348), Enum.Material.SmoothPlastic
+    door.Reflectance, door.Anchored, door.CanCollide = 0, true, true
+
+    local thickness = door.Size.Z
+    local yPos = hrp.Position.Y + hrp.Size.Y/2 + thickness/2 + 0.05
+    local _, yaw = hrp.CFrame:ToOrientation()
+    door.CFrame = CFrame.new(spawnPos.X,yPos,spawnPos.Z)
+                 * CFrame.Angles(0,yaw,0)
+                 * CFrame.Angles(math.rad(90),0,0)
+
+    for _,face in ipairs({Enum.NormalId.Front,Enum.NormalId.Back,Enum.NormalId.Top,Enum.NormalId.Bottom}) do
+        local dec = Instance.new("Decal", door)
+        dec.Texture = "http://www.roblox.com/asset/?id=18767964"
+        dec.Face    = face
+    end
+
+    local conn
+    conn = door.Touched:Connect(function(hit)
+        if not hit:IsDescendantOf(character) then return end
+        conn:Disconnect()
+        door.Anchored, door.CanCollide = false, false
+        local weld = Instance.new("WeldConstraint", door)
+        weld.Part0, weld.Part1 = hrp, door
+
+        local targetHRP
+        for _,p in ipairs(Players:GetPlayers()) do
+            if p~=player and p.Character and p.Character:FindFirstChild("Football") then
+                local pH = p.Character:FindFirstChild("HumanoidRootPart")
+                if pH and (pH.Position-door.Position).Magnitude<=detectRange then
+                    targetHRP = pH; break
+                end
+            end
+        end
+
+        local dist = targetHRP and (targetHRP.Position-hrp.Position).Magnitude or noTargetDist
+        local t    = dist/speed
+        if targetHRP then
+            TweenService:Create(hrp, TweenInfo.new(t,Enum.EasingStyle.Linear),{
+                CFrame = CFrame.new(targetHRP.Position+Vector3.new(0,3,0))
+            }):Play()
+        else
+            TweenService:Create(hrp, TweenInfo.new(t,Enum.EasingStyle.Linear),{
+                CFrame = hrp.CFrame*CFrame.new(0,0,-noTargetDist)
+            }):Play()
+        end
+        task.delay(t, door.Destroy, door)
+    end)
+	startCooldown("DoorJump", 1)
+end
+
+local function actDoorJumpNew()
+    if abilityOnCD["DoorJumpNew"] then return end
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local spawnDist    = 10       
+    local extraDist    = 22       
+    local airHeight    = 19       
+    local doorSize     = Vector3.new(5,7.2,0.232)
+    local forwardBoost = 75       
+    local upBoost      = 50       
+    local downBoost    = 50       
+
+    local _, yaw = hrp.CFrame:ToOrientation()
+
+
+    local pos1 = hrp.Position + hrp.CFrame.LookVector * spawnDist
+    local door1 = Instance.new("Part", workspace)
+    door1.Name, door1.Size = "DoorJumpFront", doorSize
+    door1.BrickColor, door1.Material = BrickColor.new(348), Enum.Material.SmoothPlastic
+    door1.Reflectance, door1.Anchored, door1.CanCollide = 0, true, true
+    door1.CFrame = CFrame.new(pos1.X,
+                              hrp.Position.Y + hrp.Size.Y/2 + doorSize.Z/2 + 0.05,
+                              pos1.Z)
+                   * CFrame.Angles(0,yaw,0)
+                   * CFrame.Angles(math.rad(90),0,0)
+    for _, face in ipairs({Enum.NormalId.Front,Enum.NormalId.Back,Enum.NormalId.Top,Enum.NormalId.Bottom}) do
+        local dec = Instance.new("Decal", door1)
+        dec.Texture, dec.Face = "http://www.roblox.com/asset/?id=18767964", face
+    end
+    Debris:AddItem(door1, 5)
+
+    local pos2 = hrp.Position + hrp.CFrame.LookVector * (spawnDist + extraDist)
+    local door2 = Instance.new("Part", workspace)
+    door2.Name, door2.Size = "DoorJumpAir", doorSize
+    door2.BrickColor, door2.Material = door1.BrickColor, door1.Material
+    door2.Reflectance, door2.Anchored, door2.CanCollide = 0, true, true
+    door2.CFrame = CFrame.new(pos2.X,
+                              hrp.Position.Y + airHeight,
+                              pos2.Z)
+                   * CFrame.Angles(0,yaw,0)
+                   * CFrame.Angles(math.rad(90),0,0)
+    for _, face in ipairs({Enum.NormalId.Front,Enum.NormalId.Back,Enum.NormalId.Top,Enum.NormalId.Bottom}) do
+        local dec = Instance.new("Decal", door2)
+        dec.Texture, dec.Face = "http://www.roblox.com/asset/?id=18767964", face
+    end
+    Debris:AddItem(door2, 7)
+
+    local con1
+    con1 = door1.Touched:Connect(function(hit)
+        if not hit:IsDescendantOf(character) then return end
+        con1:Disconnect()
+        door1:Destroy()
+        local bv = Instance.new("BodyVelocity", hrp)
+        bv.MaxForce = Vector3.new(1e5,1e5,1e5)
+        bv.Velocity = hrp.CFrame.LookVector * forwardBoost + Vector3.new(0, upBoost, 0)
+        Debris:AddItem(bv, 0.3)
+    end)
+
+    local appliedDown = false
+    local function applyDown()
+        if appliedDown then return end
+        appliedDown = true
+        if door2 then door2:Destroy() end
+        local bv = Instance.new("BodyVelocity", hrp)
+        bv.MaxForce = Vector3.new(1e5,1e5,1e5)
+        bv.Velocity = Vector3.new(hrp.CFrame.LookVector.X * (forwardBoost/2),
+                                  -downBoost,
+                                  hrp.CFrame.LookVector.Z * (forwardBoost/2))
+        Debris:AddItem(bv, 0.3)
+    end
+
+    local con2 = door2.Touched:Connect(function(hit)
+        if not hit:IsDescendantOf(character) then return end
+        con2:Disconnect()
+        applyDown()
+    end)
+
+    local threshold = math.max(doorSize.X, doorSize.Y)/2
+    local hbConn
+    hbConn = RunService.Heartbeat:Connect(function()
+        if appliedDown then
+            hbConn:Disconnect()
+            return
+        end
+        if (hrp.Position - door2.Position).Magnitude <= threshold then
+            con2:Disconnect()
+            hbConn:Disconnect()
+            applyDown()
+        end
+    end)
+	startCooldown("DoorJump", 3)
+end
+
+local function actCargoHaul()
+    if abilityOnCD["DoorJumpNew"] then return end
+    if not playerHasBall() then return end
+
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        local evt = ReplicatedStorage
+            :WaitForChild("Packages")
+            :WaitForChild("Knit")
+            :WaitForChild("Services")
+            :WaitForChild("BallService")
+            :WaitForChild("RE")
+            :WaitForChild("Shoot")
+        if evt then
+            local look = hrp.CFrame.LookVector
+            evt:FireServer(1500, nil, nil, look)
+
+            task.spawn(function()
+                local start = tick()
+                local ball
+                repeat
+                    task.wait()
+                    ball = workspace:FindFirstChild("Football")
+                until (ball and ball:IsA("BasePart")) or tick() - start > 2
+
+                if ball then
+                    ball.AssemblyLinearVelocity = (look + Vector3.new(0, 0.25, 0)) * 120
+                end
+            end)
+        end
+    end
+
+    local scale       = 0.15
+    local spawnDist   = 7
+    local raiseHeight = 3
+    local model       = Instance.new("Model", workspace)
+    model.Name        = "CargoHaulModel"
+
+    local parts = {}
+    local function addPiece(name, cf, size, meshId, texId)
+        local part = Instance.new("Part")
+        part.Name       = name
+        part.Size       = size * scale
+        part.CFrame     = cf
+        part.Anchored   = false
+        part.CanCollide = false
+        part.Massless   = true
+        part.Parent     = model
+
+        local sm = Instance.new("SpecialMesh", part)
+        sm.MeshType  = Enum.MeshType.FileMesh
+        sm.MeshId    = meshId
+        sm.TextureId = texId
+        sm.Scale     = Vector3.new(scale, scale, scale)
+
+        table.insert(parts, part)
+    end
+
+    addPiece("Meshes/ep2_traincar001a_ref.010",
+        CFrame.new(-55.0382195, 6.10073185, 108.555466,
+                   -4.47e-07, -3.02e-07, -1.00000215,
+                   -6.29e-07,  0.999998033, 3.02446921e-07,
+                    1.00000286,-6.29e-07, 4.47035518e-07),
+        Vector3.new(8.766317, 3.655149, 2.407529),
+        "rbxassetid://6277181635", "rbxassetid://6277209167"
+    )
+    addPiece("Meshes/ep2_traincar001a_ref.011",
+        CFrame.new(-55.0380936, 6.10073996, 98.883316,
+                   -4.47e-07, -3.02e-07, -1.00000215,
+                   -6.29e-07,  0.999998033, 3.02446921e-07,
+                    1.00000286,-6.29e-07, 4.47035518e-07),
+        Vector3.new(8.766317, 3.655149, 2.407529),
+        "rbxassetid://6277181562", "rbxassetid://6277209167"
+    )
+    addPiece("Meshes/ep2_traincar001a_ref.001",
+        CFrame.new(-51.4401855, 9.03864574, 93.5985031,
+                    2.98023451e-07, -2.01631309e-07, 1.00000143,
+                    4.19560877e-07,  0.999998689, -2.01631309e-07,
+                   -1.00000191,      -4.19560877e-07, -2.98023451e-07),
+        Vector3.new(50.078754, 11.300915, 11.396052),
+        "rbxassetid://6277182156", "rbxassetid://8250489306"
+    )
+    addPiece("Meshes/ep2_traincar001a_ref.004",
+        CFrame.new(-51.4401855, 1.84821272, 93.5985031,
+                    5.96047812e-07, -4.03262504e-07, 1.00000286,
+                    8.39121924e-07,  0.999997377, -4.03262504e-07,
+                   -1.00000381,      -8.39121924e-07, -5.96047812e-07),
+        Vector3.new(49.42382, 3.696391, 9.581619),
+        "rbxassetid://6277182006", "rbxassetid://6277205660"
+    )
+    addPiece("Meshes/ep2_traincar001a_ref.003",
+        CFrame.new(-51.4170532, 8.91573143, 93.6784592,
+                   -4.47e-07, -3.02e-07, -1.00000215,
+                   -6.29e-07,  0.999998033, 3.02446921e-07,
+                    1.00000286,-6.29e-07, 4.47035518e-07),
+        Vector3.new(40.514568, 9.404868, 10.004686),
+        "rbxassetid://6277182074", "rbxassetid://6277217846"
+    )
+    addPiece("Meshes/ep2_traincar001a_ref.012",
+        CFrame.new(-55.037632, 6.10074854, 88.4231415,
+                   -4.47e-07, -3.02e-07, -1.00000215,
+                   -6.29e-07,  0.999998033, 3.02446921e-07,
+                    1.00000286,-6.29e-07, 4.47035518e-07),
+        Vector3.new(8.766317, 3.655149, 2.407529),
+        "rbxassetid://6277181507", "rbxassetid://6277209167"
+    )
+    addPiece("Meshes/ep2_traincar001a_ref.013",
+        CFrame.new(-55.0378723, 6.10075855, 78.7503815,
+                   -4.47e-07, -3.02e-07, -1.00000215,
+                   -6.29e-07,  0.999998033, 3.02446921e-07,
+                    1.00000286,-6.29e-07, 4.47035518e-07),
+        Vector3.new(8.766318, 3.655149, 2.407529),
+        "rbxassetid://6277181443", "rbxassetid://6277209167"
+    )
+    addPiece("Meshes/ep2_traincar001a_ref.009",
+        CFrame.new(-47.7961998, 6.10072947, 108.60643,
+                   -4.47e-07, -3.02e-07, -1.00000215,
+                   -6.29e-07,  0.999998033, 3.02446921e-07,
+                    1.00000286,-6.29e-07, 4.47035518e-07),
+        Vector3.new(8.766318, 3.655149, 2.407529),
+        "rbxassetid://6277181697", "rbxassetid://6277209167"
+    )
+    addPiece("Meshes/ep2_traincar001a_ref.008",
+        CFrame.new(-47.7957687, 6.10073757, 98.9340973,
+                   -4.47e-07, -3.02e-07, -1.00000215,
+                   -6.29e-07,  0.999998033, 3.02446921e-07,
+                    1.00000286,-6.29e-07, 4.47035518e-07),
+        Vector3.new(8.766317, 3.655149, 2.407529),
+        "rbxassetid://6277181754", "rbxassetid://6277209167"
+    )
+    addPiece("Meshes/ep2_traincar001a_ref.007",
+        CFrame.new(-47.7957649, 6.10074615, 88.4739227,
+                   -4.47e-07, -3.02e-07, -1.00000215,
+                   -6.29e-07,  0.999998033, 3.02446921e-07,
+                    1.00000286,-6.29e-07, 4.47035518e-07),
+        Vector3.new(8.766317, 3.655149, 2.407529),
+        "rbxassetid://6277181817", "rbxassetid://6277209167"
+    )
+    addPiece("Meshes/ep2_traincar001a_ref.006",
+        CFrame.new(-47.7956696, 6.10075617, 78.8015289,
+                   -4.47e-07, -3.02e-07, -1.00000215,
+                   -6.29e-07,  0.999998033, 3.02446921e-07,
+                    1.00000286,-6.29e-07, 4.47035518e-07),
+        Vector3.new(8.766317, 3.655149, 2.407529),
+        "rbxassetid://6277181900", "rbxassetid://6277209167"
+    )
+
+    model.PrimaryPart = parts[1]
+    model:PivotTo(
+        hrp.CFrame
+        * CFrame.new(0, raiseHeight, -spawnDist)
+        * CFrame.Angles(0, math.rad(90), 0)
+    )
+    for _, part in ipairs(parts) do
+        if part ~= model.PrimaryPart then
+            local w = Instance.new("WeldConstraint", model.PrimaryPart)
+            w.Part0, w.Part1 = model.PrimaryPart, part
+        end
+    end
+
+    local flightTime = 5
+    local bv = Instance.new("BodyVelocity", model.PrimaryPart)
+    bv.MaxForce = Vector3.new(1e5,1e5,1e5)
+    bv.Velocity = hrp.CFrame.LookVector * 50
+    Debris:AddItem(bv,    flightTime)
+    Debris:AddItem(model, flightTime + 0.1)
+	startCooldown("CargoHaul", 2.5)
+end
+
+local function spawnCargoSlapVFX(part)
+    local at = Instance.new("Attachment")
+    at.Position = Vector3.new(0, -2.5938, 0)
+    at.Visible  = false
+    at.Parent   = part
+
+    local em0 = Instance.new("ParticleEmitter")
+    em0.Name                 = "blue star 1"
+    em0.Color                = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(150,255,150)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(150,255,150)),
+    }
+    em0.Size                 = NumberSequence.new{
+        NumberSequenceKeypoint.new(0,    0),
+        NumberSequenceKeypoint.new(0.29, 0.3125),
+        NumberSequenceKeypoint.new(0.36, 13),
+        NumberSequenceKeypoint.new(0.66, 0.31),
+        NumberSequenceKeypoint.new(1,    0),
+    }
+    em0.Squash               = NumberSequence.new{
+        NumberSequenceKeypoint.new(0,    0),
+        NumberSequenceKeypoint.new(0.3486,0),
+        NumberSequenceKeypoint.new(0.351, -1),
+        NumberSequenceKeypoint.new(0.359,  1),
+        NumberSequenceKeypoint.new(0.368, -1),
+        NumberSequenceKeypoint.new(0.37,   0),
+        NumberSequenceKeypoint.new(1,     0),
+    }
+    em0.Texture              = "rbxassetid://14834478801"
+    em0.ZOffset              = 2
+    em0.Lifetime             = NumberRange.new(0.2, 0.5)
+    em0.Rate                 = 25
+    em0.Speed                = NumberRange.new(200, 700)
+    em0.SpreadAngle          = Vector2.new(360, 360)
+    em0.Drag                 = 25
+    em0.LockedToPart         = true
+    em0.TimeScale            = 0.7
+    em0.VelocityInheritance  = 1
+    em0.Parent               = at
+    em0:Emit(25)
+
+    local em1 = Instance.new("ParticleEmitter")
+    em1.Name                 = "ss"
+    em1.Color                = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(150,255,150)),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(150,255,150)),
+    }
+    em1.Size                 = NumberSequence.new{
+        NumberSequenceKeypoint.new(0,    0),
+        NumberSequenceKeypoint.new(0.29, 0.3125),
+        NumberSequenceKeypoint.new(0.36, 10),
+        NumberSequenceKeypoint.new(0.66, 0.31),
+        NumberSequenceKeypoint.new(1,    0),
+    }
+    em1.Squash               = em0.Squash
+    em1.Texture              = em0.Texture
+    em1.ZOffset              = 2
+    em1.Lifetime             = NumberRange.new(0.3, 0.5)
+    em1.Rate                 = 5
+    em1.Speed                = NumberRange.new(20, 20)
+    em1.SpreadAngle          = Vector2.new(100, 100)
+    em1.Drag                 = 25
+    em1.LockedToPart         = true
+    em1.VelocityInheritance  = 1
+    em1.Parent               = at
+    em1:Emit(5)
+
+    Debris:AddItem(at, 6)
+end
+
+local function actCargoSlap()
+    if abilityOnCD["CargoSlap"] then return end
+    local function hasBall()
+        local vals = character:FindFirstChild("Values")
+        local hb   = vals and vals:FindFirstChild("HasBall")
+        return hb and hb.Value
+    end
+    if not hasBall() then return end
+
+    trackCargoSlap:Play()
+
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        spawnCargoSlapVFX(hrp)
+    end
+
+    local shoot = ReplicatedStorage
+        :WaitForChild("Packages")
+        :WaitForChild("Knit")
+        :WaitForChild("Services")
+        :WaitForChild("BallService")
+        :WaitForChild("RE")
+        :WaitForChild("Shoot")
+    if not shoot then return end
+
+    local MAX_RAY_DIST    = 1000
+    local MIN_FLIGHT_TIME = 0.5
+    local MAX_FLIGHT_TIME = 2.0
+    local INITIAL_SIDE_VEL= 250
+    local DECAY_FACTOR    = 0.5
+
+    local function getAimPoint()
+        local cam    = workspace.CurrentCamera
+        local origin = cam.CFrame.Position
+        local dir    = cam.CFrame.LookVector
+        local params = RaycastParams.new()
+        params.FilterDescendantsInstances = { player.Character }
+        params.FilterType = Enum.RaycastFilterType.Blacklist
+        local res = workspace:Raycast(origin, dir * MAX_RAY_DIST, params)
+        return (res and res.Position) or (origin + dir * MAX_RAY_DIST)
+    end
+
+    local function computeInitialVelocity(orig, targ, T)
+        local disp  = targ - orig
+        local horiz = Vector3.new(disp.X, 0, disp.Z)
+        local vxz   = horiz / T
+        local g     = workspace.Gravity
+        local vy    = disp.Y / T + 0.5 * g * T
+        return Vector3.new(vxz.X, vy, vxz.Z)
+    end
+
+    local camPos     = workspace.CurrentCamera.CFrame.Position
+    local aimPos     = getAimPoint()
+    local dist       = (aimPos - camPos).Magnitude
+    local tNorm      = math.clamp(dist / MAX_RAY_DIST, 0, 1)
+    local flightT    = MIN_FLIGHT_TIME + (MAX_FLIGHT_TIME - MIN_FLIGHT_TIME) * tNorm
+    local ballisticV = computeInitialVelocity(camPos, aimPos, flightT)
+
+    local curveDir = 1
+    if hrp then
+        local charLook = hrp.CFrame.LookVector
+        local camLook  = workspace.CurrentCamera.CFrame.LookVector
+        curveDir = (charLook:Cross(camLook).Y >= 0) and 1 or -1
+    end
+    local sideVec = workspace.CurrentCamera.CFrame.RightVector * curveDir
+    local sideVel = sideVec * INITIAL_SIDE_VEL
+
+    local launchV = ballisticV + sideVel
+    shoot:FireServer(launchV.Magnitude, nil, nil, launchV.Unit)
+
+    task.spawn(function()
+        local start = tick()
+        local ball
+        repeat
+            task.wait()
+            ball = workspace:FindFirstChild("Football")
+        until (ball and ball:IsDescendantOf(workspace)) or tick() - start > 2
+
+        if ball and ball:IsA("BasePart") then
+            ball.AssemblyLinearVelocity = launchV
+            local prevSide = sideVel
+            local decayDur = flightT * DECAY_FACTOR
+            local conn
+            conn = RunService.Heartbeat:Connect(function()
+                local elapsed = tick() - start
+                if elapsed >= decayDur or not ball:IsDescendantOf(workspace) then
+                    ball.AssemblyLinearVelocity = ball.AssemblyLinearVelocity - prevSide
+                    conn:Disconnect()
+                    return
+                end
+                local t     = elapsed / decayDur
+                local curr  = sideVel * (1 - t)
+                local delta = curr - prevSide
+                ball.AssemblyLinearVelocity += delta
+                prevSide = curr
+            end)
+        end
+    end)
+	startCooldown("CargoSlap", 6)
+end
+
+local Debris = game:GetService("Debris")
+
+
+local function spawnJackpotAura(hrp)
+
+    local folder2 = Instance.new("Folder")
+    folder2.Name = "AuraEffectFolder"
+    folder2.Parent = hrp
+
+    local NewPart0 = Instance.new("Part")
+    NewPart0.Name = "BeamEffect"
+    NewPart0.CFrame = hrp.CFrame
+    NewPart0.Transparency = 1
+    NewPart0.CanCollide  = false
+    NewPart0.Anchored    = false
+    NewPart0.Massless    = true
+    NewPart0.Parent      = folder2
+
+    local weld = Instance.new("WeldConstraint")
+    weld.Part0  = hrp
+    weld.Part1  = NewPart0
+    weld.Parent = NewPart0
+
+    local function A(name, pos)
+        local att = Instance.new("Attachment")
+        if name then att.Name = name end
+        att.Visible = false
+        if pos then att.Position = pos end
+        att.Parent = NewPart0
+        return att
+    end
+    local function B(props)
+        local b = Instance.new("Beam")
+        for k,v in pairs(props) do
+            if k ~= "Parent" and k ~= "Attributes" then
+                b[k] = v
+            end
+        end
+        b.Parent = props.Parent
+        if props.Attributes then
+            for k,v in pairs(props.Attributes) do
+                b:SetAttribute(k, v)
+            end
+        end
+        return b
+    end
+    local function E(props)
+        local e = Instance.new("ParticleEmitter")
+        for k,v in pairs(props) do
+            if k ~= "Parent" and k ~= "Attributes" then
+                e[k] = v
+            end
+        end
+        e.Parent = props.Parent
+        if props.Attributes then
+            for k,v in pairs(props.Attributes) do
+                e:SetAttribute(k, v)
+            end
+        end
+        return e
+    end
+
+    local att0  = A(nil,         Vector3.new(0, -3.5, 0))
+    local att1  = A("BeamEnd1",  Vector3.new(-2, 3.5, 0))
+    local att2  = A("BeamEnd2",  Vector3.new( 2, 3.5, 0))
+    local att3  = A("BeamStart1",Vector3.new(0, -3,   0))
+    local att4  = A("BeamStart2",Vector3.new(0, -3,   0))
+    local att5  = A(nil,         Vector3.new(0, -1.819929, 0))
+    local att6  = A(nil,         Vector3.new(4.077488, 4.70468, 0))
+    local att7  = A(nil,         nil)
+    local att8  = A(nil,         Vector3.new(0.466429, 5.935657, 0))
+    local att9  = A(nil,         Vector3.new(0.273867, 0, 0))
+    local att10 = A(nil,         Vector3.new(-3.994688, 4.61279, 0))
+    local att11 = A("VFX",       Vector3.new(0, -2.924025, 0))
+
+    B{
+        Parent       = att3,
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0.12549,1,0.12549)),
+            ColorSequenceKeypoint.new(1, Color3.new(0.12549,1,0.12549)),
+        },
+        Texture      = "http://www.roblox.com/asset/?id=8965648552",
+        TextureSpeed = 0.4,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.18776078522205353,0.9234972596168518),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Attachment0  = att3,
+        Attachment1  = att1,
+        CurveSize0   = -2,
+        FaceCamera   = true,
+        Segments     = 200,
+        Width0       = 4,
+        Width1       = 10,
+        Attributes   = {EmitDelay=0, Duration=0, Width0=0, Width1=0},
+    }
+
+    B{
+        Parent       = att4,
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(1,0,0)),
+            ColorSequenceKeypoint.new(1, Color3.new(1,0,0)),
+        },
+        Texture      = "http://www.roblox.com/asset/?id=8965648552",
+        TextureSpeed = 0.4,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.18776078522205353,0.9234972596168518),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Attachment0  = att4,
+        Attachment1  = att2,
+        CurveSize0   = 2,
+        FaceCamera   = true,
+        Segments     = 200,
+        Width0       = 4,
+        Width1       = 10,
+        Attributes   = {EmitDelay=0, Duration=0, Width0=0, Width1=0},
+    }
+
+    for i=1,2 do
+        E{
+            Name         = "Smoke2",
+            Parent       = NewPart0,
+            Color        = ColorSequence.new{
+                ColorSequenceKeypoint.new(0, Color3.new(0.580392,0,0)),
+                ColorSequenceKeypoint.new(1, Color3.new(0.580392,0,0)),
+            },
+            LightEmission=1,
+            Size         = NumberSequence.new{
+                NumberSequenceKeypoint.new(0,0.3278690576553345),
+                NumberSequenceKeypoint.new(0.48689958453178406,1.803278923034668),
+                NumberSequenceKeypoint.new(1,3.551912784576416),
+            },
+            Texture      = "rbxassetid://12524470529",
+            Transparency = NumberSequence.new{
+                NumberSequenceKeypoint.new(0,1),
+                NumberSequenceKeypoint.new(0.4951321482658386,0.8360655903816223),
+                NumberSequenceKeypoint.new(1,1),
+            },
+            Lifetime     = NumberRange.new(0.5,1),
+            Rate         = 5,
+            Rotation     = NumberRange.new(-306,360),
+            Speed        = NumberRange.new(5,7),
+            SpreadAngle  = Vector2.new(360, -360),
+            Drag         = 2.5,
+            LockedToPart = true,
+            Attributes   = {EmitDelay=0.4, EmitCount=5},
+        }
+    end
+
+    E{
+        Name         = "drip",
+        Parent       = NewPart0,
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0.243137,1,0.243137)),
+            ColorSequenceKeypoint.new(1, Color3.new(0.243137,1,0.243137)),
+        },
+        LightEmission   = 0.4,
+        Orientation     = Enum.ParticleOrientation.VelocityParallel,
+        Size            = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,0),
+            NumberSequenceKeypoint.new(0.2988298833370209,1.038251519203186),
+            NumberSequenceKeypoint.new(1,0),
+        },
+        Squash          = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,2),
+            NumberSequenceKeypoint.new(1,2),
+        },
+        Texture         = "rbxassetid://8030760338",
+        Transparency    = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.2786516845226288,1),
+            NumberSequenceKeypoint.new(0.40224719047546387,0.26875001192092896),
+            NumberSequenceKeypoint.new(0.6651685237884521,0.25624996423721313),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        ZOffset         = 2,
+        Lifetime        = NumberRange.new(0.4,0.4),
+        Rate            = 50,
+        Rotation        = NumberRange.new(90,90),
+        Speed           = NumberRange.new(10,20),
+        Shape           = Enum.ParticleEmitterShape.Disc,
+        ShapeInOut      = Enum.ParticleEmitterShapeInOut.Inward,
+        Acceleration    = Vector3.new(0,-50,0),
+        Drag            = 2,
+        LockedToPart    = false,
+        Attributes      = {EmitDelay=0, EmitCount=20},
+    }
+
+    B{
+        Parent       = att5,
+        Name         = "Beam3",
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0,1,0.235294)),
+            ColorSequenceKeypoint.new(1, Color3.new(0,1,0.235294)),
+        },
+        LightEmission=0.55,
+        Texture      = "rbxassetid://4537255327",
+        TextureSpeed = 1.6,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.48414376378059387,0),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Attachment0  = att6,
+        Attachment1  = att5,
+        FaceCamera   = true,
+        Width0       = 3,
+        Width1       = 5,
+        Attributes   = {EmitDelay=0, Duration=0, Width0=0, Width1=0},
+    }
+
+    B{
+        Parent       = att5,
+        Name         = "Beam2",
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0,0.552941,0.341176)),
+            ColorSequenceKeypoint.new(1, Color3.new(0,0.552941,0.341176)),
+        },
+        LightEmission=1,
+        Texture      = "rbxassetid://12781800019",
+        TextureSpeed = 1.5,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.48414376378059387,0),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Attachment0  = att6,
+        Attachment1  = att5,
+        FaceCamera   = true,
+        Width0       = 5,
+        Width1       = 5,
+        Attributes   = {EmitDelay=0, Duration=0, Width0=0, Width1=0},
+    }
+
+    B{
+        Parent       = att5,
+        Name         = "Beam4",
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0.113725,1,0.0980392)),
+            ColorSequenceKeypoint.new(1, Color3.new(0.113725,1,0.0980392)),
+        },
+        LightEmission=1,
+        Texture      = "rbxassetid://12781780964",
+        TextureMode  = Enum.TextureMode.Static,
+        TextureSpeed = 2,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.4857293665409088,0.21142858266830444),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Attachment0  = att6,
+        Attachment1  = att5,
+        FaceCamera   = true,
+        Width0       = 2,
+        Width1       = 7,
+        Attributes   = {EmitDelay=0, Duration=0, Width0=0, Width1=0},
+    }
+
+    B{
+        Parent       = att7,
+        Name         = "Beam5",
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0.113725,1,0.0980392)),
+            ColorSequenceKeypoint.new(1, Color3.new(0.113725,1,0.0980392)),
+        },
+        LightEmission=1,
+        Texture      = "rbxassetid://12781780964",
+        TextureMode  = Enum.TextureMode.Static,
+        TextureSpeed = 2,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.4857293665409088,0.21142858266830444),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Attachment0  = att8,
+        Attachment1  = att7,
+        FaceCamera   = true,
+        Width0       = 2,
+        Width1       = 13,
+        Attributes   = {EmitDelay=0, Duration=0, Width0=0, Width1=0},
+    }
+
+    B{
+        Parent       = att7,
+        Name         = "Beam2_B",
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0,0.552941,0.341176)),
+            ColorSequenceKeypoint.new(1, Color3.new(0,0.552941,0.341176)),
+        },
+        LightEmission=1,
+        Texture      = "rbxassetid://12781800019",
+        TextureSpeed = 1.5,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.48414376378059387,0),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Attachment0  = att8,
+        Attachment1  = att7,
+        FaceCamera   = true,
+        Width0       = 5,
+        Width1       = 5,
+        Attributes   = {EmitDelay=0, Duration=0, Width0=0, Width1=0},
+    }
+
+    B{
+        Parent       = att7,
+        Name         = "Beam3_B",
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0,1,0.235294)),
+            ColorSequenceKeypoint.new(1, Color3.new(0,1,0.235294)),
+        },
+        LightEmission=0.55,
+        Texture      = "rbxassetid://4537255327",
+        TextureSpeed = 1.6,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.48414376378059387,0),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Attachment0  = att8,
+        Attachment1  = att7,
+        FaceCamera   = true,
+        Width0       = 5,
+        Width1       = 5,
+        Attributes   = {EmitDelay=0, Duration=0, Width0=0, Width1=0},
+    }
+
+    B{
+        Parent       = att9,
+        Name         = "Beam2_C",
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0,0.552941,0.341176)),
+            ColorSequenceKeypoint.new(1, Color3.new(0,0.552941,0.341176)),
+        },
+        LightEmission=1,
+        Texture      = "rbxassetid://12781800019",
+        TextureSpeed = 1.5,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.48414376378059387,0),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Attachment0  = att10,
+        Attachment1  = att9,
+        FaceCamera   = true,
+        Width0       = 5,
+        Width1       = 5,
+        Attributes   = {EmitDelay=0, Duration=0, Width0=0, Width1=0},
+    }
+
+    B{
+        Parent       = att9,
+        Name         = "Beam3_C",
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0,1,0.235294)),
+            ColorSequenceKeypoint.new(1, Color3.new(0,1,0.235294)),
+        },
+        LightEmission=0.55,
+        Texture      = "rbxassetid://4537255327",
+        TextureSpeed = 1.6,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.48414376378059387,0),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Attachment0  = att10,
+        Attachment1  = att9,
+        FaceCamera   = true,
+        Width0       = 5,
+        Width1       = 5,
+        Attributes   = {EmitDelay=0, Duration=0, Width0=0, Width1=0},
+    }
+
+    B{
+        Parent       = att9,
+        Name         = "Beam4_C",
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0.113725,1,0.0980392)),
+            ColorSequenceKeypoint.new(1, Color3.new(0.113725,1,0.0980392)),
+        },
+        LightEmission=1,
+        Texture      = "rbxassetid://12781780964",
+        TextureMode  = Enum.TextureMode.Static,
+        TextureSpeed = 2,
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.4857293665409088,0.21142858266830444),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Attachment0  = att10,
+        Attachment1  = att9,
+        FaceCamera   = true,
+        Width0       = 2,
+        Width1       = 7,
+        Attributes   = {EmitDelay=0, Duration=0, Width0=0, Width1=0},
+    }
+
+    E{
+        Name         = "Lines",
+        Parent       = NewPart0,
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0.239216,1,0.596078)),
+            ColorSequenceKeypoint.new(1, Color3.new(0.239216,1,0.596078)),
+        },
+        LightEmission=1,
+        Orientation  = Enum.ParticleOrientation.VelocityParallel,
+        Size         = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,2),
+            NumberSequenceKeypoint.new(1,0.7266666889190674),
+        },
+        Squash       = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,0),
+            NumberSequenceKeypoint.new(1,2.5070526599884033),
+        },
+        Texture      = "rbxassetid://15292043166",
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,0),
+            NumberSequenceKeypoint.new(0.46580401062965393,0.65),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Lifetime     = NumberRange.new(0.5,0.5),
+        Rate         = 45,
+        Rotation     = NumberRange.new(90,90),
+        Speed        = NumberRange.new(5,45),
+        Drag         = 4.25,
+        LockedToPart = true,
+    }
+
+    E{
+        Name         = "Smoke",
+        Parent       = NewPart0,
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0.2,1,0.666667)),
+            ColorSequenceKeypoint.new(1, Color3.new(0.2,1,0.666667)),
+        },
+        LightInfluence=1,
+        Orientation  = Enum.ParticleOrientation.VelocityParallel,
+        Size         = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,4.1219329833984375),
+            NumberSequenceKeypoint.new(1,3.2151076793670654),
+        },
+        Texture      = "rbxassetid://15350639550",
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.493804007768631,0.8733333349227905),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Lifetime     = NumberRange.new(0.44999998807907104,1.25),
+        Rate         = 15,
+        Speed        = NumberRange.new(15,15),
+        Drag         = 1.5,
+        LockedToPart = true,
+    }
+
+    E{
+        Name         = "Stars",
+        Parent       = NewPart0,
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0.109804,1,0.584314)),
+            ColorSequenceKeypoint.new(1, Color3.new(0.109804,1,0.584314)),
+        },
+        LightEmission=1,
+        Size         = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,2),
+            NumberSequenceKeypoint.new(1,0.7266666889190674),
+        },
+        Texture      = "rbxassetid://15350666375",
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,0),
+            NumberSequenceKeypoint.new(0.46580401062965393,0.65),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Lifetime     = NumberRange.new(0.25,1.75),
+        Rate         = 15,
+        Rotation     = NumberRange.new(-360,360),
+        RotSpeed     = NumberRange.new(-15,15),
+        Speed        = NumberRange.new(5,45),
+        Drag         = 4.25,
+        LockedToPart = true,
+    }
+
+    local pl = Instance.new("PointLight")
+    pl.Brightness = 0
+    pl.Color      = Color3.new(0.290196,1,0.572549)
+    pl.Range      = 3
+    pl.Shadows    = false
+    pl.Parent     = att11
+
+    E{
+        Name         = "Main",
+        Parent       = att11,
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0.164706,1,0.764706)),
+            ColorSequenceKeypoint.new(1, Color3.new(0.164706,1,0.764706)),
+        },
+        LightEmission=0.55,
+        LightInfluence=1,
+        Orientation  = Enum.ParticleOrientation.VelocityPerpendicular,
+        Size         = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,10),
+            NumberSequenceKeypoint.new(1,20.441062927246094,5.209958076477051),
+        },
+        Squash       = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,0),
+            NumberSequenceKeypoint.new(1,-0.03415018692612648,0.4533333480358124),
+        },
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.43580400943756104,0.47),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        Lifetime     = NumberRange.new(3.25,3.25),
+        Rate         = 3,
+        Rotation     = NumberRange.new(-360,360),
+        RotSpeed     = NumberRange.new(-15,15),
+        Speed        = NumberRange.new(0.01,0.01),
+        LockedToPart = true,
+        Attributes   = {EmitDelay=0},
+    }
+
+    E{
+        Parent       = NewPart0,
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0.145098,1,0.643137)),
+            ColorSequenceKeypoint.new(1, Color3.new(0.145098,1,0.643137)),
+        },
+        LightEmission=0.5,
+        Size         = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,0),
+            NumberSequenceKeypoint.new(0.3588283061981201,0.43749988079071045,0.43749988079071045),
+            NumberSequenceKeypoint.new(1,8.6875,0.625),
+        },
+        Texture      = "rbxassetid://13681590856",
+        ZOffset      = -1,
+        Lifetime     = NumberRange.new(0.4,0.8),
+        Rate         = 50,
+        Rotation     = NumberRange.new(-360,360),
+        Speed        = NumberRange.new(0.001,0.001),
+        ShapeInOut   = Enum.ParticleEmitterShapeInOut.InAndOut,
+        Drag         = 7,
+        LockedToPart = false,
+        TimeScale    = 0.825,
+        Attributes   = {EmitCount=12},
+    }
+
+    E{
+        Parent       = NewPart0,
+        Color        = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, Color3.new(0.262745,1,0.654902)),
+            ColorSequenceKeypoint.new(1, Color3.new(0.262745,1,0.654902)),
+        },
+        LightEmission=1,
+        Size         = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,0.625),
+            NumberSequenceKeypoint.new(1,8.5625),
+        },
+        Texture      = "rbxassetid://12585595946",
+        Transparency = NumberSequence.new{
+            NumberSequenceKeypoint.new(0,1),
+            NumberSequenceKeypoint.new(0.3937632143497467,0.0625),
+            NumberSequenceKeypoint.new(0.5,0),
+            NumberSequenceKeypoint.new(0.6247357130050659,0.09375),
+            NumberSequenceKeypoint.new(0.7616279125213623,0.2),
+            NumberSequenceKeypoint.new(0.8683932423591614,0.38125),
+            NumberSequenceKeypoint.new(0.9460887908935547,0.6625),
+            NumberSequenceKeypoint.new(1,1),
+        },
+        ZOffset      = -0.5,
+        Lifetime     = NumberRange.new(0.4,0.7),
+        Rate         = 25,
+        Rotation     = NumberRange.new(-360,360),
+        RotSpeed     = NumberRange.new(-20,20),
+        Speed        = NumberRange.new(0,0),
+        SpreadAngle  = Vector2.new(-360,360),
+        Drag         = 6,
+        LockedToPart = true,
+        Attributes   = {EmitDelay=0, EmitCount=0},
+    }
+
+    task.delay(duration, function()
+        if att and att.Parent then
+            att:Destroy()
+        end
+    end)
+end
+
+local function actIdleDeathGamble()
+    if abilityOnCD["IdleDeathGamble"] then return end
+    local b = Instance.new("TextLabel", playerGui)
+    b.Text                   = "Domain expansion:\nIdle Death Gamble"
+    b.Font                   = Enum.Font.Fantasy
+    b.TextScaled             = true
+    b.TextColor3             = Color3.new(1,1,1)
+    b.BackgroundTransparency = 0.5
+    b.BackgroundColor3       = Color3.new(0,0,0)
+    b.Size                   = UDim2.new(0.6,0,0.2,0)
+    b.Position               = UDim2.new(0.5,0,0,10)
+    b.AnchorPoint            = Vector2.new(0.5,0)
+    Debris:AddItem(b,1.5)
+
+    local gui   = Instance.new("ScreenGui", playerGui)
+    local count = 3
+    local fw, fh, fs = 0.06, 0.25, 0.015
+    local totalW     = count*fw + (count-1)*fs
+    local startX     = 0.5 - totalW/2 + fw/2
+    local spinTime, pauseTime = 3,1
+
+    startCooldown("IdleDeathGamble", 280)
+
+    local frames = {}
+    for i=1,count do
+        local x = startX + (i-1)*(fw+fs)
+        local sc = Instance.new("ScrollingFrame", gui)
+        sc.Name               = "Roll"..i
+        sc.Size               = UDim2.new(fw,0,fh,0)
+        sc.Position           = UDim2.new(x,0,0.25,0)
+        sc.AnchorPoint        = Vector2.new(0.5,0.5)
+        sc.CanvasSize         = UDim2.new(0,0,0,7*4*50)
+        sc.ScrollBarThickness = 0
+        sc.ClipsDescendants   = true
+        sc.BackgroundColor3   = Color3.fromRGB(245,245,245)
+        sc.BorderSizePixel    = 0
+        Instance.new("UICorner", sc).CornerRadius = UDim.new(0,8)
+        Instance.new("UIStroke", sc).Thickness = 2
+        Instance.new("UIListLayout", sc).SortOrder = Enum.SortOrder.LayoutOrder
+
+        for cycle=1,4 do
+            for n=1,7 do
+                local lbl = Instance.new("TextLabel", sc)
+                lbl.Size               = UDim2.new(1,0,0,50)
+                lbl.BackgroundTransparency = 1
+                lbl.Font               = Enum.Font.SourceSansBold
+                lbl.TextScaled         = true
+                lbl.TextColor3         = Color3.new(0,0,0)
+                lbl.Text               = tostring(n)
+                lbl.LayoutOrder        = (cycle-1)*7 + n
+            end
+        end
+        frames[i] = sc
+    end
+
+    local attempts, jackpot = 10, nil
+    for a=1,attempts do
+        local p      = math.min(a*0.02,1)
+        local isJack = (math.random() < p)
+        local target = isJack and math.random(1,7)
+        for _, sc in ipairs(frames) do
+            local num = isJack and target or math.random(1,7)
+            local finalY = (3*7 + (num-1)) * 50
+            sc.CanvasPosition = Vector2.new(0,0)
+            TweenService:Create(sc, TweenInfo.new(spinTime,Enum.EasingStyle.Quad,Enum.EasingDirection.Out),{
+                CanvasPosition = Vector2.new(0, finalY)
+            }):Play()
+        end
+        task.wait(spinTime)
+        if isJack then
+            jackpot = target
+            break
+        end
+        task.wait(pauseTime)
+    end
+
+    gui:Destroy()
+
+    if jackpot then
+        unpredictableUnlocked = true
+        cargoUnlocked         = true
+        doorUnlocked          = true
+        getgenv().cframespeedtoggle = true
+        getgenv().shootBoostToggle  = true
+
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            spawnJackpotAura(hrp, 240)
+        end
+
+        local abl = playerGui:WaitForChild("InGameUI")
+                          :WaitForChild("Bottom")
+                          :WaitForChild("Abilities")
+        local b1 = abl:FindFirstChild("LuckyDribble")
+        if b1 then
+            b1.Name      = "UnpredictableRun"
+            b1.Timer.Text = "Unpredictable Run"
+        end
+        local b2 = abl:FindFirstChild("CargoHaul")
+        if b2 then
+            b2.Name      = "CargoSlap"
+            b2.Timer.Text = "Cargo Slap"
+        end
+
+        task.delay(240, function()
+            unpredictableUnlocked = false
+            cargoUnlocked         = false
+            doorUnlocked          = false
+            getgenv().cframespeedtoggle = false
+            getgenv().shootBoostToggle  = false
+
+            if hrp then
+                local f = hrp:FindFirstChild("AuraEffectFolder")
+                if f then f:Destroy() end
+            end
+
+            local abl2 = playerGui:FindFirstChild("InGameUI")
+                              and playerGui.InGameUI:FindFirstChild("Bottom")
+                              and playerGui.InGameUI.Bottom:FindFirstChild("Abilities")
+            if abl2 then
+                local ub1 = abl2:FindFirstChild("UnpredictableRun")
+                if ub1 then
+                    ub1.Name      = "LuckyDribble"
+                    ub1.Timer.Text = "Lucky Dribble"
+                end
+                local ub2 = abl2:FindFirstChild("CargoSlap")
+                if ub2 then
+                    ub2.Name      = "CargoHaul"
+                    ub2.Timer.Text = "Cargo Haul"
+                end
+            end
+        end)
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if getgenv().cframespeedtoggle then
+        local char = player.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        local hum  = char and char:FindFirstChildOfClass("Humanoid")
+        if root and hum and hum.MoveDirection.Magnitude > 0 then
+            root.CFrame = root.CFrame + hum.MoveDirection.Unit * getgenv().speedvalue
+        end
+    end
+end)
+
+game:GetService("UserInputService").InputEnded:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if (input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserInputType.Touch)  
+        and getgenv().shootBoostToggle 
+        and playerHasBall() then
+
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local evt = ReplicatedStorage
+                :WaitForChild("Packages")
+                :WaitForChild("Knit")
+                :WaitForChild("Services")
+                :WaitForChild("BallService")
+                :WaitForChild("RE")
+                :WaitForChild("Shoot")
+            if evt then
+                local look = hrp.CFrame.LookVector
+                evt:FireServer(1500, nil, nil, look)
+                task.spawn(function()
+                    local start = tick()
+                    local ball
+                    repeat
+                        task.wait()
+                        ball = workspace:FindFirstChild("Football")
+                    until (ball and ball:IsA("BasePart")) or tick() - start > 2
+                    if ball then
+                        ball.AssemblyLinearVelocity = (look + Vector3.new(0,0.25,0)) * 120
+                    end
+                end)
+            end
+        end
+    end
+end)
+
+local mobileShootBtn = playerGui:WaitForChild("Mobile")
+                       :WaitForChild("NoBall")
+                       :WaitForChild("Shoot")
+mobileShootBtn.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch
+       and getgenv().shootBoostToggle
+       and playerHasBall() then
+
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local evt = ReplicatedStorage
+                :WaitForChild("Packages")
+                :WaitForChild("Knit")
+                :WaitForChild("Services")
+                :WaitForChild("BallService")
+                :WaitForChild("RE")
+                :WaitForChild("Shoot")
+            if evt then
+                local look = hrp.CFrame.LookVector
+                evt:FireServer(1500, nil, nil, look)
+                task.spawn(function()
+                    local start = tick()
+                    local ball
+                    repeat
+                        task.wait()
+                        ball = workspace:FindFirstChild("Football")
+                    until (ball and ball:IsA("BasePart")) or tick() - start > 2
+                    if ball then
+                        ball.AssemblyLinearVelocity = (look + Vector3.new(0,0.25,0)) * 120
+                    end
+                end)
+            end
+        end
+    end
+end)
+
+local function onActivateDribble()
+    if unpredictableUnlocked then
+        actUnpredictableRun()
+    else
+        actDribble()
+    end
+end
+local function onActivateCargo()
+    if cargoUnlocked then
+        actCargoSlap()
+    else
+        actCargoHaul()
+    end
+end
+local function onActivateDoor()
+    if doorUnlocked then
+        actDoorJumpNew()
+    else
+        actDoorJump()
+    end
+end
+
+do
+    local abl = playerGui:WaitForChild("InGameUI")
+                      :WaitForChild("Bottom")
+                      :WaitForChild("Abilities")
+    local tpl = abl:WaitForChild("1")
+    local function makeBtn(name, text, key, fn)
+        local b = tpl:Clone()
+        b.Name                           = name
+        b.Active                         = true
+        b.Timer.Text                     = text
+        b.Keybind.Text                   = key
+        b.Parent                         = abl
+        b.Activated:Connect(fn)
+    end
+    makeBtn("LuckyDribble",     "Lucky Dribble",     "B", onActivateDribble)
+    makeBtn("DoorJump",        "Door Jump",        "N", onActivateDoor) 
+    makeBtn("CargoHaul",        "Cargo Haul",        "M", onActivateCargo)
+    makeBtn("IdleDeathGamble",  "Idle Death Gamble", "F", actIdleDeathGamble)
+end
+
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed then return end
+    local kc = input.KeyCode
+    if     kc == Enum.KeyCode.B then onActivateDribble()
+    elseif kc == Enum.KeyCode.N then onActivateDoor()
+    elseif kc == Enum.KeyCode.M then onActivateCargo()
+    elseif kc == Enum.KeyCode.F then actIdleDeathGamble()
+    end
+end)
