@@ -1,0 +1,740 @@
+-- V5 - Integrated Ball VFX using Noel Noa findBall logic and v11 stability checks
+-- VFX starts 4s after button click, lasts 5.5s.
+
+-- // Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService") -- Added for cooldown
+local Camera = Workspace.CurrentCamera
+
+-- // Player & Character Variables
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+local playerValues = character:WaitForChild("Values", 10) -- Assuming this path
+
+-- // Remote Event Acquisition
+local ShootRemote = nil
+local function findShootRemoteStandardPath()
+    print("BHS_v5_Integrated: Attempting Standard Path for ShootRemote...")
+    local knitPath = ReplicatedStorage:FindFirstChild("Packages",5)
+    if not knitPath then warn("BHS_v5_Integrated: Packages not found in ReplicatedStorage"); return nil end
+    local knitService = knitPath:FindFirstChild("Knit",5)
+    if not knitService then warn("BHS_v5_Integrated: Knit not found in Packages"); return nil end
+    local ballServicePath = knitService:FindFirstChild("Services",5)
+    if not ballServicePath then warn("BHS_v5_Integrated: Services not found in Knit"); return nil end
+    local ballService = ballServicePath:FindFirstChild("BallService",5)
+    if not ballService then warn("BHS_v5_Integrated: BallService not found in Services"); return nil end
+    local rePath = ballService:FindFirstChild("RE",5)
+    if not rePath then warn("BHS_v5_Integrated: RE not found in BallService"); return nil end
+    local remote = rePath:FindFirstChild("Shoot",5)
+    
+    if remote and remote:IsA("RemoteEvent")then
+        print("BHS_v5_Integrated: ShootRemote FOUND via Standard Path:",remote);
+        return remote
+    else
+        warn("BHS_v5_Integrated: ShootRemote NOT found via Standard Path!");
+        return nil
+    end
+end
+ShootRemote = findShootRemoteStandardPath()
+
+-- // --- CONFIGURABLE VALUES (Black Hole Strike v5 - Integrated VFX) --- //
+local ABILITY_KEY_BHS = Enum.KeyCode.G -- User can change this
+local COOLDOWN_BHS = 5 -- Cooldown in seconds (can be adjusted)
+
+-- Shot Parameters
+local ADJUSTABLE_INITIAL_FIREPOWER_BHS = 20 -- Power for the initial FireServer call
+local ADJUSTABLE_PRE_SHOT_MAIN_DELAY_BHS = 4 -- Delay AFTER button press BEFORE the shot is fired. Adjust to sync shot timing.
+local ADJUSTABLE_SHOT_SPEED_BHS = 300    -- Speed of the ball (studs/second)
+local SHOT_DURATION_BHS = 3   -- Duration BodyVelocity/BodyForce are active
+
+-- Animation Parameters
+local ANIMATION_ID_BHS = "rbxassetid://88134271748429" -- The main animation ID
+local ANIMATION_DELAY_BHS = 0.1 -- Delay AFTER button press BEFORE animation starts.
+local ANIMATION_SPEED_BHS = 1.5 -- Speed multiplier (e.g., 2 = twice as fast).
+local ANIMATION_DURATION_BHS = 4.5  -- How long the animation should play in seconds (0 or less means play full length).
+local ANIMATION_LOOPED_BHS = false -- Whether the animation should loop (ignored if ANIMATION_DURATION_BHS > 0)
+
+-- SFX Parameters (SIMPLIFIED - Plays ONCE after delay, no loop/duration/cleanup)
+local SFX_ID_BHS = "rbxassetid://5773418559" -- SFX ID
+local SFX_DELAY_BHS = 4 -- Delay AFTER button press BEFORE SFX starts.
+local SFX_VOLUME_BHS = 1 -- Volume for the SFX (0 to 1).
+
+-- Ball VFX Parameters (Integrated)
+local BALL_VFX_START_DELAY_BHS = 4.0 -- Seconds after button press to START ball VFX
+local BALL_VFX_DURATION_BHS = 5.5 -- Seconds the ball VFX should remain active
+local BALL_VFX_TELEPORT_THRESHOLD = 50 -- Distance to detect teleport (adjust if needed)
+local BALL_VFX_MAX_WAIT_TIMEOUT = 5.0 -- Max seconds to wait for ball after teleport before giving up
+-- // --- END CONFIGURABLE VALUES --- //
+
+local ABILITY_NAME_BHS = "BlackHoleStrike_v5_Integrated"
+local BUTTON_NAME_BHS = "BlackHoleStrikeButton_v5_Integrated"
+local TIMER_TEXT_BHS = "BLACK HOLE STRIKE" -- Button text
+local LAYOUT_ORDER_BHS = 7 -- Adjust as needed
+
+local lastAbilityTime_BHS = 0
+local blackHoleStrikeButton = nil
+local isAbilityActive_BHS = false
+local currentAnimationTrack_BHS = nil -- Variable to hold the active animation track
+
+-- // Helper Functions
+
+-- Robust Ball Finding Function (Adapted from Noel Noa script v139)
+local function findBall_Robust()
+    local footballModel = Workspace:FindFirstChild("Football")
+    if footballModel then
+        local ball = (footballModel:FindFirstChild("BallAnims") and footballModel.BallAnims:FindFirstChild("BALL")) or footballModel:FindFirstChild("BALL")
+        if ball and ball:IsA("BasePart") then
+            return ball
+        end
+    end
+    -- If not found in workspace, check player characters (might be attached)
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p.Character then
+            local ballInChar = p.Character:FindFirstChild("BALL")
+            if ballInChar and ballInChar:IsA("BasePart") then
+                return ballInChar
+            end
+        end
+    end
+    return nil -- Return nil if not found anywhere
+end
+
+local function cleanupAllMovers(target)
+    if not target or not target.Parent then return end
+    for _, mover in ipairs(target:GetChildren()) do
+        if mover:IsA("BodyMover") then
+            mover:Destroy()
+        end
+    end
+end
+
+local function playAnimation(humanoidRef, animationId, speed, looped)
+    if not humanoidRef or not humanoidRef.Parent then return nil, nil end
+    local animator = humanoidRef:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoidRef)
+    local anim = Instance.new("Animation"); anim.AnimationId = animationId
+    local track = animator:LoadAnimation(anim)
+    if speed and speed ~= 1 then track:AdjustSpeed(speed) end
+    track.Looped = looped
+    track:Play()
+    return track, anim 
+end
+
+-- SIMPLIFIED playSound: Parent to Workspace, clamp volume, NO loop param, NO cleanup.
+local function playSound(soundId, volume)
+    local sound = Instance.new("Sound")
+    sound.SoundId = soundId
+    sound.Volume = math.clamp(volume or 1, 0, 1) 
+    sound.Looped = false -- Always false now
+    sound.Parent = Workspace -- Parent to Workspace to decouple from character
+    sound:Play()
+    -- Let Roblox handle cleanup
+    return sound
+end
+
+local function IsReady_BHS() return tick() - lastAbilityTime_BHS >= COOLDOWN_BHS end
+
+local function StartCooldown_BHS()
+    lastAbilityTime_BHS = tick()
+    if blackHoleStrikeButton then
+        local cooldownFrame = blackHoleStrikeButton:FindFirstChild("Cooldown")
+        if cooldownFrame then
+            local uiGradient = cooldownFrame:FindFirstChildOfClass("UIGradient")
+            if uiGradient then
+                local tweenInfo = TweenInfo.new(COOLDOWN_BHS, Enum.EasingStyle.Linear)
+                local targetProperties = {Offset = Vector2.new(0, 1)}
+                uiGradient.Offset = Vector2.new(0, 0)
+                local tween = TweenService:Create(uiGradient, tweenInfo, targetProperties)
+                tween:Play()
+            end
+        end
+    end
+end
+
+-- // Function to Create Ball VFX Part and Emitters (From v11)
+local function createBallVFXPart()
+    print(ABILITY_NAME_BHS .. ": Creating Ball VFX Part")
+    local effectPart = Instance.new("Part")
+    effectPart.Name = ABILITY_NAME_BHS .. "_BallVFXPart"
+    effectPart.Anchored = true -- Will be unanchored and positioned by the loop
+    effectPart.CanCollide = false
+    effectPart.CanTouch = false
+    effectPart.Massless = true
+    effectPart.Transparency = 1
+    effectPart.Size = Vector3.new(0.1, 0.1, 0.1)
+    effectPart.Parent = Workspace -- Start in workspace
+
+    -- --- BEGIN ACTUAL VFX CODE (Copied from v11 / actual_ball_vfx_test_script_v3.txt) ---
+    -- Emitter 1 (Black)
+    do
+        local particle = Instance.new("ParticleEmitter")
+        particle.Name = ABILITY_NAME_BHS .. "_Emitter1"
+        particle.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+        particle.FlipbookFramerate = NumberRange.new(1.000000, 1.000000)
+        particle.LightInfluence = 0
+        particle.Lifetime = NumberRange.new(0.500000, 1.500000)
+        particle.FlipbookLayout = Enum.ParticleFlipbookLayout.None
+        particle.SpreadAngle = Vector2.new(-360.000000, 360.000000)
+        particle.LockedToPart = false
+        particle.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 0.000000), NumberSequenceKeypoint.new(1.000000, 0.000000)})
+        particle.Orientation = Enum.ParticleOrientation.FacingCamera
+        particle.Color = ColorSequence.new(Color3.new(0, 0, 0))
+        particle.Drag = 5
+        particle.FlipbookStartRandom = false
+        particle.TimeScale = 1
+        particle.VelocitySpread = -360
+        particle.Squash = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 0.000000), NumberSequenceKeypoint.new(1.000000, 0.000000)})
+        particle.Speed = NumberRange.new(50.000000, 80.000000)
+        particle.Brightness = 4
+        particle.Size = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 0.000000), NumberSequenceKeypoint.new(0.155052, 0.937500), NumberSequenceKeypoint.new(1.000000, 0.000000)})
+        particle.Enabled = false -- Start disabled
+        particle.Acceleration = Vector3.new(0.000000, 0.000000, 0.000000)
+        particle.RotSpeed = NumberRange.new(0.000000, 0.000000)
+        particle.ZOffset = 2
+        particle.ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward
+        particle.Rate = 50
+        particle.VelocityInheritance = 0
+        particle.Rotation = NumberRange.new(0.000000, 0.000000)
+        particle.ShapePartial = 1
+        particle.Texture = "rbxassetid://8030760338"
+        particle.FlipbookMode = Enum.ParticleFlipbookMode.Loop
+        particle.EmissionDirection = Enum.NormalId.Top
+        particle.Shape = Enum.ParticleEmitterShape.Box
+        particle.LightEmission = 1
+        particle.Parent = effectPart
+    end
+
+    -- Emitter 2 (Black)
+    do
+        local particle = Instance.new("ParticleEmitter")
+        particle.Name = ABILITY_NAME_BHS .. "_Emitter2"
+        particle.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+        particle.FlipbookFramerate = NumberRange.new(1.000000, 1.000000)
+        particle.LightInfluence = 0
+        particle.Lifetime = NumberRange.new(0.150000, 0.200000)
+        particle.FlipbookLayout = Enum.ParticleFlipbookLayout.None
+        particle.SpreadAngle = Vector2.new(360.000000, 360.000000)
+        particle.LockedToPart = false
+        particle.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 0.000000), NumberSequenceKeypoint.new(0.903559, 0.000000), NumberSequenceKeypoint.new(1.000000, 1.000000)})
+        particle.Orientation = Enum.ParticleOrientation.FacingCamera
+        particle.Color = ColorSequence.new(Color3.new(0, 0, 0))
+        particle.Drag = 0
+        particle.FlipbookStartRandom = false
+        particle.TimeScale = 1
+        particle.VelocitySpread = 360
+        particle.Squash = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 0.000000), NumberSequenceKeypoint.new(0.503067, -0.032258), NumberSequenceKeypoint.new(1.000000, 0.000000)})
+        particle.Speed = NumberRange.new(0.000000, 0.000000)
+        particle.Brightness = 10
+        particle.Size = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 0.000000), NumberSequenceKeypoint.new(0.718100, 23.106750), NumberSequenceKeypoint.new(0.870100, 24.985435), NumberSequenceKeypoint.new(1.000000, 6.557378)})
+        particle.Enabled = false -- Start disabled
+        particle.Acceleration = Vector3.new(0.000000, 0.000000, 0.000000)
+        particle.RotSpeed = NumberRange.new(-45.000000, 45.000000)
+        particle.ZOffset = 3
+        particle.ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward
+        particle.Rate = 15
+        particle.VelocityInheritance = 0
+        particle.Rotation = NumberRange.new(0.000000, 360.000000)
+        particle.ShapePartial = 1
+        particle.Texture = "rbxassetid://4456661344"
+        particle.FlipbookMode = Enum.ParticleFlipbookMode.Loop
+        particle.EmissionDirection = Enum.NormalId.Top
+        particle.Shape = Enum.ParticleEmitterShape.Box
+        particle.LightEmission = 0
+        particle.Parent = effectPart
+    end
+
+    -- Emitter 3 (Black)
+    do
+        local particle = Instance.new("ParticleEmitter")
+        particle.Name = ABILITY_NAME_BHS .. "_Emitter3"
+        particle.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+        particle.FlipbookFramerate = NumberRange.new(1.000000, 1.000000)
+        particle.LightInfluence = 0
+        particle.Lifetime = NumberRange.new(0.250000, 0.300000)
+        particle.FlipbookLayout = Enum.ParticleFlipbookLayout.None
+        particle.SpreadAngle = Vector2.new(-120.000000, 120.000000)
+        particle.LockedToPart = false
+        particle.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 0.000000), NumberSequenceKeypoint.new(1.000000, 0.000000)})
+        particle.Orientation = Enum.ParticleOrientation.VelocityParallel
+        particle.Color = ColorSequence.new(Color3.new(0, 0, 0))
+        particle.Drag = 10
+        particle.FlipbookStartRandom = false
+        particle.TimeScale = 1
+        particle.VelocitySpread = -120
+        particle.Squash = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 1.050000), NumberSequenceKeypoint.new(1.000000, 1.987500)})
+        particle.Speed = NumberRange.new(200.000000, 400.000000)
+        particle.Brightness = 4
+        particle.Size = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 0.000000), NumberSequenceKeypoint.new(0.298628, 5.187500), NumberSequenceKeypoint.new(1.000000, 0.000000)})
+        particle.Enabled = false -- Start disabled
+        particle.Acceleration = Vector3.new(0.000000, 0.000000, 0.000000)
+        particle.RotSpeed = NumberRange.new(0.000000, 0.000000)
+        particle.ZOffset = 2.75
+        particle.ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward
+        particle.Rate = 19
+        particle.VelocityInheritance = 0
+        particle.Rotation = NumberRange.new(-90.000000, -90.000000)
+        particle.ShapePartial = 1
+        particle.Texture = "rbxassetid://8708744804"
+        particle.FlipbookMode = Enum.ParticleFlipbookMode.Loop
+        particle.EmissionDirection = Enum.NormalId.Top
+        particle.Shape = Enum.ParticleEmitterShape.Box
+        particle.LightEmission = 0.5
+        particle.Parent = effectPart
+    end
+
+    -- Emitter 4 (White - The prominent one)
+    do
+        local particle = Instance.new("ParticleEmitter")
+        particle.Name = ABILITY_NAME_BHS .. "_Emitter4"
+        particle.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+        particle.FlipbookFramerate = NumberRange.new(1.000000, 1.000000)
+        particle.LightInfluence = 0
+        particle.Lifetime = NumberRange.new(0.200000, 0.300000)
+        particle.FlipbookLayout = Enum.ParticleFlipbookLayout.None
+        particle.SpreadAngle = Vector2.new(-180.000000, 180.000000)
+        particle.LockedToPart = false
+        particle.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 0.000000), NumberSequenceKeypoint.new(0.799292, 0.000000), NumberSequenceKeypoint.new(1.000000, 1.000000)})
+        particle.Orientation = Enum.ParticleOrientation.FacingCamera
+        particle.Color = ColorSequence.new(Color3.new(1, 1, 1))
+        particle.Drag = 0
+        particle.FlipbookStartRandom = false
+        particle.TimeScale = 1
+        particle.VelocitySpread = -180
+        particle.Squash = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 14.672911), NumberSequenceKeypoint.new(0.302100, -2.045662), NumberSequenceKeypoint.new(0.502100, 1.606739), NumberSequenceKeypoint.new(0.664100, 1.312191), NumberSequenceKeypoint.new(1.000000, -3.000000)})
+        particle.Speed = NumberRange.new(5.000000, 25.000000)
+        particle.Brightness = 5
+        particle.Size = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 19.300756), NumberSequenceKeypoint.new(0.366100, 11.014299), NumberSequenceKeypoint.new(0.506100, 1.749936), NumberSequenceKeypoint.new(1.000000, 0.000000)})
+        particle.Enabled = false -- Start disabled
+        particle.Acceleration = Vector3.new(0.000000, 0.000000, 0.000000)
+        particle.RotSpeed = NumberRange.new(0.000000, 0.000000)
+        particle.ZOffset = 2.5
+        particle.ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward
+        particle.Rate = 5000
+        particle.VelocityInheritance = 0
+        particle.Rotation = NumberRange.new(0.000000, 0.000000)
+        particle.ShapePartial = 1
+        particle.Texture = "http://www.roblox.com/asset/?id=6889406891"
+        particle.FlipbookMode = Enum.ParticleFlipbookMode.Loop
+        particle.EmissionDirection = Enum.NormalId.Left
+        particle.Shape = Enum.ParticleEmitterShape.Box
+        particle.LightEmission = 1
+        particle.Parent = effectPart
+    end
+
+    -- Emitter 5 (Black)
+    do
+        local particle = Instance.new("ParticleEmitter")
+        particle.Name = ABILITY_NAME_BHS .. "_Emitter5"
+        particle.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+        particle.FlipbookFramerate = NumberRange.new(1.000000, 1.000000)
+        particle.LightInfluence = 0
+        particle.Lifetime = NumberRange.new(0.250000, 0.300000)
+        particle.FlipbookLayout = Enum.ParticleFlipbookLayout.None
+        particle.SpreadAngle = Vector2.new(360.000000, -360.000000)
+        particle.LockedToPart = true
+        particle.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 0.000000), NumberSequenceKeypoint.new(0.069463, 0.000000), NumberSequenceKeypoint.new(0.125424, 0.006380), NumberSequenceKeypoint.new(0.160452, 0.591707), NumberSequenceKeypoint.new(1.000000, 1.000000)})
+        particle.Orientation = Enum.ParticleOrientation.FacingCamera
+        particle.Color = ColorSequence.new(Color3.new(0, 0, 0))
+        particle.Drag = 0
+        particle.FlipbookStartRandom = false
+        particle.TimeScale = 1
+        particle.VelocitySpread = 360
+        particle.Squash = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 0.000000), NumberSequenceKeypoint.new(1.000000, 0.000000)})
+        particle.Speed = NumberRange.new(0.024126, 0.024126)
+        particle.Brightness = 1
+        particle.Size = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 135.000000), NumberSequenceKeypoint.new(1.000000, 0.000000)})
+        particle.Enabled = false -- Start disabled
+        particle.Acceleration = Vector3.new(0.000000, 0.000000, 0.000000)
+        particle.RotSpeed = NumberRange.new(-125.000000, 125.000000)
+        particle.ZOffset = 6
+        particle.ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward
+        particle.Rate = 5
+        particle.VelocityInheritance = 0
+        particle.Rotation = NumberRange.new(-360.000000, 360.000000)
+        particle.ShapePartial = 1
+        particle.Texture = "rbxassetid://7216848832"
+        particle.FlipbookMode = Enum.ParticleFlipbookMode.Loop
+        particle.EmissionDirection = Enum.NormalId.Front
+        particle.Shape = Enum.ParticleEmitterShape.Box
+        particle.LightEmission = 1
+        particle.Parent = effectPart
+    end
+
+    -- Emitter 6 (Black)
+    do
+        local particle = Instance.new("ParticleEmitter")
+        particle.Name = ABILITY_NAME_BHS .. "_Emitter6"
+        particle.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+        particle.FlipbookFramerate = NumberRange.new(1.000000, 1.000000)
+        particle.LightInfluence = 0
+        particle.Lifetime = NumberRange.new(0.325000, 0.500000)
+        particle.FlipbookLayout = Enum.ParticleFlipbookLayout.None
+        particle.SpreadAngle = Vector2.new(-360.000000, 360.000000)
+        particle.LockedToPart = false
+        particle.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 0.000000), NumberSequenceKeypoint.new(1.000000, 0.000000)})
+        particle.Orientation = Enum.ParticleOrientation.VelocityParallel
+        particle.Color = ColorSequence.new(Color3.new(0, 0, 0))
+        particle.Drag = 0
+        particle.FlipbookStartRandom = false
+        particle.TimeScale = 1
+        particle.VelocitySpread = -360
+        particle.Squash = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 0.000000), NumberSequenceKeypoint.new(1.000000, 0.000000)})
+        particle.Speed = NumberRange.new(50.000000, 80.000000)
+        particle.Brightness = 4
+        particle.Size = NumberSequence.new({NumberSequenceKeypoint.new(0.000000, 0.000000), NumberSequenceKeypoint.new(0.149826, 0.562500), NumberSequenceKeypoint.new(1.000000, 0.000000)})
+        particle.Enabled = false -- Start disabled
+        particle.Acceleration = Vector3.new(0.000000, 0.000000, 0.000000)
+        particle.RotSpeed = NumberRange.new(0.000000, 0.000000)
+        particle.ZOffset = 2
+        particle.ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward
+        particle.Rate = 24
+        particle.VelocityInheritance = 0
+        particle.Rotation = NumberRange.new(0.000000, 0.000000)
+        particle.ShapePartial = 1
+        particle.Texture = "rbxassetid://8030760338"
+        particle.FlipbookMode = Enum.ParticleFlipbookMode.Loop
+        particle.EmissionDirection = Enum.NormalId.Top
+        particle.Shape = Enum.ParticleEmitterShape.Box
+        particle.LightEmission = 1
+        particle.Parent = effectPart
+    end
+    -- --- END ACTUAL VFX CODE ---
+
+    return effectPart
+end
+
+-- // Main Ability Execution Logic
+local function BlackHoleStrike_Execute()
+    if isAbilityActive_BHS then print(ABILITY_NAME_BHS .. ": Ability already active."); return end
+    
+    -- Pre-checks
+    character = player.Character or player.CharacterAdded:Wait()
+    if not character then print(ABILITY_NAME_BHS .. ": Character not found."); return end
+    humanoid = character:FindFirstChildOfClass("Humanoid")
+    rootPart = character:FindFirstChild("HumanoidRootPart")
+    playerValues = character:FindFirstChild("Values")
+    if not (humanoid and rootPart and playerValues) then print(ABILITY_NAME_BHS .. ": Character components missing."); return end
+    local hasBallValue = playerValues:FindFirstChild("HasBall")
+    if not (hasBallValue and hasBallValue:IsA("BoolValue") and hasBallValue.Value) then print(ABILITY_NAME_BHS .. ": Player does not have ball."); return end
+    if not ShootRemote then ShootRemote = findShootRemoteStandardPath(); if not ShootRemote then print(ABILITY_NAME_BHS .. ": ShootRemote missing!"); return end end
+    if not IsReady_BHS() then print(ABILITY_NAME_BHS .. ": Ability on cooldown. Time left: " .. string.format("%.1f", COOLDOWN_BHS - (tick() - lastAbilityTime_BHS))); return end
+
+    -- Cleanup potential leftovers before starting
+    if rootPart and rootPart.Parent then cleanupAllMovers(rootPart) end
+    local ballForPreCleanup = findBall_Robust(); if ballForPreCleanup then cleanupAllMovers(ballForPreCleanup) end
+    if currentAnimationTrack_BHS then currentAnimationTrack_BHS:Stop(); currentAnimationTrack_BHS = nil end
+    task.wait(0.05)
+
+    -- Activate Ability
+    isAbilityActive_BHS = true
+    StartCooldown_BHS()
+    print(ABILITY_NAME_BHS .. " Activated")
+
+    -- Store references needed inside the spawn
+    local currentCharacter_scope = character
+    local currentHumanoid_scope = humanoid
+    local currentRootPart_scope = rootPart
+
+    task.spawn(function()
+        local cleanupGuard_BHS = Instance.new("BoolValue", currentCharacter_scope)
+        cleanupGuard_BHS.Name = ABILITY_NAME_BHS .. "_CleanupGuard"
+        local ballInstance_thread_scope = nil
+        local animationInstance_thread_scope = nil
+        if currentAnimationTrack_BHS then currentAnimationTrack_BHS:Stop(); currentAnimationTrack_BHS = nil end
+
+        -- Ball VFX Variables (Thread Scope)
+        local ballVFXPart_thread_scope = nil
+        local ballVFXConnection_thread_scope = nil
+        local ballVFXState_thread_scope = 0 -- 0: Normal, 1: Waiting for Ball, 2: Waiting for Stability
+        local lastBallPos_thread_scope = nil
+        local teleportDetectTime_thread_scope = 0
+        local ballVFXStartTime_thread_scope = 0
+        local ballVFXActive_thread_scope = false
+
+        local function cleanupBallVFX_Thread()
+            if ballVFXConnection_thread_scope then
+                ballVFXConnection_thread_scope:Disconnect()
+                ballVFXConnection_thread_scope = nil
+            end
+            if ballVFXPart_thread_scope and ballVFXPart_thread_scope.Parent then
+                Debris:AddItem(ballVFXPart_thread_scope, 0.1)
+                ballVFXPart_thread_scope = nil
+            end
+            ballVFXActive_thread_scope = false
+            ballVFXState_thread_scope = 0
+            lastBallPos_thread_scope = nil
+            print(ABILITY_NAME_BHS .. ": Ball VFX cleaned up.")
+        end
+
+        local function performCleanupAndReset_BHS_Thread()
+            if not cleanupGuard_BHS or not cleanupGuard_BHS.Parent then return end; cleanupGuard_BHS:Destroy()
+            if currentCharacter_scope and currentCharacter_scope:FindFirstChild("HumanoidRootPart") then cleanupAllMovers(currentCharacter_scope:FindFirstChild("HumanoidRootPart")) end
+            local ballToClean = ballInstance_thread_scope or findBall_Robust()
+            if ballToClean and ballToClean.Parent then cleanupAllMovers(ballToClean) end
+            
+            if currentAnimationTrack_BHS then currentAnimationTrack_BHS:Stop(); currentAnimationTrack_BHS = nil end
+            if animationInstance_thread_scope and animationInstance_thread_scope.Parent then animationInstance_thread_scope:Destroy() end
+            
+            cleanupBallVFX_Thread() -- Cleanup ball VFX
+
+            isAbilityActive_BHS = false
+            print(ABILITY_NAME_BHS .. ": Ability finished and cleaned up.")
+        end
+
+        local pcallSuccess, pcallResult = pcall(function()
+            if not Camera then Camera = Workspace.CurrentCamera end
+            if not Camera then warn(ABILITY_NAME_BHS .. ": Camera not found!"); performCleanupAndReset_BHS_Thread(); return end
+            local aimVector = Camera.CFrame.LookVector
+
+            -- // --- Animation and SFX Scheduling --- //
+
+            -- Schedule Animation
+            if ANIMATION_ID_BHS and ANIMATION_ID_BHS ~= "" and currentHumanoid_scope then
+                task.delay(ANIMATION_DELAY_BHS, function()
+                    if not cleanupGuard_BHS.Parent then return end
+                    print(ABILITY_NAME_BHS .. ": Playing animation after " .. ANIMATION_DELAY_BHS .. "s delay. Speed: " .. ANIMATION_SPEED_BHS .. ", Duration: " .. (ANIMATION_DURATION_BHS > 0 and ANIMATION_DURATION_BHS .. "s" or "Full"))
+                    local track, animInstance = playAnimation(currentHumanoid_scope, ANIMATION_ID_BHS, ANIMATION_SPEED_BHS, ANIMATION_LOOPED_BHS)
+                    if track then
+                        currentAnimationTrack_BHS = track
+                        animationInstance_thread_scope = animInstance
+                        if ANIMATION_DURATION_BHS > 0 then
+                            task.delay(ANIMATION_DURATION_BHS, function()
+                                if not cleanupGuard_BHS.Parent then return end
+                                if currentAnimationTrack_BHS and currentAnimationTrack_BHS == track and currentAnimationTrack_BHS.IsPlaying then
+                                    print(ABILITY_NAME_BHS .. ": Stopping animation after " .. ANIMATION_DURATION_BHS .. "s duration.")
+                                    currentAnimationTrack_BHS:Stop()
+                                    if animationInstance_thread_scope and animationInstance_thread_scope.Parent then 
+                                        Debris:AddItem(animationInstance_thread_scope, 0.1)
+                                        animationInstance_thread_scope = nil
+                                    end 
+                                end
+                            end)
+                        elseif not ANIMATION_LOOPED_BHS then 
+                            local effectiveLength = track.Length / (track.Speed > 0 and track.Speed or 1)
+                            if animationInstance_thread_scope and animationInstance_thread_scope.Parent then
+                                Debris:AddItem(animationInstance_thread_scope, effectiveLength + 0.1)
+                            end
+                        end
+                    end
+                end)
+            end
+
+            -- Schedule SFX (SIMPLIFIED - Plays ONCE after delay)
+            if SFX_ID_BHS and SFX_ID_BHS ~= "" and SFX_ID_BHS ~= "rbxassetid://YOUR_SFX_ID_HERE" then
+                 task.delay(SFX_DELAY_BHS, function()
+                    if not cleanupGuard_BHS.Parent then return end
+                    print(ABILITY_NAME_BHS .. ": Triggering SFX after " .. SFX_DELAY_BHS .. "s delay. ID: " .. SFX_ID_BHS)
+                    local sound = playSound(SFX_ID_BHS, SFX_VOLUME_BHS)
+                    if sound then
+                        print(ABILITY_NAME_BHS .. ": SFX Playing (Volume: " .. sound.Volume .. ", Full Length: " .. sound.TimeLength .. "s)")
+                    else
+                        warn(ABILITY_NAME_BHS .. ": Failed to create sound instance for SFX.")
+                    end
+                 end)
+            end
+
+            -- // --- Ball VFX Scheduling and Logic --- //
+            task.delay(BALL_VFX_START_DELAY_BHS, function()
+                if not cleanupGuard_BHS.Parent then return end -- Check if ability was cancelled
+                print(ABILITY_NAME_BHS .. ": Starting Ball VFX logic after " .. BALL_VFX_START_DELAY_BHS .. "s delay.")
+
+                ballVFXPart_thread_scope = createBallVFXPart()
+                if not ballVFXPart_thread_scope then
+                    warn(ABILITY_NAME_BHS .. ": Failed to create Ball VFX Part!")
+                    performCleanupAndReset_BHS_Thread()
+                    return
+                end
+
+                ballVFXActive_thread_scope = true
+                ballVFXStartTime_thread_scope = tick()
+                ballVFXState_thread_scope = 0 -- Start in Normal state
+                lastBallPos_thread_scope = nil
+
+                -- Enable emitters initially (they start disabled)
+                for _, emitter in ipairs(ballVFXPart_thread_scope:GetChildren()) do
+                    if emitter:IsA("ParticleEmitter") then
+                        emitter.Enabled = true
+                    end
+                end
+
+                -- Start the Heartbeat update loop for Ball VFX
+                ballVFXConnection_thread_scope = RunService.Heartbeat:Connect(function(dt)
+                    if not ballVFXActive_thread_scope or not ballVFXPart_thread_scope or not ballVFXPart_thread_scope.Parent then
+                        cleanupBallVFX_Thread() -- Stop if VFX should be inactive or part is gone
+                        return
+                    end
+
+                    -- Check duration
+                    if tick() - ballVFXStartTime_thread_scope > BALL_VFX_DURATION_BHS then
+                        print(ABILITY_NAME_BHS .. ": Ball VFX duration ended.")
+                        cleanupBallVFX_Thread()
+                        return
+                    end
+
+                    local ball = findBall_Robust()
+                    local currentBallPos = ball and ball.Position
+                    local emittersEnabled = false
+
+                    if ball and ball.Parent then
+                        -- Ball Found
+                        local teleported = false
+                        if lastBallPos_thread_scope and currentBallPos then
+                            if (currentBallPos - lastBallPos_thread_scope).Magnitude > BALL_VFX_TELEPORT_THRESHOLD then
+                                teleported = true
+                                print(ABILITY_NAME_BHS .. ": Ball Teleport detected!")
+                            end
+                        end
+
+                        if ballVFXState_thread_scope == 0 then -- NORMAL
+                            if teleported then
+                                ballVFXState_thread_scope = 1 -- Switch to WAITING_FOR_BALL
+                                teleportDetectTime_thread_scope = tick()
+                                print(ABILITY_NAME_BHS .. ": State -> WAIT_BALL")
+                            else
+                                -- Update position normally
+                                ballVFXPart_thread_scope.CFrame = ball.CFrame
+                                emittersEnabled = true
+                            end
+                        elseif ballVFXState_thread_scope == 1 then -- WAITING_FOR_BALL
+                            if tick() - teleportDetectTime_thread_scope > BALL_VFX_MAX_WAIT_TIMEOUT then
+                                print(ABILITY_NAME_BHS .. ": Timeout waiting for ball after teleport.")
+                                ballVFXState_thread_scope = 0 -- Give up and go back to normal
+                            elseif teleported then
+                                -- Still teleporting, reset timer
+                                teleportDetectTime_thread_scope = tick()
+                            else
+                                -- Ball found and didn't immediately teleport again, check stability
+                                ballVFXState_thread_scope = 2
+                                print(ABILITY_NAME_BHS .. ": State -> WAIT_STABILITY")
+                            end
+                        elseif ballVFXState_thread_scope == 2 then -- WAITING_FOR_STABILITY
+                             if tick() - teleportDetectTime_thread_scope > BALL_VFX_MAX_WAIT_TIMEOUT then
+                                print(ABILITY_NAME_BHS .. ": Timeout waiting for stability.")
+                                ballVFXState_thread_scope = 0 -- Give up
+                             elseif teleported then
+                                -- Teleported again while waiting for stability, go back to waiting for ball
+                                ballVFXState_thread_scope = 1
+                                teleportDetectTime_thread_scope = tick()
+                                print(ABILITY_NAME_BHS .. ": State -> WAIT_BALL (Teleported during stability check)")
+                             else
+                                -- Ball seems stable, resume normal follow
+                                ballVFXState_thread_scope = 0
+                                ballVFXPart_thread_scope.CFrame = ball.CFrame
+                                emittersEnabled = true
+                                print(ABILITY_NAME_BHS .. ": State -> NORMAL (Ball stabilized)")
+                             end
+                        end
+
+                        lastBallPos_thread_scope = currentBallPos
+
+                    else
+                        -- Ball Not Found
+                        if ballVFXState_thread_scope == 0 then
+                            print(ABILITY_NAME_BHS .. ": Ball LOST (Normal State)")
+                        end
+                        lastBallPos_thread_scope = nil
+                        -- If waiting for ball/stability, stay in that state until timeout
+                        if ballVFXState_thread_scope == 1 or ballVFXState_thread_scope == 2 then
+                            if tick() - teleportDetectTime_thread_scope > BALL_VFX_MAX_WAIT_TIMEOUT then
+                                print(ABILITY_NAME_BHS .. ": Timeout waiting for ball/stability (Ball Lost)")
+                                ballVFXState_thread_scope = 0 -- Give up
+                            end
+                        end
+                    end
+
+                    -- Update emitter visibility based on whether they should be enabled
+                    for _, emitter in ipairs(ballVFXPart_thread_scope:GetChildren()) do
+                        if emitter:IsA("ParticleEmitter") then
+                            emitter.Enabled = emittersEnabled
+                        end
+                    end
+                end)
+            end)
+
+            -- // --- Main Shot Logic --- //
+            task.wait(ADJUSTABLE_PRE_SHOT_MAIN_DELAY_BHS)
+            if not cleanupGuard_BHS.Parent then return end -- Check if ability was cancelled
+
+            print(ABILITY_NAME_BHS .. ": Firing ShootRemote and applying velocity.")
+            ShootRemote:FireServer(ADJUSTABLE_INITIAL_FIREPOWER_BHS, aimVector)
+            task.wait(0.05) -- Small delay for remote to potentially affect ball
+            if not cleanupGuard_BHS.Parent then return end
+
+            ballInstance_thread_scope = findBall_Robust()
+            if ballInstance_thread_scope and ballInstance_thread_scope.Parent then
+                cleanupAllMovers(ballInstance_thread_scope) -- Clear existing movers
+                local bodyVelocity = Instance.new("BodyVelocity")
+                bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                bodyVelocity.Velocity = aimVector.Unit * ADJUSTABLE_SHOT_SPEED_BHS
+                bodyVelocity.Parent = ballInstance_thread_scope
+                Debris:AddItem(bodyVelocity, SHOT_DURATION_BHS)
+                print(ABILITY_NAME_BHS .. ": Applied BodyVelocity (Speed: " .. ADJUSTABLE_SHOT_SPEED_BHS .. ", Duration: " .. SHOT_DURATION_BHS .. "s)")
+            else
+                warn(ABILITY_NAME_BHS .. ": Ball not found after FireServer, cannot apply velocity.")
+            end
+
+            -- Schedule final cleanup based on longest duration (Animation or Shot)
+            local maxCleanupDelay = math.max(ANIMATION_DURATION_BHS, SHOT_DURATION_BHS, BALL_VFX_START_DELAY_BHS + BALL_VFX_DURATION_BHS) + 1 -- Add buffer
+            task.delay(maxCleanupDelay, function()
+                 performCleanupAndReset_BHS_Thread() -- Attempt cleanup after max duration
+            end)
+
+        end)
+
+        if not pcallSuccess then
+            warn(ABILITY_NAME_BHS .. ": Error during execution - ", pcallResult)
+            performCleanupAndReset_BHS_Thread() -- Ensure cleanup on error
+        end
+    end)
+end
+
+-- // UI Setup
+local function setupUI_BHS()
+    local abilitiesFrame = playerGui:WaitForChild("InGameUI", 5):WaitForChild("Bottom", 5):WaitForChild("Abilities", 5)
+    if not abilitiesFrame then warn(ABILITY_NAME_BHS .. ": Abilities frame not found!"); return end
+
+    local templateButton = abilitiesFrame:FindFirstChild("1")
+    if not templateButton then warn(ABILITY_NAME_BHS .. ": Template button '1' not found!"); return nil end
+
+    blackHoleStrikeButton = templateButton:Clone()
+    blackHoleStrikeButton.Name = BUTTON_NAME_BHS
+    blackHoleStrikeButton.Parent = abilitiesFrame
+    blackHoleStrikeButton.LayoutOrder = LAYOUT_ORDER_BHS
+    blackHoleStrikeButton.Keybind.Text = ABILITY_KEY_BHS.Name
+    blackHoleStrikeButton.Timer.Text = TIMER_TEXT_BHS
+    blackHoleStrikeButton.ActualTimer.Text = ""
+
+    -- Ensure Cooldown frame exists and reset gradient
+    local cooldownFrame = blackHoleStrikeButton:FindFirstChild("Cooldown")
+    if cooldownFrame then
+        local uiGradient = cooldownFrame:FindFirstChildOfClass("UIGradient")
+        if uiGradient then uiGradient.Offset = Vector2.new(0, 1) end -- Start fully cooled down visually
+    end
+
+    blackHoleStrikeButton.Activated:Connect(BlackHoleStrike_Execute)
+    print(ABILITY_NAME_BHS .. ": UI Setup Complete. Button Name: " .. BUTTON_NAME_BHS)
+    return blackHoleStrikeButton
+end
+
+-- // Input Handling
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == ABILITY_KEY_BHS then
+        BlackHoleStrike_Execute()
+    end
+end)
+
+-- // Initialization
+blackHoleStrikeButton = setupUI_BHS()
+if not blackHoleStrikeButton then
+    warn(ABILITY_NAME_BHS .. ": Failed to set up UI button!")
+end
+
+print(ABILITY_NAME_BHS .. " Script Loaded.")
+
