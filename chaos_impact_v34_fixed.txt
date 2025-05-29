@@ -1,0 +1,510 @@
+-- Chaos Impact V34 (Cooldown Fix) - Based on V33
+-- Fixes the "Unable to cast value to Object" error in the cooldown timer update.
+-- Removes debug print statements.
+
+-- // Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Debris = game:GetService("Debris")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
+local GuiService = game:GetService("GuiService")
+local TweenService = game:GetService("TweenService")
+
+-- // Player & Character Variables
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
+local playerValues = character:WaitForChild("Values", 10)
+
+-- // Remote Event Acquisition
+local ShootRemote = nil
+local function findShootRemoteStandardPath()
+    local p,k,s,b,r=ReplicatedStorage:FindFirstChild("Packages",5),nil,nil,nil,nil;
+    if p then k=p:FindFirstChild("Knit",5)end;
+    if k then s=k:FindFirstChild("Services",5)end;
+    if s then b=s:FindFirstChild("BallService",5)end;
+    if b then r=b:FindFirstChild("RE",5)end;
+    local remote=r and r:FindFirstChild("Shoot",5);
+    if remote and remote:IsA("RemoteEvent")then
+        return remote
+    else
+        warn("CI: ShootRemote NOT found via Standard Path!");
+        return nil
+    end
+end
+ShootRemote = findShootRemoteStandardPath()
+
+-- // --- CONFIGURABLE VALUES (V34 - Cooldown Fix) --- //
+local ABILITY_KEY_CI = Enum.KeyCode.F
+local COOLDOWN_CI = 15 -- Cooldown in seconds
+local ABILITY_NAME_CI = "ChaosImpact"
+local BUTTON_NAME_CI = "ChaosImpactButton_LokiStyle" -- Unique name for the cloned button
+local TIMER_TEXT_CI = "Chaos Impact" -- Text displayed on the button
+local LAYOUT_ORDER_CI = 5 -- Position relative to other buttons
+
+-- VFX Parameters (Kick Effect)
+local VFX_ACTIVATION_DELAY = 3.0 -- Seconds after ability activation to play VFX
+local VFX_DURATION = 1.5 -- How long the VFX should ideally last (particles might have own lifetime)
+
+-- Animation Parameters
+local ANIMATION_ID_PLACEHOLDER = "rbxassetid://YOUR_ANIMATION_ID_HERE" -- Replace with your Animation ID
+local ANIMATION_ACTIVATION_DELAY = 0.1 -- Seconds after ability activation to play animation
+local ANIMATION_SPEED_MULTIPLIER = 1.0 -- Adjust animation playback speed (1.0 = normal)
+
+-- SFX Parameters
+local SFX_ID_PLACEHOLDER = "rbxassetid://YOUR_SOUND_ID_HERE" -- Replace with your Sound ID
+local SFX_VOLUME = 0.7 -- Sound volume (0 to 1)
+local SFX_ACTIVATION_DELAY = 0.1 -- Seconds after ability activation to play sound
+
+-- Levitation
+local LEVITATE_HEIGHT = 15
+local LEVITATE_DURATION = 0.5
+local LEVITATE_AIR_TIME = 1.0 -- How long player stays at peak height *before* shot sequence starts
+
+-- Aiming
+local AIM_VISUALIZER_DURATION = 5
+local AIM_VISUALIZER_TRANSPARENCY = 0.7
+local AIM_VISUALIZER_RADIUS = 200 -- Increased for wider aim leniency (was 75)
+local DEFAULT_BALL_MASS = 1.5
+
+-- Shot Sequence Delays/Pauses
+local SHOT_START_DELAY = 0.1 -- Delay after LEVITATE_AIR_TIME before first shot
+local SHOT_POST_INITIAL_FIRE_WAIT = 0.4 -- Wait time after initial FireServer before ball control
+local SHOT_POST_STAGE1_FREEZE_DURATION = 0.7 -- Duration for the first freeze (after initial stop)
+local SHOT_STAGE2_PAUSE_FREEZE_DURATION = 0.7 -- Duration for the second freeze (after sideways movement)
+
+-- Shot Sequence Stages
+local INITIAL_SHOT_POWER = 15 -- Power for the initial ShootRemote:FireServer()
+local SHOT_STAGE1_SPEED = 100 -- Speed of the ball towards (Goal - StopDistance)
+local SHOT_STAGE1_STOP_DISTANCE = 100 -- Distance from goal where the ball makes its first stop
+local SHOT_STAGE2_SIDE_SPEED = 80 -- Speed of the sideways strike
+local SHOT_STAGE2_DURATION = 0.4 -- Duration of the sideways movement
+local SHOT_STAGE3_FINAL_SPEED = 400 -- Speed of the final strike towards goal
+local SHOT_STAGE3_DURATION = 2.0 -- Max duration for the final strike BodyVelocity
+
+-- BodyPosition Freeze Parameters (V27 Style - for stability)
+local BODYPOS_P_GAIN = 50000 -- Proportional gain (stiffness) for BodyPosition
+local BODYPOS_D_GAIN = 1250  -- Derivative gain (damping) for BodyPosition
+local BODYPOS_MAXFORCE_XZ = 40000 -- MaxForce on X and Z axes for BodyPosition (Y is calculated dynamically)
+
+-- Placeholder IDs (Original - Use new parameters above for primary Anim/SFX)
+local ANIMATION_ID_LEVITATE_PLACEHOLDER = "rbxassetid://YOUR_LEVITATE_ANIM_ID"
+local ANIMATION_ID_SHOT_MAIN_PLACEHOLDER = "rbxassetid://YOUR_MAIN_SHOT_ANIM_ID"
+local ANIMATION_ID_SHOT_SIDE_PLACEHOLDER = "rbxassetid://YOUR_SIDE_SHOT_ANIM_ID"
+local ANIMATION_ID_SHOT_FINAL_PLACEHOLDER = "rbxassetid://YOUR_FINAL_SHOT_ANIM_ID"
+
+local SOUND_ID_ACTIVATION_PLACEHOLDER = "rbxassetid://YOUR_ACTIVATION_SOUND_ID"
+local SOUND_ID_LEVITATE_PLACEHOLDER = "rbxassetid://YOUR_LEVITATE_SOUND_ID"
+local SOUND_ID_SHOT_INITIAL_PLACEHOLDER = "rbxassetid://YOUR_INITIAL_SHOT_SOUND_ID"
+local SOUND_ID_SHOT_SIDE_PLACEHOLDER = "rbxassetid://YOUR_SIDE_SHOT_SOUND_ID"
+local SOUND_ID_SHOT_FINAL_PLACEHOLDER = "rbxassetid://YOUR_FINAL_SHOT_SOUND_ID"
+local SOUND_ID_BALL_FREEZE_PLACEHOLDER = "rbxassetid://YOUR_BALL_FREEZE_SOUND_ID"
+
+-- Placeholder Functions for VFX (Original - Use new function below for Kick VFX)
+local VFX_BALL_BLACK_FIRE_PLACEHOLDER = function(ballInstance, actionType)
+    -- Placeholder remains, can be implemented if needed
+end
+
+local VFX_PLAYER_LEVITATE_AURA_PLACEHOLDER = function(playerRootPartInstance)
+    -- Placeholder remains, can be implemented if needed
+end
+
+-- // --- END CONFIGURABLE VALUES --- //
+
+local lastChaosImpactTime = 0
+local chaosImpactButton = nil -- Will hold the reference to the cloned button
+local isAbilityActive_CI = false
+
+local function IsReady_CI() return tick() - lastChaosImpactTime >= COOLDOWN_CI end
+
+-- Fixed StartCooldown function
+local function StartCooldown_CI()
+    lastChaosImpactTime = tick()
+    if chaosImpactButton then
+        local cooldownFrame = chaosImpactButton:FindFirstChild("Cooldown")
+        if cooldownFrame then
+            local uiGradient = cooldownFrame:FindFirstChild("UIGradient")
+            if uiGradient then
+                local tweenInfo = TweenInfo.new(COOLDOWN_CI, Enum.EasingStyle.Linear)
+                local tween = TweenService:Create(uiGradient, tweenInfo, {Offset = Vector2.new(0, 1)})
+                uiGradient.Offset = Vector2.new(0, 0); tween:Play()
+
+                local actualTimer = chaosImpactButton:FindFirstChild("ActualTimer")
+                if actualTimer then
+                    local startTime = tick()
+                    local conn = nil -- Declare conn outside the Connect function
+                    conn = RunService.Heartbeat:Connect(function()
+                        local elapsed = tick() - startTime
+                        local remaining = COOLDOWN_CI - elapsed
+                        if remaining > 0 then
+                            actualTimer.Text = string.format("%.1f", remaining)
+                        else
+                            actualTimer.Text = ""
+                            if conn then -- Check if conn exists before disconnecting
+                                conn:Disconnect()
+                                conn = nil -- Set to nil after disconnecting
+                            end
+                        end
+                    end)
+                    -- **FIX:** Do NOT use Debris:AddItem on the connection (conn). The connection cleans itself up when Disconnect() is called.
+                end
+            else
+                 warn("CI Cooldown: UIGradient not found in cloned button's Cooldown frame.")
+            end
+        else
+            warn("CI Cooldown: Cooldown frame not found in cloned button.")
+        end
+    else
+        warn("CI Cooldown: chaosImpactButton reference is nil.")
+    end
+end
+
+local homeGoalPos=Vector3.new(325,15,-49);
+local awayGoalPos=Vector3.new(-247,15,-50);
+
+local function getOpponentGoalPos()
+    local t = player.Team
+    if not t then return nil end
+    return t.Name == "Home" and awayGoalPos or (t.Name == "Away" and homeGoalPos or nil)
+end
+
+local function findBall(retries, delay)
+    retries = retries or 3; delay = delay or 0.1; local ball = nil
+    for i = 1, retries do
+        local f = Workspace:FindFirstChild("Football")
+        if f then
+            local b = (f:FindFirstChild("BallAnims") and f.BallAnims:FindFirstChild("BALL")) or f:FindFirstChild("BALL")
+            if b and b:IsA("BasePart") then ball = b; break
+            elseif f:IsA("Model") and f.PrimaryPart then ball = f.PrimaryPart; break
+            elseif f:IsA("BasePart") then ball = f; break end
+        end
+        if i < retries then task.wait(delay) end
+    end
+    return ball
+end
+
+local function calculatePartMass(part)
+    local mass = DEFAULT_BALL_MASS
+    if part and part:IsA("BasePart") then
+        local s, m = pcall(function() return part:GetMass() end)
+        if s and typeof(m) == "number" and m > 0 then mass = m
+        else s, m = pcall(function() return part.AssemblyMass end)
+            if s and typeof(m) == "number" and m > 0 then mass = m end
+        end
+    end
+    return mass
+end
+
+local function calculateModelMass(model)
+    local totalMass = 0
+    if model and model:IsA("Model") then
+        for _, p in ipairs(model:GetDescendants()) do if p:IsA("BasePart") then totalMass = totalMass + calculatePartMass(p) end end
+    end
+    return totalMass <= 0 and 10 or totalMass
+end
+
+local function cleanupAllMovers(target)
+    if not target or not target.Parent then return end
+    for _, mover in ipairs(target:GetChildren()) do
+        if mover:IsA("BodyMover") then
+            mover:Destroy()
+        end
+    end
+end
+
+local function applyBodyVelocity(target, velocity, duration, maxForce)
+    if not target or not target.Parent then return nil end
+    cleanupAllMovers(target)
+    local bv = Instance.new("BodyVelocity"); bv.Name = "ChaosImpactMover_V31"
+    bv.MaxForce = maxForce or Vector3.new(math.huge, math.huge, math.huge); bv.Velocity = velocity
+    bv.Parent = target; if duration and duration > 0 then Debris:AddItem(bv, duration) end
+    return bv
+end
+
+local function applyBodyPositionFreeze(ball, targetPosition, duration)
+    if not ball or not ball.Parent then warn("CI Freeze: Ball not found for BodyPosition freeze."); return end
+    cleanupAllMovers(ball); RunService.Heartbeat:Wait()
+    local originalAnchored = ball.Anchored
+    ball.Anchored = true; RunService.Heartbeat:Wait()
+    ball.CFrame = CFrame.new(targetPosition)
+    ball.AssemblyLinearVelocity = Vector3.zero; ball.AssemblyAngularVelocity = Vector3.zero
+    ball.Anchored = originalAnchored; RunService.Heartbeat:Wait()
+    ball.AssemblyLinearVelocity = Vector3.zero; ball.AssemblyAngularVelocity = Vector3.zero; RunService.Heartbeat:Wait()
+    local bp = Instance.new("BodyPosition"); bp.Name = "ChaosImpactBodyPositionFreeze_V31"
+    local ballMass = calculatePartMass(ball); if ballMass <= 0 then ballMass = DEFAULT_BALL_MASS end
+    local yMaxForce = Workspace.Gravity * ballMass * 1.2 + 500
+    bp.MaxForce = Vector3.new(BODYPOS_MAXFORCE_XZ, yMaxForce, BODYPOS_MAXFORCE_XZ)
+    bp.P = BODYPOS_P_GAIN; bp.D = BODYPOS_D_GAIN; bp.Position = targetPosition
+    bp.Parent = ball
+    Debris:AddItem(bp, duration)
+end
+
+local function showAimVisualizerSphere(position)
+    if not position then return end
+    local existingVis = Workspace:FindFirstChild("ChaosImpactAimVisContainer"); if existingVis then existingVis:Destroy() end
+    local visContainer = Instance.new("Model", Workspace); visContainer.Name = "ChaosImpactAimVisContainer"
+    local sphere = Instance.new("Part", visContainer); sphere.Name = "ChaosImpactAimVisSphere"; sphere.Shape = Enum.PartType.Ball
+    sphere.Size = Vector3.new(AIM_VISUALIZER_RADIUS*2, AIM_VISUALIZER_RADIUS*2, AIM_VISUALIZER_RADIUS*2); sphere.Position = position
+    sphere.Color = Color3.new(0,0,0); sphere.Transparency = AIM_VISUALIZER_TRANSPARENCY; sphere.Anchored = true; sphere.CanCollide = false
+    local billboardGui = Instance.new("BillboardGui", sphere); billboardGui.Name = "AimTextGui"; billboardGui.Adornee = sphere
+    billboardGui.Size = UDim2.new(75,0,30,0); billboardGui.StudsOffset = Vector3.new(0, AIM_VISUALIZER_RADIUS + 10, 0)
+    local textLabel = Instance.new("TextLabel", billboardGui); textLabel.Name = "AimTextLabel"; textLabel.BackgroundTransparency=1
+    textLabel.Size=UDim2.new(1,0,1,0); textLabel.Font=Enum.Font.SourceSansBold; textLabel.Text="AIM NEAR GOAL"; textLabel.TextColor3=Color3.new(1,1,1)
+    textLabel.TextScaled=true; textLabel.TextStrokeColor3=Color3.new(0,0,0); textLabel.TextStrokeTransparency=0
+    Debris:AddItem(visContainer, AIM_VISUALIZER_DURATION)
+end
+
+local function isAimingInRadius(goalPosition)
+    if not goalPosition or not Camera or not Camera.Parent then return false end
+    local camPos, camLook = Camera.CFrame.Position, Camera.CFrame.LookVector
+    local vecToGoal = goalPosition - camPos; local pL = vecToGoal:Dot(camLook)
+    if pL < 0 then return false end
+    return (goalPosition - (camPos + camLook * pL)).Magnitude <= AIM_VISUALIZER_RADIUS
+end
+
+-- // --- VFX/SFX/ANIMATION FUNCTIONS --- //
+
+local function PlayKickVFX(targetPart, duration)
+    if not targetPart or not targetPart.Parent then warn("CI VFX: Invalid targetPart provided."); return end
+    local vfxContainer = Instance.new("Attachment"); vfxContainer.Name = "ChaosImpactKickVFX_Container"; vfxContainer.Parent = targetPart
+    local particles = {}; local maxLifetime = 0
+    -- Emitter 1 (White Streaks)
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new(Color3.new(1,1,1));p.LightEmission=0.8;p.Brightness=10;p.ShapeStyle=Enum.ParticleEmitterShapeStyle.Volume;p.Lifetime=NumberRange.new(0.2,0.35);maxLifetime=math.max(maxLifetime,p.Lifetime.Max);p.LockedToPart=true;p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,0)});p.Orientation=Enum.ParticleOrientation.VelocityParallel;p.Drag=10;p.Speed=NumberRange.new(400,600);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(0.17,7.76),NumberSequenceKeypoint.new(1,0)});p.Acceleration=Vector3.new(0,0,0);p.Rate=50;p.Rotation=NumberRange.new(90,90);p.Texture="rbxassetid://13386858482";p.Shape=Enum.ParticleEmitterShape.Box;p.Parent=vfxContainer;table.insert(particles,p) end
+    -- Emitter 2 (Black Swirl)
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new(Color3.new(0,0,0));p.LightEmission=0;p.Brightness=0;p.ShapeStyle=Enum.ParticleEmitterShapeStyle.Volume;p.Lifetime=NumberRange.new(0.25,0.35);maxLifetime=math.max(maxLifetime,p.Lifetime.Max);p.LockedToPart=true;p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,0)});p.Orientation=Enum.ParticleOrientation.VelocityPerpendicular;p.Speed=NumberRange.new(0.1,0.1);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,18.66),NumberSequenceKeypoint.new(0.17,43.2),NumberSequenceKeypoint.new(1,51.39)});p.Acceleration=Vector3.new(0,0,0);p.Rate=50;p.Rotation=NumberRange.new(-360,360);p.Texture="rbxassetid://13395479051";p.Shape=Enum.ParticleEmitterShape.Box;p.Parent=vfxContainer;table.insert(particles,p) end
+    -- Emitter 3 (Dark Gray Wisps)
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new(Color3.new(0.1,0.1,0.1));p.LightEmission=0;p.Brightness=0.1;p.ShapeStyle=Enum.ParticleEmitterShapeStyle.Volume;p.Lifetime=NumberRange.new(0.15,0.35);maxLifetime=math.max(maxLifetime,p.Lifetime.Max);p.LockedToPart=true;p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,0)});p.Orientation=Enum.ParticleOrientation.VelocityPerpendicular;p.Speed=NumberRange.new(0.1,0.1);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,18.66),NumberSequenceKeypoint.new(0.17,43.2),NumberSequenceKeypoint.new(1,51.39)});p.Acceleration=Vector3.new(0,0,0);p.Rate=50;p.Rotation=NumberRange.new(-360,360);p.Texture="rbxassetid://13395481373";p.Shape=Enum.ParticleEmitterShape.Box;p.Parent=vfxContainer;table.insert(particles,p) end
+    -- Emitter 4 (White Flash)
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new(Color3.new(1,1,1));p.LightEmission=1;p.Brightness=10;p.ShapeStyle=Enum.ParticleEmitterShapeStyle.Volume;p.Lifetime=NumberRange.new(0.05,0.05);maxLifetime=math.max(maxLifetime,p.Lifetime.Max);p.LockedToPart=true;p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,1),NumberSequenceKeypoint.new(0.3,0.48),NumberSequenceKeypoint.new(1,1)});p.Orientation=Enum.ParticleOrientation.FacingCamera;p.Drag=5;p.Speed=NumberRange.new(0,0);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,13.05),NumberSequenceKeypoint.new(1,101.36)});p.Acceleration=Vector3.new(0,0,0);p.Rate=32;p.ZOffset=3;p.Texture="rbxassetid://11503727043";p.Shape=Enum.ParticleEmitterShape.Box;p.Parent=vfxContainer;table.insert(particles,p) end
+    -- Emitter 5 (Alternating B&W Swirl)
+    do local p=Instance.new("ParticleEmitter");p.Color=ColorSequence.new({ColorSequenceKeypoint.new(0,Color3.new(0,0,0)),ColorSequenceKeypoint.new(0.5,Color3.new(1,1,1)),ColorSequenceKeypoint.new(1,Color3.new(0,0,0))});p.LightEmission=0.5;p.Brightness=4;p.ShapeStyle=Enum.ParticleEmitterShapeStyle.Volume;p.Lifetime=NumberRange.new(0.25,0.35);maxLifetime=math.max(maxLifetime,p.Lifetime.Max);p.LockedToPart=true;p.Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,0)});p.Orientation=Enum.ParticleOrientation.VelocityPerpendicular;p.Speed=NumberRange.new(0.1,0.1);p.Size=NumberSequence.new({NumberSequenceKeypoint.new(0,18.66),NumberSequenceKeypoint.new(0.17,43.2),NumberSequenceKeypoint.new(1,51.39)});p.Acceleration=Vector3.new(0,0,0);p.Rate=50;p.Rotation=NumberRange.new(-360,360);p.Texture="rbxassetid://13395479051";p.Shape=Enum.ParticleEmitterShape.Box;p.Parent=vfxContainer;table.insert(particles,p) end
+    for _,p in ipairs(particles) do p.Enabled=true end
+    local cleanupDelay=math.max(duration,maxLifetime+0.1); Debris:AddItem(vfxContainer,cleanupDelay)
+end
+
+local function PlayAnimation(targetHumanoid, animationId, speedMultiplier)
+    if not targetHumanoid or not targetHumanoid.Parent then warn("CI Anim: Invalid humanoid provided."); return end
+    if not animationId or animationId == "" or animationId:lower():match("your") then print("CI Anim: Placeholder or invalid Animation ID provided:", animationId); return end
+    local animInstance = Instance.new("Animation"); animInstance.AnimationId = animationId
+    local animTrack = targetHumanoid:LoadAnimation(animInstance)
+    if animTrack then
+        animTrack:AdjustSpeed(speedMultiplier); animTrack:Play()
+        local cleanupTime = animTrack.Length / speedMultiplier + 0.1; Debris:AddItem(animInstance, cleanupTime)
+    else
+        warn("CI Anim: Failed to load animation track for", animationId); Debris:AddItem(animInstance, 0.1)
+    end
+end
+
+local function PlaySoundEffect(attachToPart, soundId, volume)
+    if not attachToPart or not attachToPart.Parent then warn("CI SFX: Invalid attachment part provided."); return end
+    if not soundId or soundId == "" or soundId:lower():match("your") then print("CI SFX: Placeholder or invalid Sound ID provided:", soundId); return end
+    local sound = Instance.new("Sound"); sound.SoundId = soundId; sound.Volume = volume; sound.Parent = attachToPart; sound:Play()
+    Debris:AddItem(sound, sound.TimeLength + 0.5)
+end
+
+-- // --- MAIN ABILITY FUNCTION --- //
+
+local function ChaosImpact()
+    if isAbilityActive_CI then return end
+    if character then cleanupAllMovers(rootPart) end
+    local bfc = findBall(1,0); if bfc then cleanupAllMovers(bfc) end
+    task.wait(0.05)
+    if not IsReady_CI() then return end
+
+    character = player.Character or player.CharacterAdded:Wait()
+    humanoid = character:WaitForChild("Humanoid"); rootPart = character:WaitForChild("HumanoidRootPart")
+    playerValues = character:WaitForChild("Values", 10)
+    if not (humanoid and rootPart and playerValues) then return end
+
+    local hbv = playerValues:FindFirstChild("HasBall");
+    if not hbv or not hbv.Value then return end
+
+    if not ShootRemote then
+        ShootRemote = findShootRemoteStandardPath();
+        if not ShootRemote then return end
+    end
+
+    local goalPosition = getOpponentGoalPos();
+    if not goalPosition then return end
+
+    if not isAimingInRadius(goalPosition) then showAimVisualizerSphere(goalPosition); return end
+
+    isAbilityActive_CI = true; StartCooldown_CI()
+    print(ABILITY_NAME_CI .. " Activated (V34 - Cooldown Fix)")
+
+    -- Schedule SFX and Animation based on their delays
+    task.delay(SFX_ACTIVATION_DELAY, function()
+        if isAbilityActive_CI and rootPart and rootPart.Parent then PlaySoundEffect(rootPart, SFX_ID_PLACEHOLDER, SFX_VOLUME) end
+    end)
+    task.delay(ANIMATION_ACTIVATION_DELAY, function()
+         if isAbilityActive_CI and humanoid and humanoid.Parent then PlayAnimation(humanoid, ANIMATION_ID_PLACEHOLDER, ANIMATION_SPEED_MULTIPLIER) end
+    end)
+    task.delay(VFX_ACTIVATION_DELAY, function()
+        if isAbilityActive_CI and rootPart and rootPart.Parent then PlayKickVFX(rootPart, VFX_DURATION) end
+    end)
+
+    task.spawn(function()
+        local currentCharacter, currentRootPart, currentHumanoid = character, rootPart, humanoid
+        local success = false
+        local cleanupGuard = Instance.new("BoolValue", currentCharacter); cleanupGuard.Name = "ChaosImpactCleanupGuard_V34"
+
+        local function performCleanupAndReset()
+            if not cleanupGuard or not cleanupGuard.Parent then return end; cleanupGuard:Destroy()
+            if currentRootPart and currentRootPart.Parent then cleanupAllMovers(currentRootPart) end
+            local ball = findBall(1,0); if ball then cleanupAllMovers(ball) end
+            isAbilityActive_CI = false
+        end
+
+        local pcallSuccess, pcallResult = pcall(function()
+            local charMass = calculateModelMass(currentCharacter)
+            VFX_PLAYER_LEVITATE_AURA_PLACEHOLDER(currentRootPart)
+            applyBodyVelocity(currentRootPart, Vector3.new(0, LEVITATE_HEIGHT / LEVITATE_DURATION, 0), LEVITATE_DURATION, Vector3.new(0, charMass*Workspace.Gravity*1.5, 0))
+            task.wait(LEVITATE_DURATION); if not cleanupGuard.Parent then return end
+            cleanupAllMovers(currentRootPart)
+            local goalPosForCalc = getOpponentGoalPos() or Vector3.zero
+            local distToGoal = (goalPosForCalc - currentRootPart.Position).Magnitude
+            local stage1Dist = math.max(0, distToGoal - SHOT_STAGE1_STOP_DISTANCE)
+            local totalShotDur = SHOT_START_DELAY + SHOT_POST_INITIAL_FIRE_WAIT + (stage1Dist / SHOT_STAGE1_SPEED) + SHOT_POST_STAGE1_FREEZE_DURATION + SHOT_STAGE2_DURATION + SHOT_STAGE2_PAUSE_FREEZE_DURATION + SHOT_STAGE3_DURATION
+            local airTimeBV = applyBodyVelocity(currentRootPart, Vector3.zero, LEVITATE_AIR_TIME + totalShotDur + 0.2, Vector3.new(0,charMass*Workspace.Gravity,0))
+            task.wait(LEVITATE_AIR_TIME); if not cleanupGuard.Parent then return end
+            task.wait(SHOT_START_DELAY); if not cleanupGuard.Parent then return end
+
+            local sOk, sErr = pcall(ShootRemote.FireServer, ShootRemote, INITIAL_SHOT_POWER)
+            if not sOk then warn("CI: ShootRemote FireServer FAILED:", sErr); performCleanupAndReset(); return end
+            task.wait(SHOT_POST_INITIAL_FIRE_WAIT); if not cleanupGuard.Parent then return end
+
+            local ball = findBall(3, 0.1); if not ball then performCleanupAndReset(); return end
+            VFX_BALL_BLACK_FIRE_PLACEHOLDER(ball, "InitialShot")
+            local cgp = getOpponentGoalPos(); if not cgp then performCleanupAndReset(); return end
+            local vtg = cgp - ball.Position; local dtg = vtg.Magnitude
+            local s1d = dtg - SHOT_STAGE1_STOP_DISTANCE;
+            if s1d <= 0 then performCleanupAndReset(); return end
+            local s1dur = s1d / SHOT_STAGE1_SPEED
+            applyBodyVelocity(ball, vtg.Unit * SHOT_STAGE1_SPEED, s1dur + 0.1)
+            task.wait(s1dur); if not cleanupGuard.Parent then return end
+            local freezePosStage1 = ball.Position
+            applyBodyPositionFreeze(ball, freezePosStage1, SHOT_POST_STAGE1_FREEZE_DURATION)
+            task.wait(SHOT_POST_STAGE1_FREEZE_DURATION); if not cleanupGuard.Parent then return end
+
+            local ballStage2 = findBall(1,0); if not ballStage2 then performCleanupAndReset(); return end
+            local sideDir = (CFrame.new(ballStage2.Position, cgp).RightVector * (math.random(0,1) == 0 and 1 or -1))
+            applyBodyVelocity(ballStage2, sideDir * SHOT_STAGE2_SIDE_SPEED, SHOT_STAGE2_DURATION + 0.1)
+            task.wait(SHOT_STAGE2_DURATION); if not cleanupGuard.Parent then return end
+            local freezePosStage2 = ballStage2.Position
+            applyBodyPositionFreeze(ballStage2, freezePosStage2, SHOT_STAGE2_PAUSE_FREEZE_DURATION)
+            task.wait(SHOT_STAGE2_PAUSE_FREEZE_DURATION); if not cleanupGuard.Parent then return end
+
+            local ballStage3 = findBall(1,0); if not ballStage3 then performCleanupAndReset(); return end
+            local finalGoalPos = getOpponentGoalPos(); if not finalGoalPos then performCleanupAndReset(); return end
+            local finalDir = (finalGoalPos - ballStage3.Position).Unit
+            applyBodyVelocity(ballStage3, finalDir * SHOT_STAGE3_FINAL_SPEED, SHOT_STAGE3_DURATION + 0.1)
+            task.wait(SHOT_STAGE3_DURATION); if not cleanupGuard.Parent then return end
+
+            success = true
+        end)
+
+        if not pcallSuccess then warn("CI: Error during pcall execution:", pcallResult) end
+        performCleanupAndReset()
+    end)
+end
+
+-- // --- UI AND INPUT HANDLING (Loki Style - Cloning Button) --- //
+
+local function setupUI_LokiStyle()
+    local abilitiesFrame = playerGui:WaitForChild("InGameUI", 15):WaitForChild("Bottom", 10):WaitForChild("Abilities", 10)
+    if not abilitiesFrame then
+        warn("CI Loki UI: Target Abilities frame ('PlayerGui.InGameUI.Bottom.Abilities') not found after waiting. Cannot create button.")
+        return
+    end
+
+    local templateButton = abilitiesFrame:FindFirstChild("1")
+    if not templateButton then
+        warn("CI Loki UI: Template button '1' not found in Abilities frame. Attempting fallback...")
+        for _, child in ipairs(abilitiesFrame:GetChildren()) do
+            if child:IsA("Frame") and child:FindFirstChild("Keybind") then
+                templateButton = child
+                warn("CI Loki UI: Using button '".. templateButton.Name .."' as template instead.")
+                break
+            end
+        end
+        if not templateButton then
+             warn("CI Loki UI: No suitable template button found in Abilities frame. Cannot create button.")
+            return
+        end
+    end
+
+    local existingButton = abilitiesFrame:FindFirstChild(BUTTON_NAME_CI)
+    if existingButton then existingButton:Destroy(); task.wait(0.1) end
+
+    chaosImpactButton = templateButton:Clone()
+    chaosImpactButton.Name = BUTTON_NAME_CI
+    chaosImpactButton.Parent = abilitiesFrame
+    chaosImpactButton.LayoutOrder = LAYOUT_ORDER_CI
+
+    local keybindText = chaosImpactButton:FindFirstChild("Keybind")
+    if keybindText and keybindText:IsA("TextLabel") then keybindText.Text = ABILITY_KEY_CI.Name else warn("CI Loki UI: Keybind TextLabel not found in clone.") end
+
+    local timerTextLabel = chaosImpactButton:FindFirstChild("Timer")
+    if timerTextLabel and timerTextLabel:IsA("TextLabel") then timerTextLabel.Text = TIMER_TEXT_CI else warn("CI Loki UI: Timer TextLabel not found in clone.") end
+
+    local actualTimerLabel = chaosImpactButton:FindFirstChild("ActualTimer")
+    if actualTimerLabel and actualTimerLabel:IsA("TextLabel") then actualTimerLabel.Text = "" else warn("CI Loki UI: ActualTimer TextLabel not found in clone.") end
+
+    local activatedSignal = chaosImpactButton:FindFirstChild("Activated")
+    if activatedSignal and typeof(activatedSignal) == "RBXScriptSignal" then
+         activatedSignal:Connect(ChaosImpact)
+    elseif chaosImpactButton:IsA("GuiButton") then
+        chaosImpactButton.MouseButton1Click:Connect(ChaosImpact)
+    else
+        warn("CI Loki UI: Could not find Activated signal or suitable click event on cloned button.")
+    end
+
+    if not IsReady_CI() then
+        local remaining = COOLDOWN_CI - (tick() - lastChaosImpactTime)
+        local cooldownFrame = chaosImpactButton:FindFirstChild("Cooldown")
+        if cooldownFrame then
+            local uiGradient = cooldownFrame:FindFirstChild("UIGradient")
+            if uiGradient then
+                local tweenInfo = TweenInfo.new(remaining, Enum.EasingStyle.Linear)
+                local startOffset = remaining / COOLDOWN_CI
+                uiGradient.Offset = Vector2.new(0, startOffset)
+                local tween = TweenService:Create(uiGradient, tweenInfo, {Offset = Vector2.new(0, 1)})
+                tween:Play()
+                local actualTimer = chaosImpactButton:FindFirstChild("ActualTimer")
+                if actualTimer then
+                    local startTime = tick()
+                    local conn = nil
+                    conn = RunService.Heartbeat:Connect(function()
+                        local elapsed = tick() - startTime
+                        local remainingCd = COOLDOWN_CI - elapsed
+                        if remainingCd > 0 then
+                            actualTimer.Text = string.format("%.1f", remainingCd)
+                        else
+                            actualTimer.Text = ""
+                            if conn then conn:Disconnect(); conn = nil end
+                        end
+                    end)
+                end
+            end
+        end
+    end
+end
+
+-- Connect Keybind Input
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if gameProcessedEvent then return end
+    if input.KeyCode == ABILITY_KEY_CI then
+        ChaosImpact()
+    end
+end)
+
+-- Initial setup
+setupUI_LokiStyle()
+
+print("Chaos Impact V34 (Cooldown Fix) Loaded.")
+
