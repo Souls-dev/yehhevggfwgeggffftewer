@@ -1,0 +1,1340 @@
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+if game:GetService("CoreGui"):FindFirstChild("SOULS_HUB") then
+    game:GetService("CoreGui").SOULS_HUB:Destroy()
+end
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SOULS_HUB"
+screenGui.Parent = game:GetService("CoreGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 700, 0, 380)
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.ZIndex = 1
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+local outline = Instance.new("UIStroke")
+outline.Color = Color3.new(1, 1, 1)
+outline.Thickness = 2
+outline.Transparency = 0.1
+outline.Parent = mainFrame
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 16)
+corner.Parent = mainFrame
+
+local gradient = Instance.new("UIGradient")
+gradient.Rotation = 90
+gradient.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 0.6),
+    NumberSequenceKeypoint.new(1, 0.8)
+})
+gradient.Parent = mainFrame
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleButton"
+toggleBtn.Size = UDim2.new(0, 140, 0, 40)
+toggleBtn.Position = UDim2.new(0.5, -70, 0, 20)
+toggleBtn.AnchorPoint = Vector2.new(0.5, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+toggleBtn.BackgroundTransparency = 0.3
+toggleBtn.Text = "TOGGLE MENU"
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 14
+toggleBtn.Visible = false
+toggleBtn.ZIndex = 10
+toggleBtn.Parent = screenGui
+
+local toggleTextOutline = Instance.new("UIStroke")
+toggleTextOutline.Color = Color3.new(0, 0, 0)
+toggleTextOutline.Thickness = 1
+toggleTextOutline.Transparency = 0
+toggleTextOutline.Parent = toggleBtn
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 12)
+toggleCorner.Parent = toggleBtn
+
+local toggleOutline = Instance.new("UIStroke")
+toggleOutline.Color = Color3.new(1, 1, 1)
+toggleOutline.Thickness = 1
+toggleOutline.Transparency = 0.2
+toggleOutline.Parent = toggleBtn
+
+local function makeDraggable(frame)
+    local dragging = false
+    local dragInput, dragStart, startPos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+        end
+    end)
+
+    frame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            dragInput = nil
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            dragInput = input
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+makeDraggable(mainFrame)
+makeDraggable(toggleBtn)
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseButton"
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -35, 0, 10)
+closeBtn.AnchorPoint = Vector2.new(1, 0)
+closeBtn.BackgroundTransparency = 1
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.TextSize = 20
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.ZIndex = 3
+closeBtn.Parent = mainFrame
+
+local closeTextOutline = Instance.new("UIStroke")
+closeTextOutline.Color = Color3.new(0, 0, 0)
+closeTextOutline.Thickness = 1
+closeTextOutline.Transparency = 0
+closeTextOutline.Parent = closeBtn
+
+local titleFont = Enum.Font.GothamBold
+local titleText = Instance.new("TextLabel")
+titleText.Name = "Title"
+titleText.Size = UDim2.new(0, 200, 0, 30)
+titleText.Position = UDim2.new(0, 20, 0, 10)
+titleText.BackgroundTransparency = 1
+titleText.Text = "SOULS HUB"
+titleText.TextColor3 = Color3.new(1, 1, 1)
+titleText.TextSize = 24
+titleText.Font = titleFont
+titleText.TextXAlignment = Enum.TextXAlignment.Left
+titleText.ZIndex = 2
+titleText.Parent = mainFrame
+
+local titleTextOutline = Instance.new("UIStroke")
+titleTextOutline.Color = Color3.new(0, 0, 0)
+titleTextOutline.Thickness = 1
+titleTextOutline.Transparency = 0
+titleTextOutline.Parent = titleText
+
+local titleGlow = Instance.new("UIGradient")
+titleGlow.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
+    ColorSequenceKeypoint.new(0.5, Color3.new(0.85, 0.85, 0.85)),
+    ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1))
+})
+titleGlow.Rotation = -45
+titleGlow.Transparency = NumberSequence.new(0.6)
+titleGlow.Parent = titleText
+
+local topSeparator = Instance.new("Frame")
+topSeparator.Name = "TopSeparator"
+topSeparator.Size = UDim2.new(1, -40, 0, 1)
+topSeparator.Position = UDim2.new(0, 20, 0, 50)
+topSeparator.BackgroundColor3 = Color3.new(1, 1, 1)
+topSeparator.BorderSizePixel = 0
+topSeparator.ZIndex = 2
+topSeparator.Parent = mainFrame
+
+local verticalSeparator = Instance.new("Frame")
+verticalSeparator.Name = "VerticalSeparator"
+verticalSeparator.Size = UDim2.new(0, 1, 1, -120)
+verticalSeparator.Position = UDim2.new(0, 170, 0, 70)
+verticalSeparator.BackgroundColor3 = Color3.new(1, 1, 1)
+verticalSeparator.BorderSizePixel = 0
+verticalSeparator.ZIndex = 2
+verticalSeparator.Parent = mainFrame
+
+local tabContainer = Instance.new("Frame")
+tabContainer.Name = "Tabs"
+tabContainer.Size = UDim2.new(0, 150, 0, 280)
+tabContainer.Position = UDim2.new(0, 15, 0, 70)
+tabContainer.BackgroundTransparency = 1
+tabContainer.ZIndex = 2
+tabContainer.Parent = mainFrame
+
+local contentContainer = Instance.new("Frame")
+contentContainer.Name = "Content"
+contentContainer.Size = UDim2.new(0, 500, 0, 280)
+contentContainer.Position = UDim2.new(1, -515, 0, 70)
+contentContainer.BackgroundTransparency = 1
+contentContainer.ZIndex = 2
+contentContainer.Parent = mainFrame
+
+local function createTab(tabName)
+    local tab = Instance.new("TextButton")
+    tab.Name = tabName
+    tab.Size = UDim2.new(0, 140, 0, 30)
+    tab.Position = UDim2.new(0, 0, 0, #tabContainer:GetChildren() * 35)
+    tab.BackgroundTransparency = 1
+    tab.Text = tabName
+    tab.TextColor3 = Color3.new(1, 1, 1)
+    tab.TextSize = 18
+    tab.Font = Enum.Font.GothamBold
+    tab.TextTransparency = 0.5
+    tab.ZIndex = 3
+
+    local tabTextOutline = Instance.new("UIStroke")
+    tabTextOutline.Color = Color3.new(0, 0, 0)
+    tabTextOutline.Thickness = 1
+    tabTextOutline.Transparency = 0.5
+    tabTextOutline.Parent = tab
+
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.new(1, 1, 1)
+    outline.Thickness = 1
+    outline.Transparency = 0.5
+    outline.Parent = tab
+
+    local content = Instance.new("ScrollingFrame")
+    content.Name = tabName.."Content"
+    content.Size = UDim2.new(1, 0, 1, 0)
+    content.BackgroundTransparency = 1
+    content.Visible = false
+    content.ScrollBarThickness = 5
+    content.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    content.Parent = contentContainer
+
+    tab.Parent = tabContainer
+    return tab, content
+end
+
+local function addCategory(parent, text)
+    local category = Instance.new("TextLabel")
+    category.Name = text.."Category"
+    category.Size = UDim2.new(0, 200, 0, 20)
+    category.Position = UDim2.new(0, 0, 0, #parent:GetChildren() * 45)
+    category.BackgroundTransparency = 1
+    category.Text = text
+    category.TextColor3 = Color3.new(1, 1, 1)
+    category.TextSize = 16
+    category.Font = titleFont
+    category.TextXAlignment = Enum.TextXAlignment.Left
+    category.ZIndex = 3
+
+    local categoryTextOutline = Instance.new("UIStroke")
+    categoryTextOutline.Color = Color3.new(0, 0, 0)
+    categoryTextOutline.Thickness = 1
+    categoryTextOutline.Transparency = 0
+    categoryTextOutline.Parent = category
+
+    category.Parent = parent
+end
+
+local function createButton(parent, buttonText, func)
+    local button = Instance.new("TextButton")
+    button.Name = buttonText
+    button.Size = UDim2.new(0, 200, 0, 40)
+    button.Position = UDim2.new(0, 0, 0, #parent:GetChildren() * 45)
+    button.BackgroundTransparency = 1
+    button.Text = buttonText
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 14
+    button.ZIndex = 3
+
+    local buttonTextOutline = Instance.new("UIStroke")
+    buttonTextOutline.Color = Color3.new(0, 0, 0)
+    buttonTextOutline.Thickness = 1
+    buttonTextOutline.Transparency = 0.3
+    buttonTextOutline.Parent = button
+
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.new(1, 1, 1)
+    outline.Thickness = 1
+    outline.Transparency = 0.3
+    outline.Parent = button
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = button
+
+    button.MouseButton1Click:Connect(function()
+        if func then func() end
+    end)
+
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {
+            BackgroundTransparency = 0.85,
+            TextColor3 = Color3.new(0.9, 0.9, 0.9)
+        }):Play()
+    end)
+
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {
+            BackgroundTransparency = 1,
+            TextColor3 = Color3.new(1, 1, 1)
+        }):Play()
+    end)
+
+    button.Parent = parent
+    return button
+end
+
+local function createToggle(parent, defaultText, onText, offText, onFunction, offFunction)
+    local toggleEnabled = false
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Name = "ToggleButton"
+    toggleButton.Size = UDim2.new(0, 200, 0, 40)
+    toggleButton.Position = UDim2.new(0, 0, 0, #parent:GetChildren() * 45)
+    toggleButton.BackgroundTransparency = 1
+    toggleButton.Text = defaultText or "TOGGLE"
+    toggleButton.TextColor3 = Color3.new(1, 1, 1)
+    toggleButton.Font = Enum.Font.GothamBold
+    toggleButton.TextSize = 14
+    toggleButton.ZIndex = 3
+
+    local toggleTextOutline = Instance.new("UIStroke")
+    toggleTextOutline.Color = Color3.new(0, 0, 0)
+    toggleTextOutline.Thickness = 1
+    toggleTextOutline.Transparency = 0.3
+    toggleTextOutline.Parent = toggleButton
+
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.new(1, 1, 1)
+    outline.Thickness = 1
+    outline.Transparency = 0.3
+    outline.Parent = toggleButton
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = toggleButton
+
+    toggleButton.MouseEnter:Connect(function()
+        TweenService:Create(toggleButton, TweenInfo.new(0.2), {
+            BackgroundTransparency = 0.85,
+            TextColor3 = Color3.new(0.9, 0.9, 0.9)
+        }):Play()
+    end)
+
+    toggleButton.MouseLeave:Connect(function()
+        TweenService:Create(toggleButton, TweenInfo.new(0.2), {
+            BackgroundTransparency = 1,
+            TextColor3 = Color3.new(1, 1, 1)
+        }):Play()
+    end)
+
+    toggleButton.MouseButton1Down:Connect(function()
+        game:GetService("TweenService"):Create(
+            toggleButton,
+            TweenInfo.new(0.1),
+            {Size = UDim2.new(0, 190, 0, 38)}
+        ):Play()
+    end)
+
+    toggleButton.MouseButton1Up:Connect(function()
+        game:GetService("TweenService"):Create(
+            toggleButton,
+            TweenInfo.new(0.2),
+            {Size = UDim2.new(0, 200, 0, 40)}
+        ):Play()
+    end)
+
+    toggleButton.MouseButton1Click:Connect(function()
+        toggleEnabled = not toggleEnabled
+
+        if toggleEnabled then
+            toggleButton.Text = onText or "ON"
+            if onFunction then onFunction() end
+        else
+            toggleButton.Text = offText or "OFF"
+            if offFunction then offFunction() end
+        end
+    end)
+
+    toggleButton.Parent = parent
+    return toggleButton
+end
+
+local function switchTab(tabName)
+    for _, tabInstance in ipairs(tabContainer:GetChildren()) do
+        if tabInstance:IsA("TextButton") then
+            tabInstance.TextTransparency = 0.5
+            local tabStroke = tabInstance:FindFirstChildOfClass("UIStroke")
+            if tabStroke then
+                tabStroke.Transparency = 0.5
+            end
+        end
+    end
+    for _, content in ipairs(contentContainer:GetChildren()) do
+        if content:IsA("ScrollingFrame") then
+            content.Visible = false
+        end
+    end
+
+    local selectedTab = tabContainer:FindFirstChild(tabName)
+    if selectedTab then
+        selectedTab.TextTransparency = 0
+        local selectedTabStroke = selectedTab:FindFirstChildOfClass("UIStroke")
+        if selectedTabStroke then
+            selectedTabStroke.Transparency = 0
+        end
+    end
+    local selectedContent = contentContainer:FindFirstChild(tabName.."Content")
+    if selectedContent then
+        selectedContent.Visible = true
+    end
+end
+
+local function toggleUI(visible)
+    mainFrame.Visible = visible
+    toggleBtn.Visible = not visible
+    if visible then
+        mainFrame:TweenSize(UDim2.new(0, 700, 0, 380), Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.3)
+    end
+end
+
+closeBtn.MouseButton1Click:Connect(function()
+    toggleUI(false)
+    toggleBtn.Visible = true
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+    toggleUI(true)
+    toggleBtn.Visible = false
+end)
+
+local function openAnimation()
+    toggleBtn.Visible = false
+    mainFrame.Visible = true
+    mainFrame.Size = UDim2.new(0, 700, 0, 2)
+    mainFrame.BackgroundTransparency = 1
+    titleText.TextTransparency = 1
+    closeBtn.TextTransparency = 1
+    topSeparator.Transparency = 1
+    verticalSeparator.Transparency = 1
+
+    for _, tabInstance in ipairs(tabContainer:GetChildren()) do
+        if tabInstance:IsA("TextButton") then
+            tabInstance.TextTransparency = 1
+            local tabStroke = tabInstance:FindFirstChildOfClass("UIStroke")
+            if tabStroke then
+                tabStroke.Transparency = 1
+            end
+        end
+    end
+
+    mainFrame:TweenSize(UDim2.new(0, 700, 0, 2), Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.5, true, function()
+        mainFrame:TweenSize(UDim2.new(0, 700, 0, 380), Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.7)
+        for i = 1, 0, -0.05 do
+            mainFrame.BackgroundTransparency = i * 0.2
+            titleText.TextTransparency = i
+            closeBtn.TextTransparency = i
+            topSeparator.Transparency = i
+            verticalSeparator.Transparency = i
+            for _, tabInstance in ipairs(tabContainer:GetChildren()) do
+                if tabInstance:IsA("TextButton") then
+                    tabInstance.TextTransparency = i
+                    local tabStroke = tabInstance:FindFirstChildOfClass("UIStroke")
+                    if tabStroke then
+                        tabStroke.Transparency = i
+                    end
+                end
+            end
+            task.wait(0.03)
+        end
+        switchTab("MAIN FEATURES")
+    end)
+end
+
+openAnimation()
+
+game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "SOULS HUB",
+    Text = "UI successfully initialized!",
+    Duration = 5
+})
+
+-- Feature Integration
+
+-- Tabs
+local mainTab, mainContent = createTab("MAIN FEATURES")
+local espTab, espContent = createTab("ESP")
+
+-- Tab connections
+mainTab.MouseButton1Click:Connect(function() switchTab("MAIN FEATURES") end)
+espTab.MouseButton1Click:Connect(function() switchTab("ESP") end)
+
+-- MAIN FEATURES
+addCategory(mainContent, "Farming")
+local collecting = false
+createToggle(mainContent, "Auto Collect Money: OFF", "Auto Collect Money: ON", "Auto Collect Money: OFF", function()
+    collecting = true
+    task.spawn(function()
+        while collecting do
+            for i = 1, 16 do
+                ReplicatedStorage.Packages.Net["RE/PlotService/ClaimCoins"]:FireServer(i)
+                task.wait(0.2)
+            end
+        end
+    end)
+end, function()
+    collecting = false
+end)
+
+local autosteal = false
+createToggle(mainContent, "Auto Steal: OFF", "Auto Steal: ON", "Auto Steal: OFF", function()
+    autosteal = true
+end, function()
+    autosteal = false
+end)
+
+local pbt = false
+createToggle(mainContent, "Spam Tools: OFF", "Spam Tools: ON", "Spam Tools: OFF", function()
+    pbt = true
+end, function()
+    pbt = false
+end)
+
+local sbase = false
+local sbox = Instance.new("SelectionBox")
+sbox.Parent = game.CoreGui
+createToggle(mainContent, "Select Base: OFF", "Select Base: ON", "Select Base: OFF", function()
+    sbase = true
+    sbox.Transparency = 0
+end, function()
+    sbase = false
+    sbox.Transparency = 1
+end)
+
+local dragSpeed = 10 -- Default drag speed
+local dragToTarget = false
+local targetPosition = nil
+
+local dragSpeedLabel = Instance.new("TextLabel")
+dragSpeedLabel.Name = "DragSpeedLabel"
+dragSpeedLabel.Size = UDim2.new(0, 200, 0, 20)
+dragSpeedLabel.Position = UDim2.new(0, 0, 0, (#mainContent:GetChildren() * 45))
+dragSpeedLabel.BackgroundTransparency = 1
+dragSpeedLabel.Text = "Drag Speed: " .. dragSpeed
+dragSpeedLabel.TextColor3 = Color3.new(1, 1, 1)
+dragSpeedLabel.TextSize = 14
+dragSpeedLabel.Font = Enum.Font.GothamBold
+dragSpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
+dragSpeedLabel.Parent = mainContent
+
+local dragSpeedSlider = Instance.new("Frame")
+dragSpeedSlider.Name = "DragSpeedSlider"
+dragSpeedSlider.Size = UDim2.new(0, 200, 0, 10)
+dragSpeedSlider.Position = UDim2.new(0, 0, 0, (#mainContent:GetChildren() * 45) + 30)
+dragSpeedSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+dragSpeedSlider.Parent = mainContent
+
+local dragSpeedHandle = Instance.new("Frame")
+dragSpeedHandle.Name = "DragSpeedHandle"
+dragSpeedHandle.Size = UDim2.new(0, 10, 0, 20)
+dragSpeedHandle.Position = UDim2.new(0, 0, 0.5, -10)
+dragSpeedHandle.BackgroundColor3 = Color3.fromRGB(70, 130, 255)
+dragSpeedHandle.Parent = dragSpeedSlider
+
+local draggingDragSpeed = false
+dragSpeedHandle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingDragSpeed = true
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and draggingDragSpeed then
+        local mouseX = input.Position.X - dragSpeedSlider.AbsolutePosition.X
+        local newX = math.clamp(mouseX, 0, dragSpeedSlider.AbsoluteSize.X)
+        dragSpeedHandle.Position = UDim2.new(0, newX, 0.5, -10)
+        dragSpeed = math.floor((newX / dragSpeedSlider.AbsoluteSize.X) * 19) + 1 -- Speed from 1 to 20
+        dragSpeedLabel.Text = "Drag Speed: " .. dragSpeed
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingDragSpeed = false
+    end
+end)
+
+createToggle(mainContent, "Drag To Base: OFF", "Drag To Base: ON", "Drag To Base: OFF", function()
+    dragToTarget = true
+    local base = nil
+    for i,v in pairs(workspace.Plots:GetChildren()) do
+        if v:FindFirstChild("YourBase",true) and v:FindFirstChild("YourBase",true).Enabled then
+            base = v.DeliveryHitbox
+        end
+    end
+    if base then
+        targetPosition = base.Position
+        task.spawn(function()
+            while dragToTarget and targetPosition do
+                local currentPos = Players.LocalPlayer.Character.HumanoidRootPart.Position
+                local direction = (targetPosition - currentPos).Unit
+                Players.LocalPlayer.Character.HumanoidRootPart.CFrame = Players.LocalPlayer.Character.HumanoidRootPart.CFrame + direction * dragSpeed * 0.1
+                task.wait()
+            end
+        end)
+    else
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "SOULS HUB",
+            Text = "Your base not found!",
+            Duration = 3
+        })
+        dragToTarget = false
+    end
+end, function()
+    dragToTarget = false
+    targetPosition = nil
+end)
+
+createButton(mainContent, "Show Hitboxes", function()
+    for i,v in pairs(workspace.Plots:GetChildren()) do
+        if v:FindFirstChild("InvisibleWalls") then
+            for i,v in pairs(v.InvisibleWalls:GetChildren()) do
+                if v:FindFirstChild("Mesh") then
+                    v.Mesh:Destroy()
+                end
+                v.Transparency = 0.5
+            end
+        end
+        if v:FindFirstChild("LaserHitbox") then
+            for i,v in pairs(v.LaserHitbox:GetChildren()) do
+                if v:FindFirstChild("Mesh") then
+                    v.Mesh:Destroy()
+                end
+                v.Transparency = 0.5
+            end
+        end
+    end
+end)
+
+createButton(mainContent, "Hide Hitboxes", function()
+    for i,v in pairs(workspace.Plots:GetChildren()) do
+        if v:FindFirstChild("InvisibleWalls") then
+            for i,v in pairs(v.InvisibleWalls:GetChildren()) do
+                v.Transparency = 1
+            end
+        end
+        if v:FindFirstChild("LaserHitbox") then
+            for i,v in pairs(v.LaserHitbox:GetChildren()) do
+                v.Transparency = 1
+            end
+        end
+    end
+end)
+
+local noclipHitboxes = false
+createToggle(mainContent, "Noclip Hitboxes: OFF", "Noclip Hitboxes: ON", "Noclip Hitboxes: OFF", function()
+    noclipHitboxes = true
+    for i,v in pairs(workspace.Plots:GetChildren()) do
+        if v:FindFirstChild("InvisibleWalls") then
+            for i,v in pairs(v.InvisibleWalls:GetChildren()) do
+                v.CanCollide = false
+            end
+        end
+        if v:FindFirstChild("LaserHitbox") then
+            for i,v in pairs(v.LaserHitbox:GetChildren()) do
+                v.CanCollide = false
+            end
+        end
+    end
+end, function()
+    noclipHitboxes = false
+    for i,v in pairs(workspace.Plots:GetChildren()) do
+        if v:FindFirstChild("InvisibleWalls") then
+            for i,v in pairs(v.InvisibleWalls:GetChildren()) do
+                v.CanCollide = true
+            end
+        end
+        if v:FindFirstChild("LaserHitbox") then
+            for i,v in pairs(v.LaserHitbox:GetChildren()) do
+                v.CanCollide = true
+            end
+        end
+    end
+end)
+
+addCategory(mainContent, "Player Abilities")
+createButton(mainContent, "Infinite Jump", function()
+    local player = Players.LocalPlayer
+    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.JumpPower = 1000 -- Example value, adjust as needed
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "SOULS HUB",
+            Text = "Infinite Jump Enabled!",
+            Duration = 3
+        })
+    end
+end)
+
+createButton(mainContent, "God Mode", function()
+    local player = Players.LocalPlayer
+    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.MaxHealth = math.huge
+        humanoid.Health = math.huge
+        humanoid.Died:Connect(function() humanoid.Health = math.huge end)
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "SOULS HUB",
+            Text = "God Mode Enabled!",
+            Duration = 3
+        })
+    end
+end)
+
+createButton(mainContent, "Fast Button", function()
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "SOULS HUB",
+        Text = "Fast Button activated!",
+        Duration = 3
+    })
+end)
+
+createButton(mainContent, "Chase Nearest", function()
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "SOULS HUB",
+        Text = "Chase Nearest activated!",
+        Duration = 3
+    })
+end)
+
+createToggle(mainContent, "Fly [OP]: OFF", "Fly [OP]: ON", "Fly [OP]: OFF", function()
+    toggleFly(true)
+end, function()
+    toggleFly(false)
+end)
+
+createButton(mainContent, "Force Reset", function()
+    Players.LocalPlayer.Character:BreakJoints()
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "SOULS HUB",
+        Text = "Force Reset activated!",
+        Duration = 3
+    })
+end)
+
+createButton(mainContent, "Become Invisible", function()
+    local player = Players.LocalPlayer
+    if player.Character then
+        for _, part in pairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") or part:IsA("Decal") then
+                part.Transparency = 1
+            end
+        end
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "SOULS HUB",
+            Text = "Become Invisible activated!",
+            Duration = 3
+        })
+    end
+end)
+
+local flyEnabled = false
+local flySpeed = 50 -- Default fly speed
+
+local flySpeedLabel = Instance.new("TextLabel")
+flySpeedLabel.Name = "FlySpeedLabel"
+flySpeedLabel.Size = UDim2.new(0, 200, 0, 20)
+flySpeedLabel.Position = UDim2.new(0, 0, 0, (#mainContent:GetChildren() * 45) + 45)
+flySpeedLabel.BackgroundTransparency = 1
+flySpeedLabel.Text = "Fly Speed: " .. flySpeed
+flySpeedLabel.TextColor3 = Color3.new(1, 1, 1)
+flySpeedLabel.TextSize = 14
+flySpeedLabel.Font = Enum.Font.GothamBold
+flySpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
+flySpeedLabel.Parent = mainContent
+
+local flySpeedSlider = Instance.new("Frame")
+flySpeedSlider.Name = "FlySpeedSlider"
+flySpeedSlider.Size = UDim2.new(0, 200, 0, 10)
+flySpeedSlider.Position = UDim2.new(0, 0, 0, (#mainContent:GetChildren() * 45) + 50)
+flySpeedSlider.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+flySpeedSlider.Parent = mainContent
+
+local flySpeedHandle = Instance.new("Frame")
+flySpeedHandle.Name = "FlySpeedHandle"
+flySpeedHandle.Size = UDim2.new(0, 10, 0, 20)
+flySpeedHandle.Position = UDim2.new(0, 0, 0.5, -10)
+flySpeedHandle.BackgroundColor3 = Color3.fromRGB(70, 130, 255)
+flySpeedHandle.Parent = flySpeedSlider
+
+local draggingFlySpeed = false
+flySpeedHandle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingFlySpeed = true
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and draggingFlySpeed then
+        local mouseX = input.Position.X - flySpeedSlider.AbsolutePosition.X
+        local newX = math.clamp(mouseX, 0, flySpeedSlider.AbsoluteSize.X)
+        flySpeedHandle.Position = UDim2.new(0, newX, 0.5, -10)
+        flySpeed = math.floor((newX / flySpeedSlider.AbsoluteSize.X) * 99) + 1 -- Speed from 1 to 100
+        flySpeedLabel.Text = "Fly Speed: " .. flySpeed
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        draggingFlySpeed = false
+    end
+end)
+
+local function toggleFly(enabled)
+    flyEnabled = enabled
+    local player = Players.LocalPlayer
+    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        if enabled then
+            local bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            bodyVelocity.Parent = humanoid.Parent:FindFirstChild("HumanoidRootPart")
+
+            local function onRenderStepped()
+                if flyEnabled and humanoid.Parent then
+                    local rootPart = humanoid.Parent:FindFirstChild("HumanoidRootPart")
+                    if rootPart then
+                        local camera = workspace.CurrentCamera
+                        local moveVector = Vector3.new(0, 0, 0)
+
+                        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                            moveVector = moveVector + camera.CFrame.LookVector
+                        end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                            moveVector = moveVector - camera.CFrame.LookVector
+                        end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                            moveVector = moveVector - camera.CFrame.RightVector
+                        end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                            moveVector = moveVector + camera.CFrame.RightVector
+                        end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                            moveVector = moveVector + Vector3.new(0, 1, 0)
+                        end
+                        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                            moveVector = moveVector - Vector3.new(0, 1, 0)
+                        end
+
+                        bodyVelocity.Velocity = moveVector.unit * flySpeed
+                    end
+                else
+                    bodyVelocity:Destroy()
+                end
+            end
+            RunService.RenderStepped:Connect(onRenderStepped)
+        else
+            local rootPart = humanoid.Parent:FindFirstChild("HumanoidRootPart")
+            if rootPart and rootPart:FindFirstChildOfClass("BodyVelocity") then
+                rootPart:FindFirstChildOfClass("BodyVelocity"):Destroy()
+            end
+        end
+    end
+end
+
+-- ESP
+addCategory(espContent, "Player ESP")
+local espEnabled = false
+local espInstances = {}
+
+local function createPlayerESP(player)
+    if not espEnabled then return end
+    if player == Players.LocalPlayer then return end
+    
+    local character = player.Character
+    if not character then return end
+    
+    local humanoidRootPart = character:WaitForChild("HumanoidRootPart", 10)
+    if not humanoidRootPart then return end
+    
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESP_" .. player.Name
+    billboard.AlwaysOnTop = true
+    billboard.Size = UDim2.new(0, 60, 0, 10) -- Smaller size
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.Adornee = humanoidRootPart
+    billboard.Parent = humanoidRootPart
+    
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Name = "NameLabel"
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Text = player.Name
+    textLabel.TextColor3 = Color3.new(1, 1, 1) -- White color for players
+    textLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    textLabel.TextStrokeTransparency = 0
+    textLabel.TextScaled = true
+    textLabel.Font = Enum.Font.GothamBold
+    textLabel.Parent = billboard
+
+    local line = Instance.new("Part")
+    line.Name = "ESPLine"
+    line.Anchored = true
+    line.CanCollide = false
+    line.Size = Vector3.new(0.1, 0.1, 0.1)
+    line.Color = Color3.new(1, 1, 1) -- White color for lines
+    line.Transparency = 0.5
+    line.Parent = workspace
+
+    local function updateLine()
+        if character and humanoidRootPart and line and Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local rootPos = humanoidRootPart.Position
+            local playerPos = Players.LocalPlayer.Character.HumanoidRootPart.Position
+            local distance = (rootPos - playerPos).Magnitude
+            line.Size = Vector3.new(0.1, 0.1, distance)
+            line.CFrame = CFrame.new(playerPos, rootPos) * CFrame.new(0, 0, -distance / 2)
+        else
+            if line then line:Destroy() end
+        end
+    end
+
+    local connection = RunService.RenderStepped:Connect(updateLine)
+    
+    espInstances[player] = {billboard = billboard, line = line, connection = connection}
+    
+    local function onCharacterAdded(newCharacter)
+        if espInstances[player] then
+            espInstances[player].billboard:Destroy()
+            espInstances[player].line:Destroy()
+            espInstances[player].connection:Disconnect()
+            espInstances[player] = nil
+        end
+        
+humanoidRootPart = newCharacter:WaitForChild("HumanoidRootPart", 10)
+        if humanoidRootPart and espEnabled then
+            createPlayerESP(newCharacter.Parent)
+        end
+    end
+    
+    player.CharacterAdded:Connect(onCharacterAdded)
+end
+
+local function removePlayerESP(player)
+    local espInstance = espInstances[player]
+    if espInstance then
+        espInstance.billboard:Destroy()
+        espInstance.line:Destroy()
+        espInstance.connection:Disconnect()
+        espInstances[player] = nil
+    end
+end
+
+createToggle(espContent, "Player ESP: OFF", "Player ESP: ON", "Player ESP: OFF", function()
+    espEnabled = true
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= Players.LocalPlayer then
+            coroutine.wrap(function()
+                createPlayerESP(player)
+            end)()
+        end
+    end
+end, function()
+    espEnabled = false
+    for player, espInstance in pairs(espInstances) do
+        if espInstance then
+            espInstance.billboard:Destroy()
+            espInstance.line:Destroy()
+            espInstance.connection:Disconnect()
+        end
+    end
+    espInstances = {}
+end)
+
+addCategory(espContent, "Plot ESP")
+local activeLockTimeEsp = false
+local lteInstances = {}
+local plotName
+for _, plot in ipairs(workspace.Plots:GetChildren()) do
+    if plot:FindFirstChild("YourBase", true) and plot:FindFirstChild("YourBase", true).Enabled then
+        plotName = plot.Name
+        break
+    end
+end
+
+local function updatelock()
+    if not activeLockTimeEsp then
+        for _, instance in pairs(lteInstances) do
+            if instance then
+                instance.billboard:Destroy()
+                instance.line:Destroy()
+            end
+        end
+        lteInstances = {}
+        return
+    end
+
+    for _, plot in pairs(workspace.Plots:GetChildren()) do
+        local timeLabel = plot:FindFirstChild("Purchases", true) and 
+        plot.Purchases:FindFirstChild("PlotBlock", true) and
+        plot.Purchases.PlotBlock.Main:FindFirstChild("BillboardGui", true) and
+        plot.Purchases.PlotBlock.Main.BillboardGui:FindFirstChild("RemainingTime", true)
+        
+        if timeLabel and timeLabel:IsA("TextLabel") then
+            local espName = "LockTimeESP_" .. plot.Name
+            local existingBillboard = plot:FindFirstChild(espName)
+            
+            local isUnlocked = timeLabel.Text == "0s"
+            local displayText = isUnlocked and "Unlocked" or ("Lock: " .. timeLabel.Text)
+            
+            local textColor
+            if plot.Name == plotName then
+                textColor = isUnlocked and Color3.fromRGB(0, 255, 0)
+                            or Color3.fromRGB(0, 255, 0)
+            else
+                textColor = isUnlocked and Color3.fromRGB(220, 20, 60)
+                            or Color3.fromRGB(255, 255, 0)
+            end
+            
+            if not existingBillboard then
+                local billboard = Instance.new("BillboardGui")
+                billboard.Name = espName
+                billboard.AlwaysOnTop = true
+                billboard.Size = UDim2.new(0, 60, 0, 10) -- Smaller size
+                billboard.StudsOffset = Vector3.new(0, 5, 0)
+                billboard.Adornee = plot.Purchases.PlotBlock.Main
+                
+                local label = Instance.new("TextLabel")
+                label.Text = displayText
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.TextScaled = true
+                label.TextColor3 = textColor
+                label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                label.TextStrokeTransparency = 0
+                label.Font = Enum.Font.SourceSansBold
+                label.Parent = billboard
+                
+                billboard.Parent = plot
+
+                local line = Instance.new("Part")
+                line.Name = "ESPLine"
+                line.Anchored = true
+                line.CanCollide = false
+                line.Size = Vector3.new(0.1, 0.1, 0.1)
+                line.Color = textColor
+                line.Transparency = 0.5
+                line.Parent = workspace
+
+                local function updateLine()
+                    if plot.Purchases.PlotBlock.Main and line and Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        local plotPos = plot.Purchases.PlotBlock.Main.Position
+                        local playerPos = Players.LocalPlayer.Character.HumanoidRootPart.Position
+                        local distance = (plotPos - playerPos).Magnitude
+                        line.Size = Vector3.new(0.1, 0.1, distance)
+                        line.CFrame = CFrame.new(playerPos, plotPos) * CFrame.new(0, 0, -distance / 2)
+                    else
+                        if line then line:Destroy() end
+                    end
+                end
+
+                local connection = RunService.RenderStepped:Connect(updateLine)
+
+                lteInstances[plot.Name] = {billboard = billboard, line = line, connection = connection}
+            else
+                existingBillboard.TextLabel.Text = displayText
+                existingBillboard.TextLabel.TextColor3 = textColor
+                if lteInstances[plot.Name] and lteInstances[plot.Name].line then
+                    lteInstances[plot.Name].line.Color = textColor
+                end
+            end
+        end
+    end
+end
+
+createToggle(espContent, "Lock Time ESP: OFF", "Lock Time ESP: ON", "Lock Time ESP: OFF", function()
+    activeLockTimeEsp = true
+    task.spawn(function()
+        while activeLockTimeEsp do
+            task.wait(0.25)
+            updatelock()
+        end
+    end)
+end, function()
+    activeLockTimeEsp = false
+    updatelock()
+end)
+
+local RaritySettings = {
+    ["Legendary"] = {
+        Color = Color3.fromRGB(255, 165, 0), -- Orange
+        Size = UDim2.new(0, 80, 0, 15) -- Larger size
+    },
+    ["Mythic"] = {
+        Color = Color3.fromRGB(148, 0, 211), -- Dark Violet
+        Size = UDim2.new(0, 80, 0, 15) -- Larger size
+    },
+    ["Brainrot God"] = {
+        Color = Color3.fromRGB(128, 128, 128), -- Grey
+        Size = UDim2.new(0, 60, 0, 10) -- Smaller size
+    },
+    ["Secret"] = {
+        Color = Color3.new(0, 0, 0), -- Black (as per original, but will be changed to rainbow)
+        Size = UDim2.new(0, 60, 0, 10) -- Smaller size
+    }
+}
+
+local MutationSettings = {
+    ["Gold"] = {
+        Color = Color3.fromRGB(255, 215, 0),
+        Size = UDim2.new(0, 60, 0, 10)
+    },
+
+    ["Diamond"] = {
+        Color = Color3.fromRGB(0, 191, 255),
+        Size = UDim2.new(0, 60, 0, 10)
+    },
+
+    ["Rainbow"] = {
+        Color = Color3.fromRGB(255, 192, 203), -- This will be handled with a rainbow effect
+        Size = UDim2.new(0, 60, 0, 10)
+    },
+
+    ["Bloodrot"] = {
+        Color = Color3.fromRGB(139, 0, 0),
+        Size = UDim2.new(0, 60, 0, 10)
+    }
+}
+
+local activeRESP = {}
+local respInstances = {}
+
+local function updateRESP()
+    for _, plot in pairs(workspace.Plots:GetChildren()) do
+        if plot.Name ~= plotName then
+            for _, child in pairs(plot:GetDescendants()) do
+                if child.Name == "Rarity" and child:IsA("TextLabel") and RaritySettings[child.Text] then
+                    local parentModel = child.Parent.Parent
+                    local espName = child.Text.."_ESP"
+                    local mutationEspName = "Mutation_ESP"
+                    
+                    local existingRespInstance = respInstances[parentModel]
+
+                    local rarityColor = RaritySettings[child.Text].Color
+                    if child.Text == "Secret" then -- Rainbow effect for Secret
+                        rarityColor = Color3.fromHSV(tick() % 1, 1, 1)
+                    end
+
+                    if activeRESP[child.Text] then
+                        if not existingRespInstance then
+                            local billboard = Instance.new("BillboardGui")
+                            billboard.Name = espName
+                            billboard.AlwaysOnTop = true
+                            billboard.Size = RaritySettings[child.Text].Size
+                            billboard.StudsOffset = Vector3.new(0, 3, 0)
+                            
+                            local label = Instance.new("TextLabel")
+                            label.Text = child.Parent.Name
+                            label.Size = UDim2.new(1, 0, 1, 0)
+                            label.BackgroundTransparency = 1
+                            label.TextScaled = true
+                            label.TextColor3 = rarityColor
+                            label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                            label.TextStrokeTransparency = 0
+                            label.Font = Enum.Font.GothamBold
+                            label.Parent = billboard
+
+                            local line = Instance.new("Part")
+                            line.Name = "ESPLine"
+                            line.Anchored = true
+                            line.CanCollide = false
+                            line.Size = Vector3.new(0.1, 0.1, 0.1)
+                            line.Color = rarityColor
+                            line.Transparency = 0.5
+                            line.Parent = workspace
+
+                            local function updateLine()
+                                if parentModel and line and Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                                    local modelPos = parentModel.PrimaryPart.Position
+                                    local playerPos = Players.LocalPlayer.Character.HumanoidRootPart.Position
+                                    local distance = (modelPos - playerPos).Magnitude
+                                    line.Size = Vector3.new(0.1, 0.1, distance)
+                                    line.CFrame = CFrame.new(playerPos, modelPos) * CFrame.new(0, 0, -distance / 2)
+                                else
+                                    if line then line:Destroy() end
+                                end
+                            end
+
+                            local connection = RunService.RenderStepped:Connect(updateLine)
+
+                            respInstances[parentModel] = {billboard = billboard, line = line, connection = connection}
+                            billboard.Parent = parentModel
+                        else
+                            existingRespInstance.billboard.TextLabel.TextColor3 = rarityColor
+                            existingRespInstance.line.Color = rarityColor
+                        end
+                    else
+                        if existingRespInstance then
+                            existingRespInstance.billboard:Destroy()
+                            existingRespInstance.line:Destroy()
+                            existingRespInstance.connection:Disconnect()
+                            respInstances[parentModel] = nil
+                        end
+                    end
+                end
+
+                if child.Name == "Mutation" and child:IsA("TextLabel") and MutationSettings[child.Text] then
+                    local parentModel = child.Parent.Parent
+                    local mutationEspName = child.Text.."_MutationESP"
+
+                    local existingMutationRespInstance = respInstances[parentModel .. "_Mutation"]
+
+                    local mutationColor = MutationSettings[child.Text].Color
+                    if child.Text == "Rainbow" then
+                        mutationColor = Color3.fromHSV(tick() % 1, 1, 1)
+                    end
+
+                    if activeRESP["Mutation"] then
+                        if not existingMutationRespInstance then
+                            local billboard = Instance.new("BillboardGui")
+                            billboard.Name = mutationEspName
+                            billboard.AlwaysOnTop = true
+                            billboard.Size = MutationSettings[child.Text].Size
+                            billboard.StudsOffset = Vector3.new(0, 5, 0)
+
+                            local label = Instance.new("TextLabel")
+                            label.Text = child.Text
+                            label.Size = UDim2.new(1, 0, 1, 0)
+                            label.BackgroundTransparency = 1
+                            label.TextScaled = true
+                            label.TextColor3 = mutationColor
+                            label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                            label.TextStrokeTransparency = 0
+                            label.Font = Enum.Font.GothamBold
+                            label.Parent = billboard
+
+                            local line = Instance.new("Part")
+                            line.Name = "MutationESPLine"
+                            line.Anchored = true
+                            line.CanCollide = false
+                            line.Size = Vector3.new(0.1, 0.1, 0.1)
+                            line.Color = mutationColor
+                            line.Transparency = 0.5
+                            line.Parent = workspace
+
+                            local function updateLine()
+                                if parentModel and line and Players.LocalPlayer.Character and Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                                    local modelPos = parentModel.PrimaryPart.Position
+                                    local playerPos = Players.LocalPlayer.Character.HumanoidRootPart.Position
+                                    local distance = (modelPos - playerPos).Magnitude
+                                    line.Size = Vector3.new(0.1, 0.1, distance)
+                                    line.CFrame = CFrame.new(playerPos, modelPos) * CFrame.new(0, 0, -distance / 2)
+                                else
+                                    if line then line:Destroy() end
+                                end
+                            end
+
+                            local connection = RunService.RenderStepped:Connect(updateLine)
+
+                            respInstances[parentModel .. "_Mutation"] = {billboard = billboard, line = line, connection = connection}
+                            billboard.Parent = parentModel
+                        else
+                            existingMutationRespInstance.billboard.TextLabel.TextColor3 = mutationColor
+                            existingMutationRespInstance.line.Color = mutationColor
+                        end
+                    else
+                        if existingMutationRespInstance then
+                            existingMutationRespInstance.billboard:Destroy()
+                            existingMutationRespInstance.line:Destroy()
+                            existingMutationRespInstance.connection:Disconnect()
+                            respInstances[parentModel .. "_Mutation"] = nil
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+createToggle(espContent, "Legendary ESP: OFF", "Legendary ESP: ON", "Legendary ESP: OFF", function()
+    activeRESP["Legendary"] = true
+    task.spawn(function()
+        while activeRESP["Legendary"] do
+            task.wait(0.25)
+            updateRESP()
+        end
+    end)
+end, function()
+    activeRESP["Legendary"] = false
+    updateRESP()
+end)
+
+createToggle(espContent, "Mythic ESP: OFF", "Mythic ESP: ON", "Mythic ESP: OFF", function()
+    activeRESP["Mythic"] = true
+    task.spawn(function()
+        while activeRESP["Mythic"] do
+            task.wait(0.25)
+            updateRESP()
+        end
+    end)
+end, function()
+    activeRESP["Mythic"] = false
+    updateRESP()
+end)
+
+createToggle(espContent, "Brainrot God ESP: OFF", "Brainrot God ESP: ON", "Brainrot God ESP: OFF", function()
+    activeRESP["Brainrot God"] = true
+    task.spawn(function()
+        while activeRESP["Brainrot God"] do
+            task.wait(0.25)
+            updateRESP()
+        end
+    end)
+end, function()
+    activeRESP["Brainrot God"] = false
+    updateRESP()
+end)
+
+createToggle(espContent, "Secret ESP: OFF", "Secret ESP: ON", "Secret ESP: OFF", function()
+    activeRESP["Secret"] = true
+    task.spawn(function()
+        while activeRESP["Secret"] do
+            task.wait(0.25)
+            updateRESP()
+        end
+    end)
+end, function()
+    activeRESP["Secret"] = false
+    updateRESP()
+end)
+
+createToggle(espContent, "Mutation ESP: OFF", "Mutation ESP: ON", "Mutation ESP: OFF", function()
+    activeRESP["Mutation"] = true
+    task.spawn(function()
+        while activeRESP["Mutation"] do
+            task.wait(0.25)
+            updateRESP()
+        end
+    end)
+end, function()
+    activeRESP["Mutation"] = false
+    updateRESP()
+end)
+
+
+
+
