@@ -1,0 +1,2290 @@
+-- too lazy to convert this shit ai script into human made
+-- Rin can you do it
+-- do it yourself I am working on snuffy
+-- fine I will just fix something not removing these comments just fix the function ts too big I hate ai I told him to fix if autoBuyTathe script and it just nvm
+
+-- SOULS HUB FINAL FIXED V6 - NO ERRORS VERSION
+-- Complete working version for mobile executors
+
+-- Services
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualUser = game:GetService("VirtualUser")
+local TeleportService = game:GetService("TeleportService")
+local SoundService = game:GetService("SoundService")
+local savedFarmPosition = nil
+local HumanoidRootPart = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+
+-- Player Setup
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Backpack = LocalPlayer:WaitForChild("Backpack")
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Humanoid = Character:WaitForChild("Humanoid")
+
+-- Game References
+local GameEvents = ReplicatedStorage:WaitForChild("GameEvents")
+local Plant_RE = GameEvents:WaitForChild("Plant_RE")
+local Sell_Inventory = GameEvents:WaitForChild("Sell_Inventory")
+local BuySeedStock = GameEvents:WaitForChild("BuySeedStock")
+local BuyGearStock = GameEvents:WaitForChild("BuyGearStock")
+local Farms = workspace:WaitForChild("Farm")
+
+-- Character Update Hook
+LocalPlayer.CharacterAdded:Connect(function(char)
+    Character = char
+    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+    Humanoid = Character:WaitForChild("Humanoid")
+end)
+
+-- Farm Variables
+local MyFarm, MyImportant, PlantLocations, PlantsPhysical, Dirt
+local farmX1, farmX2, farmZ1, farmZ2
+local currentSeed = ""
+local autoPlant = false
+local autoPlantRandom = false
+local autoHarvest = false
+local selectedBuySeed = ""
+local autoBuy = false
+local autoSell = false
+local sellThreshold = 15
+local noClip = false
+local dupeMode = false
+
+-- Shop Monitor Variables
+local targetSeed = ""
+local targetGear = ""
+local targetSeedQuantity = 1
+local targetGearQuantity = 1
+local autoBuyTargetSeed = false
+local autoBuyTargetGear = false
+local notifyTargetSeed = false
+local notifyTargetGear = false
+local notificationActive = false
+local notificationStartTime = 0
+
+-- SEED LIST
+local seedList = {
+    "Carrot",
+    "Strawberry Seed",
+    "Blueberry Seed", 
+    "Tomato Seed",
+    "Cauliflower Seed",
+    "Watermelon Seed",
+    "Rafflesia Seed",
+    "Green Apple Seed",
+    "Avocado Seed",
+    "Banana Seed",
+    "Pineapple Seed",
+    "Kiwi Seed",
+    "Bell Pepper Seed",
+    "Prickly Pear Seed",
+    "Loquat Seed"
+}
+
+-- Basic gear list
+local allGears = {
+    "Watering Can", 
+    "Fertilizer", 
+    "Shovel", 
+    "Seeds Bag", 
+    "Harvest Bag",
+    "Golden Watering Can", 
+    "Super Fertilizer",
+    "Magic Shovel",
+    "Trowel",
+    "Recall Wrench",
+    "Basic Sprinkler",
+    "Advance Sprinkler",
+    "Godly Sprinkler",
+    "Magnifying Glass",
+    "Tanning Mirror",
+    "Master Sprinkler", 
+    "Cleaning Spray", 
+    "Favorite Tool",
+    "Harvest Tool",
+    "Friendship Pot"
+}
+
+-- Sound Effects for Notifications
+local function playNotificationSound()
+    pcall(function()
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxasset://sounds/electronicpingshort.wav"
+        sound.Volume = 0.5
+        sound.Parent = SoundService
+        sound:Play()
+        sound.Ended:Connect(function()
+            sound:Destroy()
+        end)
+    end)
+end
+
+-- Notification System
+local function showNotification(title, text, duration)
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = duration or 5
+        })
+    end)
+end
+
+-- UI Cleanup
+pcall(function()
+    if PlayerGui:FindFirstChild("SOULS_HUB") then
+        PlayerGui.SOULS_HUB:Destroy()
+    end
+end)
+
+-- Main UI Setup
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SOULS_HUB"
+screenGui.Parent = PlayerGui
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 700, 0, 380)
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.ZIndex = 1
+mainFrame.Visible = false
+mainFrame.Parent = screenGui
+
+local outline = Instance.new("UIStroke")
+outline.Color = Color3.new(1, 1, 1)
+outline.Thickness = 2
+outline.Transparency = 0.1
+outline.Parent = mainFrame
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 16)
+corner.Parent = mainFrame
+
+local gradient = Instance.new("UIGradient")
+gradient.Rotation = 90
+gradient.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 0.6),
+    NumberSequenceKeypoint.new(1, 0.8)
+})
+gradient.Parent = mainFrame
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleButton"
+toggleBtn.Size = UDim2.new(0, 140, 0, 40)
+toggleBtn.Position = UDim2.new(0.5, -70, 0, 20)
+toggleBtn.AnchorPoint = Vector2.new(0.5, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+toggleBtn.BackgroundTransparency = 0.3
+toggleBtn.Text = "TOGGLE MENU"
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 14
+toggleBtn.Visible = false
+toggleBtn.ZIndex = 10
+toggleBtn.Parent = screenGui
+
+local toggleTextOutline = Instance.new("UIStroke")
+toggleTextOutline.Color = Color3.new(0, 0, 0)
+toggleTextOutline.Thickness = 1
+toggleTextOutline.Transparency = 0
+toggleTextOutline.Parent = toggleBtn
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 12)
+toggleCorner.Parent = toggleBtn
+
+local toggleOutline = Instance.new("UIStroke")
+toggleOutline.Color = Color3.new(1, 1, 1)
+toggleOutline.Thickness = 1
+toggleOutline.Transparency = 0.2
+toggleOutline.Parent = toggleBtn
+
+-- Dragging Function
+local function makeDraggable(frame)
+    local dragging = false
+    local dragInput, dragStart, startPos
+
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+        end
+    end)
+
+    frame.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+            dragInput = nil
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            dragInput = input
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+makeDraggable(mainFrame)
+makeDraggable(toggleBtn)
+
+-- Close Button
+local closeBtn = Instance.new("TextButton")
+closeBtn.Name = "CloseButton"
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -35, 0, 10)
+closeBtn.AnchorPoint = Vector2.new(1, 0)
+closeBtn.BackgroundTransparency = 1
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.TextSize = 20
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.ZIndex = 3
+closeBtn.Parent = mainFrame
+
+local closeTextOutline = Instance.new("UIStroke")
+closeTextOutline.Color = Color3.new(0, 0, 0)
+closeTextOutline.Thickness = 1
+closeTextOutline.Transparency = 0
+closeTextOutline.Parent = closeBtn
+
+-- Title
+local titleText = Instance.new("TextLabel")
+titleText.Name = "Title"
+titleText.Size = UDim2.new(0, 250, 0, 30)
+titleText.Position = UDim2.new(0, 20, 0, 10)
+titleText.BackgroundTransparency = 1
+titleText.Text = "SOULS HUB | GROW A GARDEN"
+titleText.TextColor3 = Color3.new(1, 1, 1)
+titleText.TextSize = 20
+titleText.Font = Enum.Font.GothamBold
+titleText.TextXAlignment = Enum.TextXAlignment.Left
+titleText.ZIndex = 2
+titleText.Parent = mainFrame
+
+local titleTextOutline = Instance.new("UIStroke")
+titleTextOutline.Color = Color3.new(0, 0, 0)
+titleTextOutline.Thickness = 1
+titleTextOutline.Transparency = 0
+titleTextOutline.Parent = titleText
+
+-- Separators
+local topSeparator = Instance.new("Frame")
+topSeparator.Name = "TopSeparator"
+topSeparator.Size = UDim2.new(1, -40, 0, 1)
+topSeparator.Position = UDim2.new(0, 20, 0, 50)
+topSeparator.BackgroundColor3 = Color3.new(1, 1, 1)
+topSeparator.BorderSizePixel = 0
+topSeparator.ZIndex = 2
+topSeparator.Parent = mainFrame
+
+local verticalSeparator = Instance.new("Frame")
+verticalSeparator.Name = "VerticalSeparator"
+verticalSeparator.Size = UDim2.new(0, 1, 1, -120)
+verticalSeparator.Position = UDim2.new(0, 170, 0, 70)
+verticalSeparator.BackgroundColor3 = Color3.new(1, 1, 1)
+verticalSeparator.BorderSizePixel = 0
+verticalSeparator.ZIndex = 2
+verticalSeparator.Parent = mainFrame
+
+-- Tab Container (Scrollable)
+local tabContainer = Instance.new("ScrollingFrame")
+tabContainer.Name = "Tabs"
+tabContainer.Size = UDim2.new(0, 150, 0, 280)
+tabContainer.Position = UDim2.new(0, 15, 0, 70)
+tabContainer.BackgroundTransparency = 1
+tabContainer.ScrollBarThickness = 4
+tabContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+tabContainer.ZIndex = 2
+tabContainer.Parent = mainFrame
+
+-- Content Container
+local contentContainer = Instance.new("Frame")
+contentContainer.Name = "Content"
+contentContainer.Size = UDim2.new(0, 500, 0, 280)
+contentContainer.Position = UDim2.new(1, -515, 0, 70)
+contentContainer.BackgroundTransparency = 1
+contentContainer.ZIndex = 2
+contentContainer.Parent = mainFrame
+
+-- Tab Creation Function
+local function createTab(tabName)
+    local tab = Instance.new("TextButton")
+    tab.Name = tabName
+    tab.Size = UDim2.new(0, 140, 0, 30)
+    tab.Position = UDim2.new(0, 0, 0, #tabContainer:GetChildren() * 35)
+    tab.BackgroundTransparency = 1
+    tab.Text = tabName
+    tab.TextColor3 = Color3.new(1, 1, 1)
+    tab.TextSize = 18
+    tab.Font = Enum.Font.GothamBold
+    tab.TextTransparency = 0.5
+    tab.ZIndex = 3
+
+    local tabTextOutline = Instance.new("UIStroke")
+    tabTextOutline.Color = Color3.new(0, 0, 0)
+    tabTextOutline.Thickness = 1
+    tabTextOutline.Transparency = 0.5
+    tabTextOutline.Parent = tab
+
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.new(1, 1, 1)
+    outline.Thickness = 1
+    outline.Transparency = 0.5
+    outline.Parent = tab
+
+    local content = Instance.new("ScrollingFrame")
+    content.Name = tabName.."Content"
+    content.Size = UDim2.new(1, 0, 1, 0)
+    content.BackgroundTransparency = 1
+    content.Visible = false
+    content.ScrollBarThickness = 5
+    content.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    content.ZIndex = 2
+    content.Parent = contentContainer
+
+    tab.Parent = tabContainer
+    return tab, content
+end
+
+-- UI Component Functions
+local function addCategory(parent, text)
+    local category = Instance.new("TextLabel")
+    category.Name = text.."Category"
+    category.Size = UDim2.new(0, 200, 0, 20)
+    category.Position = UDim2.new(0, 0, 0, #parent:GetChildren() * 45)
+    category.BackgroundTransparency = 1
+    category.Text = text
+    category.TextColor3 = Color3.new(1, 1, 1)
+    category.TextSize = 16
+    category.Font = Enum.Font.GothamBold
+    category.TextXAlignment = Enum.TextXAlignment.Left
+    category.ZIndex = 3
+    category.Parent = parent
+
+    local categoryTextOutline = Instance.new("UIStroke")
+    categoryTextOutline.Color = Color3.new(0, 0, 0)
+    categoryTextOutline.Thickness = 1
+    categoryTextOutline.Transparency = 0
+    categoryTextOutline.Parent = category
+    
+    return category -- This is the only line added
+end
+
+local function createButton(parent, buttonText, func)
+    local button = Instance.new("TextButton")
+    button.Name = buttonText
+    button.Size = UDim2.new(0, 200, 0, 40)
+    button.Position = UDim2.new(0, 0, 0, #parent:GetChildren() * 45)
+    button.BackgroundTransparency = 1
+    button.Text = buttonText
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 14
+    button.ZIndex = 3
+
+    local buttonTextOutline = Instance.new("UIStroke")
+    buttonTextOutline.Color = Color3.new(0, 0, 0)
+    buttonTextOutline.Thickness = 1
+    buttonTextOutline.Transparency = 0.3
+    buttonTextOutline.Parent = button
+
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.new(1, 1, 1)
+    outline.Thickness = 1
+    outline.Transparency = 0.3
+    outline.Parent = button
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = button
+
+    button.MouseButton1Click:Connect(function()
+        if func then pcall(func) end
+    end)
+
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {
+            BackgroundTransparency = 0.85,
+            TextColor3 = Color3.new(0.9, 0.9, 0.9)
+        }):Play()
+    end)
+
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {
+            BackgroundTransparency = 1,
+            TextColor3 = Color3.new(1, 1, 1)
+        }):Play()
+    end)
+
+    button.Parent = parent
+    return button
+end
+
+local function createToggle(parent, defaultText, onText, offText, onFunction, offFunction)
+    local toggleEnabled = false
+    local toggleButton = Instance.new("TextButton")
+    toggleButton.Name = "ToggleButton"
+    toggleButton.Size = UDim2.new(0, 200, 0, 40)
+    toggleButton.Position = UDim2.new(0, 0, 0, #parent:GetChildren() * 45)
+    toggleButton.BackgroundTransparency = 1
+    toggleButton.Text = defaultText or "TOGGLE"
+    toggleButton.TextColor3 = Color3.new(1, 1, 1)
+    toggleButton.Font = Enum.Font.GothamBold
+    toggleButton.TextSize = 14
+    toggleButton.ZIndex = 3
+
+    local toggleTextOutline = Instance.new("UIStroke")
+    toggleTextOutline.Color = Color3.new(0, 0, 0)
+    toggleTextOutline.Thickness = 1
+    toggleTextOutline.Transparency = 0.3
+    toggleTextOutline.Parent = toggleButton
+
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.new(1, 1, 1)
+    outline.Thickness = 1
+    outline.Transparency = 0.3
+    outline.Parent = toggleButton
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = toggleButton
+
+    toggleButton.MouseEnter:Connect(function()
+        TweenService:Create(toggleButton, TweenInfo.new(0.2), {
+            BackgroundTransparency = 0.85,
+            TextColor3 = Color3.new(0.9, 0.9, 0.9)
+        }):Play()
+    end)
+
+    toggleButton.MouseLeave:Connect(function()
+        TweenService:Create(toggleButton, TweenInfo.new(0.2), {
+            BackgroundTransparency = 1,
+            TextColor3 = Color3.new(1, 1, 1)
+        }):Play()
+    end)
+
+    toggleButton.MouseButton1Click:Connect(function()
+        toggleEnabled = not toggleEnabled
+        if toggleEnabled then
+            toggleButton.Text = onText or "ON"
+            if onFunction then pcall(onFunction) end
+        else
+            toggleButton.Text = offText or "OFF"
+            if offFunction then pcall(offFunction) end
+        end
+    end)
+
+    toggleButton.Parent = parent
+    return toggleButton
+end
+
+local function createTextBox(parent, placeholder, callback)
+    local textBox = Instance.new("TextBox")
+    textBox.Name = "TextBox"
+    textBox.Size = UDim2.new(0, 200, 0, 30)
+    textBox.Position = UDim2.new(0, 0, 0, #parent:GetChildren() * 45)
+    textBox.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    textBox.BackgroundTransparency = 0.3
+    textBox.Text = ""
+    textBox.PlaceholderText = placeholder
+    textBox.TextColor3 = Color3.new(1, 1, 1)
+    textBox.PlaceholderColor3 = Color3.new(0.7, 0.7, 0.7)
+    textBox.TextSize = 14
+    textBox.Font = Enum.Font.Gotham
+    textBox.ZIndex = 3
+    textBox.Parent = parent
+
+    local textCorner = Instance.new("UICorner")
+    textCorner.CornerRadius = UDim.new(0, 8)
+    textCorner.Parent = textBox
+
+    local textOutline = Instance.new("UIStroke")
+    textOutline.Color = Color3.new(1, 1, 1)
+    textOutline.Thickness = 1
+    textOutline.Transparency = 0.5
+    textOutline.Parent = textBox
+
+    if callback then
+        textBox.FocusLost:Connect(function()
+            callback(textBox.Text)
+        end)
+    end
+
+    return textBox
+end
+
+-- CORE FUNCTIONS
+
+-- Farm Initialization
+local function InitializeFarmData()
+    pcall(function()
+        for _, FarmInstance in ipairs(Farms:GetChildren()) do
+            local Important = FarmInstance:FindFirstChild("Important")
+            if Important then
+                local Data = Important:FindFirstChild("Data")
+                if Data then
+                    local Owner = Data:FindFirstChild("Owner")
+                    if Owner and Owner.Value == LocalPlayer.Name then
+                        MyFarm = FarmInstance
+                        MyImportant = Important
+                        PlantLocations = Important:FindFirstChild("Plant_Locations")
+                        PlantsPhysical = Important:FindFirstChild("Plants_Physical")
+                        if PlantLocations then
+                            Dirt = PlantLocations:FindFirstChildOfClass("Part")
+                            if Dirt then
+                                local pos = Dirt.Position
+                                local size = Dirt.Size
+                                farmX1, farmX2 = pos.X - size.X/2, pos.X + size.X/2
+                                farmZ1, farmZ2 = pos.Z - size.Z/2, pos.Z + size.Z/2
+                            end
+                        end
+                        break
+                    end
+                end
+            end
+        end
+    end)
+end
+
+-- Plant Functio
+
+-- Your toggle UI
+local function HarvestPlant(PlantInstance)
+    pcall(function()
+        local Prompt = PlantInstance:FindFirstChild("ProximityPrompt", true)
+        if Prompt and Prompt.Enabled then
+            fireproximityprompt(Prompt)
+            task.wait(0.05)
+        end
+    end)
+end
+
+local function CanHarvest(PlantInstance)
+    local Prompt = PlantInstance:FindFirstChild("ProximityPrompt", true)
+    return Prompt and Prompt.Enabled
+end
+
+local function CollectHarvestable(Parent, PlantsTable)
+    pcall(function()
+        local PlayerPosition = HumanoidRootPart.Position
+        for _, ChildInstance in ipairs(Parent:GetChildren()) do
+            if ChildInstance:IsA("Model") then
+                local Fruits = ChildInstance:FindFirstChild("Fruits")
+                if Fruits then CollectHarvestable(Fruits, PlantsTable) end
+                
+                local PlantPrimaryPart = ChildInstance.PrimaryPart or ChildInstance:FindFirstChildWhichIsA("BasePart")
+                if not PlantPrimaryPart then continue end
+
+                local PlantPosition = PlantPrimaryPart.Position
+                local Distance = (PlayerPosition - PlantPosition).Magnitude
+                if Distance > 50 then continue end
+                
+                if CanHarvest(ChildInstance) then
+                    table.insert(PlantsTable, ChildInstance)
+                end
+            end
+        end
+    end)
+    return PlantsTable
+end
+
+local function GetHarvestablePlants()
+    local Plants = {}
+    if not PlantsPhysical then InitializeFarmData() end
+    if PlantsPhysical then
+        CollectHarvestable(PlantsPhysical, Plants)
+    end
+    return Plants
+end
+
+local function HarvestAllPlantsFunction()
+    pcall(function()
+        if not PlantsPhysical then InitializeFarmData() end
+        if not PlantsPhysical then return end
+
+        local plantsToHarvest = GetHarvestablePlants()
+        for _, PlantInstance in ipairs(plantsToHarvest) do
+            HarvestPlant(PlantInstance)
+            task.wait(0.05)
+        end
+    end)
+end
+
+-- FIXED: Seed Spawner using correct farm path
+local function SpawnSeed(seedName)
+    local success = pcall(function()
+        local cleanSeedName = seedName:gsub(" Seed", "")
+        
+        -- Search through all farms for the seed model
+        local seedModel = nil
+        for _, farm in ipairs(Farms:GetChildren()) do
+            local important = farm:FindFirstChild("Important")
+            if important then
+                local plantsPhysical = important:FindFirstChild("Plants_Physical")
+                if plantsPhysical then
+                    seedModel = plantsPhysical:FindFirstChild(cleanSeedName)
+                    if seedModel then
+                        break
+                    end
+                end
+            end
+        end
+        
+        if seedModel then
+            local tool = Instance.new("Tool")
+            tool.Parent = Backpack
+            tool.Name = seedName .. " [X1]"
+            tool.RequiresHandle = true
+            tool.CanBeDropped = true
+            
+            tool.GripPos = Vector3.new(0.2, -0.45, 0.23)
+            tool.GripRight = Vector3.new(1, 0, 0)
+            tool.GripUp = Vector3.new(0, 1, 0)
+            tool.GripForward = Vector3.new(0, 0, -1)
+
+            local handle = seedModel:Clone()
+            handle.Name = "Handle"
+            handle.Parent = tool
+            handle.CanCollide = false
+            handle.Anchored = false
+            handle.Transparency = 0
+            
+            if handle.Size.Magnitude < 0.5 then
+                handle.Size = Vector3.new(1, 1, 1)
+            end
+
+            local plantName = Instance.new("StringValue")
+            plantName.Name = "Plant_Name"
+            plantName.Value = cleanSeedName
+            plantName.Parent = tool
+
+            local count = Instance.new("IntValue")
+            count.Name = "Count"
+            count.Value = 1
+            count.Parent = tool
+
+            task.wait(0.1)
+            if tool.Parent == Backpack and Humanoid then
+                Humanoid:EquipTool(tool)
+                task.wait(0.2)
+                if not tool.Parent:IsA("Model") then
+                    tool.Parent = Character
+                    Humanoid:EquipTool(tool)
+                end
+            end
+
+            return true
+        else
+            return false
+        end
+    end)
+    return success
+end
+
+-- Shop Stock Functions
+local function GetSeedStock()
+    local seedStock = {}
+    pcall(function()
+        local seedShop = PlayerGui:FindFirstChild("Seed_Shop")
+        if seedShop then
+            local scrollFrame = seedShop:FindFirstChild("Frame")
+            if scrollFrame then
+                scrollFrame = scrollFrame:FindFirstChild("ScrollingFrame")
+                if scrollFrame then
+                    for _, item in ipairs(scrollFrame:GetChildren()) do
+                        if item:IsA("Frame") and item.Name ~= "UIListLayout" then
+                            local mainFrame = item:FindFirstChild("Main_Frame")
+                            if mainFrame then
+                                local stockText = mainFrame:FindFirstChild("Stock_Text")
+                                if stockText then
+                                    local stock = tonumber(stockText.Text:match("%d+")) or 0
+                                    seedStock[item.Name] = stock
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    return seedStock
+end
+
+local function GetGearStock()
+    local gearStock = {}
+    pcall(function()
+        local gearShop = PlayerGui:FindFirstChild("Gear_Shop")
+        if gearShop then
+            local scrollFrame = gearShop:FindFirstChild("Frame")
+            if scrollFrame then
+                scrollFrame = scrollFrame:FindFirstChild("ScrollingFrame")
+                if scrollFrame then
+                    for _, item in ipairs(scrollFrame:GetChildren()) do
+                        if item:IsA("Frame") and item.Name ~= "UIListLayout" then
+                            local mainFrame = item:FindFirstChild("Main_Frame")
+                            if mainFrame then
+                                local stockText = mainFrame:FindFirstChild("Stock_Text")
+                                if stockText then
+                                    local stock = tonumber(stockText.Text:match("%d+")) or 0
+                                    gearStock[item.Name] = stock
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+    return gearStock
+end
+
+-- Notification Sound Loop
+local notificationCoroutine = nil
+local function startNotificationSounds()
+    if notificationCoroutine then
+        coroutine.close(notificationCoroutine)
+    end
+    
+    notificationActive = true
+    notificationStartTime = tick()
+    
+    notificationCoroutine = coroutine.create(function()
+        while notificationActive and (tick() - notificationStartTime) < 30 do
+            playNotificationSound()
+            task.wait(1)
+        end
+        notificationActive = false
+    end)
+    
+    coroutine.resume(notificationCoroutine)
+end
+
+local function stopNotificationSounds()
+    notificationActive = false
+    if notificationCoroutine then
+        coroutine.close(notificationCoroutine)
+        notificationCoroutine = nil
+    end
+end
+
+-- Shop Monitoring Function
+local function MonitorShops()
+    pcall(function()
+        -- Update both displays first
+        UpdateStockDisplay()
+        
+        local seedStock = GetSeedStock()
+        local gearStock = GetGearStock()
+        
+        -- Check target seed
+        if targetSeed ~= "" then
+            local stock = seedStock[targetSeed] or 0
+            if stock > 0 then
+                if autoBuyTargetSeed then
+                    local buyAmount = math.min(stock, targetSeedQuantity)
+                    local cleanSeedName = targetSeed:gsub(" Seed", "")
+                    for i = 1, buyAmount do
+                        BuySeedStock:FireServer(cleanSeedName)
+                        task.wait(0.1)
+                    end
+                    showNotification("Auto Buy", "Bought " .. buyAmount .. "x " .. targetSeed, 3)
+                    startNotificationSounds()
+                elseif notifyTargetSeed then
+                    showNotification("Seed In Stock!", targetSeed .. " is available! Stock: " .. stock, 5)
+                    startNotificationSounds()
+                end
+            end
+        end
+        
+        -- Check target gear
+        if targetGear ~= "" then
+            local stock = gearStock[targetGear] or 0
+            if stock > 0 then
+                if autoBuyTargetGear then
+                    local buyAmount = math.min(stock, targetGearQuantity)
+                    for i = 1, buyAmount do
+                        BuyGearStock:FireServer(targetGear)
+                        task.wait(0.1)
+                    end
+                    showNotification("Auto Buy", "Bought " .. buyAmount .. "x " .. targetGear, 3)
+                    startNotificationSounds()
+                elseif notifyTargetGear then
+                    showNotification("Gear In Stock!", targetGear .. " is available! Stock: " .. stock, 5)
+                    startNotificationSounds()
+                end
+            end
+        end
+    end)
+end
+
+-- Other Functions
+-- Add this at the top with your other variables (around line 50)
+local savedFarmPosition = nil
+
+-- Modify your TeleportToFarm function (around line 590)
+local function TeleportToFarm()
+    pcall(function()
+        -- First try the UI button method (most reliable)
+        local teleportUI = game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("Teleport_UI")
+        if teleportUI then
+            local gardenButton = teleportUI.Frame:FindFirstChild("Garden")
+            if gardenButton and gardenButton:IsA("TextButton") then
+                -- Simulate clicking the button
+                gardenButton:FireEvent("MouseButton1Click")
+                return true
+            end
+        end
+        
+        -- Fallback to position saving method if UI fails
+        if not savedFarmPosition then
+            InitializeFarmData()
+            if MyFarm and MyFarm.PrimaryPart then
+                savedFarmPosition = CFrame.new(MyFarm.PrimaryPart.Position + Vector3.new(0, 5, 0))
+            end
+        end
+        
+        if savedFarmPosition then
+            HumanoidRootPart.CFrame = savedFarmPosition
+            return true
+        end
+        
+        -- Final fallback - touch teleport points
+        for _, point in ipairs(workspace.PointFolder:GetChildren()) do
+            if point:IsA("BasePart") then
+                firetouchinterest(point, HumanoidRootPart, 0)
+                task.wait(0.1)
+                firetouchinterest(point, HumanoidRootPart, 1)
+                task.wait(0.5)
+                return true
+            end
+        end
+        
+        showNotification("Teleport Failed", "Could not teleport to farm", 5)
+        return false
+    end)
+end
+
+local function SellInventory()
+    pcall(function()
+        local sellPos = Vector3.new(86.57965850830078, 2.999999761581421, 0.4267919063568115)
+        HumanoidRootPart.CFrame = CFrame.new(sellPos + Vector3.new(0, 5, 0))
+        task.wait(0.5)
+        Sell_Inventory:FireServer()
+    end)
+end
+
+local function StealBestFruit()
+    pcall(function()
+        local bestValue = 0
+        local bestFruit = nil
+        
+        for _, farm in ipairs(Farms:GetChildren()) do
+            local important = farm:FindFirstChild("Important")
+            if important then
+                local plants = important:FindFirstChild("Plants_Physical")
+                if plants then
+                    for _, plant in ipairs(plants:GetChildren()) do
+                        for _, fruit in ipairs(plant:GetDescendants()) do
+                            if fruit:IsA("ProximityPrompt") and fruit.Parent:FindFirstChild("Weight") then
+                                local weight = fruit.Parent.Weight.Value
+                                if weight > bestValue then
+                                    bestValue = weight
+                                    bestFruit = fruit
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        
+        if bestFruit then
+            HumanoidRootPart.CFrame = CFrame.new(bestFruit.Parent.Position + Vector3.new(0, 5, 0))
+            task.wait(0.2)
+            fireproximityprompt(bestFruit)
+        end
+    end)
+end
+
+local function DupeSeeds()
+    pcall(function()
+        for _, tool in ipairs(Backpack:GetChildren()) do
+            if tool:IsA("Tool") and tool.Name:find("Seed") then
+                local newTool = tool:Clone()
+                newTool.Parent = Backpack
+                
+                local count = newTool:FindFirstChild("Count")
+                if count and count:IsA("IntValue") then
+                    count.Value = count.Value + 1
+                end
+                
+                local currentCount = count and count.Value or 1
+                newTool.Name = tool.Name:gsub("%[X%d+%]", "[X"..currentCount.."]")
+                
+                break
+            end
+        end
+    end)
+end
+
+-- Loop Management
+local function MakeLoop(getToggle, Func, delay)
+    delay = delay or 0.1
+    coroutine.wrap(function()
+        while task.wait(delay) do
+            if getToggle() then
+                pcall(Func)
+            end
+        end
+    end)()
+end
+
+-- Create Tabs
+local mainTab, mainContent = createTab("MAIN")
+local farmTab, farmContent = createTab("FARM")
+local shopTab, shopContent = createTab("SHOP")
+local shopViewTab, shopViewContent = createTab("SHOP ALERTS")
+local playerTab, playerContent = createTab("PLAYER")
+local dupeTab, dupeContent = createTab("DUPE")
+local serverTab, serverContent = createTab("SERVER")
+local eventTab, eventContent = createTab("EVENTS")
+
+-- Tab Switching
+local currentTab = nil
+local function switchTab(tabName)
+    for _, tab in ipairs(tabContainer:GetChildren()) do
+        if tab:IsA("TextButton") then
+            tab.TextTransparency = 0.5
+            if tab:FindFirstChild("UIStroke") then
+                tab.UIStroke.Transparency = 0.5
+            end
+        end
+    end
+    
+    if currentTab then
+        currentTab.Visible = false
+    end
+    currentTab = contentContainer:FindFirstChild(tabName.."Content")
+    if currentTab then
+        currentTab.Visible = true
+    end
+    
+    local selectedTab = tabContainer:FindFirstChild(tabName)
+    if selectedTab then
+        selectedTab.TextTransparency = 0
+        if selectedTab:FindFirstChild("UIStroke") then
+            selectedTab.UIStroke.Transparency = 0.2
+        end
+    end
+end
+
+mainTab.MouseButton1Click:Connect(function() switchTab("MAIN") end)
+farmTab.MouseButton1Click:Connect(function() switchTab("FARM") end)
+shopTab.MouseButton1Click:Connect(function() switchTab("SHOP") end)
+shopViewTab.MouseButton1Click:Connect(function() switchTab("SHOP ALERTS") end)
+playerTab.MouseButton1Click:Connect(function() switchTab("PLAYER") end)
+dupeTab.MouseButton1Click:Connect(function() switchTab("DUPE") end)
+serverTab.MouseButton1Click:Connect(function() switchTab("SERVER") end)
+eventTab.MouseButton1Click:Connect(function() switchTab("EVENTS") end)
+
+-- MAIN TAB
+addCategory(mainContent, "SOULS HUB")
+createButton(mainContent, "Teleport to Farm", TeleportToFarm)
+createButton(mainContent, "Sell All Items", SellInventory)
+
+-- FARM TAB
+addCategory(farmContent, "FARMING")
+
+local a = game:GetService("ReplicatedStorage")
+local b = game:GetService("Players")
+local c = a:WaitForChild("GameEvents").Plant_RE
+local d = b.LocalPlayer
+local e = false
+local f
+local g
+
+local h = {
+    "Carrot Seed",
+    "Strawberry Seed",
+    "Blueberry Seed", 
+    "Tomato Seed",
+    "Cauliflower Seed",
+    "Watermelon Seed",
+    "Rafflesia Seed",
+    "Green Apple Seed",
+    "Avocado Seed",
+    "Banana Seed",
+    "Pineapple Seed",
+    "Kiwi Seed",
+    "Cherry Blossom",
+    "Moon Blossom",
+    "Bamboo",
+    "Bell Pepper Seed",
+    "Prickly Pear Seed",
+    "Loquat Seed"
+}
+-- I love beauty rahhhh
+local function i()
+    local j = {}
+    for _, k in pairs(d.Backpack:GetChildren()) do
+        if k:IsA("Tool") and k.Name:match("Seed") then
+            table.insert(j, k)
+        end
+    end
+    return j
+end
+
+local function l(m, n)
+    if m and n then
+        n:UnequipTools()
+        m.Parent = d.Character
+        task.wait(0.01)
+        n:EquipTool(m)
+        task.wait(0.01)
+    end
+end
+
+local function o()
+    if not e then return end
+    if not d.Character then return end
+    
+    local p = d.Character:FindFirstChildOfClass("Humanoid")
+    if not p then return end
+
+    local q = d.Character:FindFirstChild("HumanoidRootPart")
+    if not q then return end
+    
+    local r = p.Parent:FindFirstChildOfClass("Tool")
+    local s = ""
+
+    if r and r.Name:match("Seed") then
+        s = r.Name:match("(.+) Seed") or r.Name
+        s = s:gsub(" %[X%d+%]", "")
+    else
+        local t = i()
+        if #t > 0 then
+            s = t[1].Name:match("(.+) Seed") or t[1].Name
+            s = s:gsub(" %[X%d+%]", "")
+        else
+            s = "Carrot"
+        end
+    end
+
+    local u = q.Position
+
+    for v = 0, 315, 45 do
+        local w = Vector3.new(
+            math.cos(math.rad(v)) * 2,
+            0.13,
+            math.sin(math.rad(v)) * 2
+        )
+        c:FireServer(u + w, s)
+    end
+end
+
+local function x()
+    local y = d.Character:FindFirstChildOfClass("Humanoid")
+    if not y then return end
+
+    local z = d.Backpack:FindFirstChild("Shovel [Destroy Plants]")
+    
+    while e do
+        local aa = i()
+        local bb = aa[1]
+
+        if z then
+            l(z, y)
+            task.wait(0.01)
+        end
+        
+        if bb then
+            l(bb, y)
+        end
+        task.wait(3)
+    end
+end
+
+function turnOnAutoPlant()
+    if e then return end
+    e = true
+    f = coroutine.wrap(function()
+        while e do
+            pcall(o)
+            task.wait(0.01)
+        end
+    end)()
+    g = coroutine.wrap(x)()
+end
+
+function turnOffAutoPlant()
+    if not e then return end
+    e = false
+    if f then
+        coroutine.close(f)
+        f = nil
+    end
+    if g then
+        coroutine.close(g)
+        g = nil
+    end
+end
+
+local function cc(dd, ee, ff)
+    ff = ff or 0.01
+    coroutine.wrap(function()
+        while task.wait(ff) do
+            if dd() then
+                pcall(ee)
+            end
+        end
+    end)()
+end
+
+createToggle(farmContent, "Auto Plant", "AUTO PLANT: ON", "AUTO PLANT: OFF", 
+    turnOnAutoPlant,
+    turnOffAutoPlant
+)
+
+createButton(farmContent, "Harvest All", HarvestAllPlantsFunction)
+
+addCategory(farmContent, "SEED SELECTION")
+
+-- Seed Dropdown
+local selectedSeed = seedList[1] or "Carrot"
+local seedDropdown = Instance.new("TextButton")
+seedDropdown.Size = UDim2.new(0, 200, 0, 30)
+seedDropdown.Position = UDim2.new(0, 0, 0, #farmContent:GetChildren() * 45)
+seedDropdown.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+seedDropdown.BackgroundTransparency = 0.3
+seedDropdown.Text = selectedSeed
+seedDropdown.TextColor3 = Color3.new(1, 1, 1)
+seedDropdown.TextSize = 14
+seedDropdown.Font = Enum.Font.Gotham
+seedDropdown.ZIndex = 3
+seedDropdown.Parent = farmContent
+
+local dropCorner = Instance.new("UICorner")
+dropCorner.CornerRadius = UDim.new(0, 8)
+dropCorner.Parent = seedDropdown
+
+local dropOutline = Instance.new("UIStroke")
+dropOutline.Color = Color3.new(1, 1, 1)
+dropOutline.Thickness = 1
+dropOutline.Transparency = 0.5
+dropOutline.Parent = seedDropdown
+
+-- Dropdown Frame
+local dropFrame = Instance.new("Frame")
+dropFrame.Size = UDim2.new(0, 200, 0, 120)
+dropFrame.Position = UDim2.new(0, 0, 0, 0)
+dropFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+dropFrame.BackgroundTransparency = 0.1
+dropFrame.ZIndex = 1000
+dropFrame.Visible = false
+dropFrame.Parent = screenGui
+
+local dropFrameCorner = Instance.new("UICorner")
+dropFrameCorner.CornerRadius = UDim.new(0, 8)
+dropFrameCorner.Parent = dropFrame
+
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, 0, 1, 0)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.ScrollBarThickness = 4
+scrollFrame.ZIndex = 1001
+scrollFrame.Parent = dropFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Parent = scrollFrame
+
+for _, seed in ipairs(seedList) do
+    local optBtn = Instance.new("TextButton")
+    optBtn.Size = UDim2.new(1, 0, 0, 25)
+    optBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    optBtn.BackgroundTransparency = 0.3
+    optBtn.Text = seed
+    optBtn.TextColor3 = Color3.new(1, 1, 1)
+    optBtn.TextSize = 12
+    optBtn.Font = Enum.Font.Gotham
+    optBtn.ZIndex = 1002
+    optBtn.Parent = scrollFrame
+    
+    optBtn.MouseButton1Click:Connect(function()
+        selectedSeed = seed
+        currentSeed = seed
+        seedDropdown.Text = seed
+        dropFrame.Visible = false
+    end)
+end
+
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
+
+seedDropdown.MouseButton1Click:Connect(function()
+    local btnPos = seedDropdown.AbsolutePosition
+    dropFrame.Position = UDim2.new(0, btnPos.X, 0, btnPos.Y + 35)
+    dropFrame.Visible = not dropFrame.Visible
+end)
+
+-- SHOP TAB
+addCategory(shopContent, "SEED SHOP")
+
+-- Shop Seed Dropdown
+local shopSelectedSeed = seedList[1] or "Carrot"
+local shopSeedDropdown = Instance.new("TextButton")
+shopSeedDropdown.Size = UDim2.new(0, 200, 0, 30)
+shopSeedDropdown.Position = UDim2.new(0, 0, 0, #shopContent:GetChildren() * 45)
+shopSeedDropdown.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+shopSeedDropdown.BackgroundTransparency = 0.3
+shopSeedDropdown.Text = shopSelectedSeed
+shopSeedDropdown.TextColor3 = Color3.new(1, 1, 1)
+shopSeedDropdown.TextSize = 14
+shopSeedDropdown.Font = Enum.Font.Gotham
+shopSeedDropdown.ZIndex = 3
+shopSeedDropdown.Parent = shopContent
+
+local shopDropCorner = Instance.new("UICorner")
+shopDropCorner.CornerRadius = UDim.new(0, 8)
+shopDropCorner.Parent = shopSeedDropdown
+
+local shopDropOutline = Instance.new("UIStroke")
+shopDropOutline.Color = Color3.new(1, 1, 1)
+shopDropOutline.Thickness = 1
+shopDropOutline.Transparency = 0.5
+shopDropOutline.Parent = shopSeedDropdown
+
+-- Shop Dropdown Frame
+local shopDropFrame = Instance.new("Frame")
+shopDropFrame.Size = UDim2.new(0, 200, 0, 120)
+shopDropFrame.Position = UDim2.new(0, 0, 0, 0)
+shopDropFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+shopDropFrame.BackgroundTransparency = 0.1
+shopDropFrame.ZIndex = 1000
+shopDropFrame.Visible = false
+shopDropFrame.Parent = screenGui
+
+local shopDropFrameCorner = Instance.new("UICorner")
+shopDropFrameCorner.CornerRadius = UDim.new(0, 8)
+shopDropFrameCorner.Parent = shopDropFrame
+
+local shopScrollFrame = Instance.new("ScrollingFrame")
+shopScrollFrame.Size = UDim2.new(1, 0, 1, 0)
+shopScrollFrame.BackgroundTransparency = 1
+shopScrollFrame.ScrollBarThickness = 4
+shopScrollFrame.ZIndex = 1001
+shopScrollFrame.Parent = shopDropFrame
+
+local shopListLayout = Instance.new("UIListLayout")
+shopListLayout.Parent = shopScrollFrame
+
+for _, seed in ipairs(seedList) do
+    local optBtn = Instance.new("TextButton")
+    optBtn.Size = UDim2.new(1, 0, 0, 25)
+    optBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    optBtn.BackgroundTransparency = 0.3
+    optBtn.Text = seed
+    optBtn.TextColor3 = Color3.new(1, 1, 1)
+    optBtn.TextSize = 12
+    optBtn.Font = Enum.Font.Gotham
+    optBtn.ZIndex = 1002
+    optBtn.Parent = shopScrollFrame
+    
+    optBtn.MouseButton1Click:Connect(function()
+        shopSelectedSeed = seed
+        selectedBuySeed = seed
+        shopSeedDropdown.Text = seed
+        shopDropFrame.Visible = false
+    end)
+end
+
+shopScrollFrame.CanvasSize = UDim2.new(0, 0, 0, shopListLayout.AbsoluteContentSize.Y)
+
+shopSeedDropdown.MouseButton1Click:Connect(function()
+    local btnPos = shopSeedDropdown.AbsolutePosition
+    shopDropFrame.Position = UDim2.new(0, btnPos.X, 0, btnPos.Y + 35)
+    shopDropFrame.Visible = not shopDropFrame.Visible
+end)
+
+createButton(shopContent, "Buy Selected Seed", function()
+    local cleanSeedName = selectedBuySeed:gsub(" Seed", "")
+    BuySeedStock:FireServer(cleanSeedName)
+end)
+
+createButton(shopContent, "Spawn Selected Seed", function()
+    local success = SpawnSeed(shopSelectedSeed)
+    if success then
+        showNotification("Seed Spawned", "Successfully spawned " .. shopSelectedSeed, 3)
+    else
+        showNotification("Spawn Failed", "Could not spawn " .. shopSelectedSeed, 3)
+    end
+end)
+
+createToggle(shopContent, "Auto Buy Seeds", "AUTO BUY: ON", "AUTO BUY: OFF", 
+    function() autoBuy = true end,
+    function() autoBuy = false end
+)
+
+-- SHOP VIEW TAB
+addCategory(shopViewContent, "LIVE STOCK MONITOR")
+
+-- Main Stock Container
+local mainStockContainer = Instance.new("Frame")
+mainStockContainer.Size = UDim2.new(1, -20, 0, 200)  -- Increased height
+mainStockContainer.Position = UDim2.new(0, 10, 0, #shopViewContent:GetChildren() * 45)
+mainStockContainer.BackgroundTransparency = 1
+mainStockContainer.ZIndex = 3
+mainStockContainer.Parent = shopViewContent
+
+-- Seed Stock Container
+local seedStockContainer = Instance.new("Frame")
+seedStockContainer.Size = UDim2.new(0.48, 0, 1, 0)
+seedStockContainer.Position = UDim2.new(0, 0, 0, 0)
+seedStockContainer.BackgroundTransparency = 1
+seedStockContainer.ZIndex = 3
+seedStockContainer.Parent = mainStockContainer
+
+-- Seed Stock Frame
+local seedStockFrame = Instance.new("Frame")
+seedStockFrame.Size = UDim2.new(1, 0, 1, 0)
+seedStockFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+seedStockFrame.BackgroundTransparency = 0.7
+seedStockFrame.ZIndex = 3
+seedStockFrame.Parent = seedStockContainer
+
+local seedStockCorner = Instance.new("UICorner")
+seedStockCorner.CornerRadius = UDim.new(0, 8)
+seedStockCorner.Parent = seedStockFrame
+
+local seedStockOutline = Instance.new("UIStroke")
+seedStockOutline.Color = Color3.new(1, 1, 1)
+seedStockOutline.Thickness = 1
+seedStockOutline.Transparency = 0.3
+seedStockOutline.Parent = seedStockFrame
+
+-- Seed Stock Title
+local seedStockTitle = Instance.new("TextLabel")
+seedStockTitle.Size = UDim2.new(1, 0, 0, 25)
+seedStockTitle.Position = UDim2.new(0, 10, 0, 5)
+seedStockTitle.BackgroundTransparency = 1
+seedStockTitle.Text = "SEED STOCK"
+seedStockTitle.TextColor3 = Color3.fromRGB(200, 255, 200)  -- Greenish tint
+seedStockTitle.TextSize = 16
+seedStockTitle.Font = Enum.Font.GothamBold
+seedStockTitle.TextXAlignment = Enum.TextXAlignment.Left
+seedStockTitle.ZIndex = 4
+seedStockTitle.Parent = seedStockFrame
+
+local seedTitleOutline = Instance.new("UIStroke")
+seedTitleOutline.Color = Color3.new(0, 0, 0)
+seedTitleOutline.Thickness = 1
+seedTitleOutline.Transparency = 0.3
+seedTitleOutline.Parent = seedStockTitle
+
+-- Seed Stock Display
+local seedStockScroll = Instance.new("ScrollingFrame")
+seedStockScroll.Size = UDim2.new(1, -15, 1, -40)
+seedStockScroll.Position = UDim2.new(0, 10, 0, 30)
+seedStockScroll.BackgroundTransparency = 1
+seedStockScroll.ScrollBarThickness = 6
+seedStockScroll.ZIndex = 4
+seedStockScroll.Parent = seedStockFrame
+
+local seedStockDisplay = Instance.new("TextLabel")
+seedStockDisplay.Size = UDim2.new(1, 0, 0, 0)
+seedStockDisplay.AutomaticSize = Enum.AutomaticSize.Y
+seedStockDisplay.BackgroundTransparency = 1
+seedStockDisplay.Text = "Loading seed stock..."
+seedStockDisplay.TextColor3 = Color3.new(0.95, 0.95, 1)  -- Bright text
+seedStockDisplay.TextSize = 14
+seedStockDisplay.Font = Enum.Font.Gotham
+seedStockDisplay.TextXAlignment = Enum.TextXAlignment.Left
+seedStockDisplay.TextYAlignment = Enum.TextYAlignment.Top
+seedStockDisplay.ZIndex = 4
+seedStockDisplay.Parent = seedStockScroll
+
+-- Gear Stock Container
+local gearStockContainer = Instance.new("Frame")
+gearStockContainer.Size = UDim2.new(0.48, 0, 1, 0)
+gearStockContainer.Position = UDim2.new(0.52, 0, 0, 0)
+gearStockContainer.BackgroundTransparency = 1
+gearStockContainer.ZIndex = 3
+gearStockContainer.Parent = mainStockContainer
+
+-- Gear Stock Frame
+local gearStockFrame = Instance.new("Frame")
+gearStockFrame.Size = UDim2.new(1, 0, 1, 0)
+gearStockFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+gearStockFrame.BackgroundTransparency = 0.7
+gearStockFrame.ZIndex = 3
+gearStockFrame.Parent = gearStockContainer
+
+local gearStockCorner = Instance.new("UICorner")
+gearStockCorner.CornerRadius = UDim.new(0, 8)
+gearStockCorner.Parent = gearStockFrame
+
+local gearStockOutline = Instance.new("UIStroke")
+gearStockOutline.Color = Color3.new(1, 1, 1)
+gearStockOutline.Thickness = 1
+gearStockOutline.Transparency = 0.3
+gearStockOutline.Parent = gearStockFrame
+
+-- Gear Stock Title
+local gearStockTitle = Instance.new("TextLabel")
+gearStockTitle.Size = UDim2.new(1, 0, 0, 25)
+gearStockTitle.Position = UDim2.new(0, 10, 0, 5)
+gearStockTitle.BackgroundTransparency = 1
+gearStockTitle.Text = "GEAR STOCK"
+gearStockTitle.TextColor3 = Color3.fromRGB(200, 200, 255)  -- Bluish tint
+gearStockTitle.TextSize = 16
+gearStockTitle.Font = Enum.Font.GothamBold
+gearStockTitle.TextXAlignment = Enum.TextXAlignment.Left
+gearStockTitle.ZIndex = 4
+gearStockTitle.Parent = gearStockFrame
+
+local gearTitleOutline = Instance.new("UIStroke")
+gearTitleOutline.Color = Color3.new(0, 0, 0)
+gearTitleOutline.Thickness = 1
+gearTitleOutline.Transparency = 0.3
+gearTitleOutline.Parent = gearStockTitle
+
+-- Gear Stock Display
+local gearStockScroll = Instance.new("ScrollingFrame")
+gearStockScroll.Size = UDim2.new(1, -15, 1, -40)
+gearStockScroll.Position = UDim2.new(0, 10, 0, 30)
+gearStockScroll.BackgroundTransparency = 1
+gearStockScroll.ScrollBarThickness = 6
+gearStockScroll.ZIndex = 4
+gearStockScroll.Parent = gearStockFrame
+
+local gearStockDisplay = Instance.new("TextLabel")
+gearStockDisplay.Size = UDim2.new(1, 0, 0, 0)
+gearStockDisplay.AutomaticSize = Enum.AutomaticSize.Y
+gearStockDisplay.BackgroundTransparency = 1
+gearStockDisplay.Text = "Loading gear stock..."
+gearStockDisplay.TextColor3 = Color3.new(0.95, 0.95, 1)  -- Bright text
+gearStockDisplay.TextSize = 14
+gearStockDisplay.Font = Enum.Font.Gotham
+gearStockDisplay.TextXAlignment = Enum.TextXAlignment.Left
+gearStockDisplay.TextYAlignment = Enum.TextYAlignment.Top
+gearStockDisplay.ZIndex = 4
+gearStockDisplay.Parent = gearStockScroll
+
+-- Function to update stock displays
+local function UpdateStockDisplay()
+    pcall(function()
+        local seedStock = GetSeedStock()
+        local gearStock = GetGearStock()
+        
+        -- Update seed display
+        local seedText = ""
+        for seedName, stock in pairs(seedStock) do
+            if stock > 0 then
+                seedText = seedText .. seedName .. ": " .. stock .. "\n"
+            end
+        end
+        seedStockDisplay.Text = seedText ~= "" and seedText or "No seeds in stock"
+        
+        -- Update gear display
+        local gearText = ""
+        for gearName, stock in pairs(gearStock) do
+            if stock > 0 then
+                gearText = gearText .. gearName .. ": " .. stock .. "\n"
+            end
+        end
+        gearStockDisplay.Text = gearText ~= "" and gearText or "No gear in stock"
+    end)
+end
+
+-- TARGET SEED SECTION
+local targetssa = addCategory(shopViewContent, "TARGET SEED")
+
+targetssa.Position = UDim2.new(0, 10, 0, 280)
+
+-- Seed Selection Container
+local seedContainer = Instance.new("Frame")
+seedContainer.Size = UDim2.new(1, 0, 0, 100)
+seedContainer.Position = UDim2.new(0, 0, 0, #shopViewContent:GetChildren() * 45)
+seedContainer.BackgroundTransparency = 1
+seedContainer.ZIndex = 3
+seedContainer.Parent = shopViewContent
+
+-- Target Seed Dropdown
+local targetSeedDropdown = Instance.new("TextButton")
+targetSeedDropdown.Size = UDim2.new(0.7, -10, 0, 35)  -- Taller button
+targetSeedDropdown.Position = UDim2.new(0, 0, 0, 200)
+targetSeedDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+targetSeedDropdown.BackgroundTransparency = 0.5
+targetSeedDropdown.Text = "SELECT TARGET SEED"
+targetSeedDropdown.TextColor3 = Color3.new(1, 1, 1)
+targetSeedDropdown.TextSize = 14
+targetSeedDropdown.Font = Enum.Font.GothamBold
+targetSeedDropdown.ZIndex = 3
+targetSeedDropdown.Parent = seedContainer
+
+local targetSeedCorner = Instance.new("UICorner")
+targetSeedCorner.CornerRadius = UDim.new(0, 8)
+targetSeedCorner.Parent = targetSeedDropdown
+
+local targetSeedOutline = Instance.new("UIStroke")
+targetSeedOutline.Color = Color3.new(1, 1, 1)
+targetSeedOutline.Thickness = 1
+targetSeedOutline.Transparency = 0.3
+targetSeedOutline.Parent = targetSeedDropdown
+
+-- Target Seed Quantity
+local seedQuantityBox = createTextBox(seedContainer, "QUANTITY", function(text)
+    local num = tonumber(text)
+    if num and num > 0 then
+        targetSeedQuantity = math.floor(num)
+    end
+end)
+seedQuantityBox.Size = UDim2.new(0.3, 0, 0, 35)  -- Taller input
+seedQuantityBox.Position = UDim2.new(0.7, 0, 0, 200)
+seedQuantityBox.Text = "1"  -- Default quantity
+seedQuantityBox.Parent = seedContainer
+
+-- Toggles container
+local seedToggleContainer = Instance.new("Frame")
+seedToggleContainer.Size = UDim2.new(1, 0, 0, 40)
+seedToggleContainer.Position = UDim2.new(0, 0, 0, 45)  -- More spacing
+seedToggleContainer.BackgroundTransparency = 1
+seedToggleContainer.ZIndex = 3
+seedToggleContainer.Parent = seedContainer
+
+-- Auto Buy Target Seed Toggle
+local autoBuySeedToggle = createToggle(seedToggleContainer, "AUTO BUY", "AUTO BUY: ON", "AUTO BUY: OFF", 
+    function() autoBuyTargetSeed = true; notifyTargetSeed = false end,
+    function() autoBuyTargetSeed = false end
+)
+autoBuySeedToggle.Size = UDim2.new(0.5, -5, 1, 0)
+autoBuySeedToggle.Position = UDim2.new(0, 0, 0, 210)
+autoBuySeedToggle.Parent = seedToggleContainer
+
+-- Notify Target Seed Toggle
+local notifySeedToggle = createToggle(seedToggleContainer, "NOTIFY", "NOTIFY: ON", "NOTIFY: OFF", 
+    function() notifyTargetSeed = true; autoBuyTargetSeed = false end,
+    function() notifyTargetSeed = false; stopNotificationSounds() end
+)
+notifySeedToggle.Size = UDim2.new(0.5, -5, 1, 0)
+notifySeedToggle.Position = UDim2.new(0.5, 5, 0, 210)
+notifySeedToggle.Parent = seedToggleContainer
+
+-- TARGET GEAR SECTION
+local targ = addCategory(shopViewContent, "TARGET GEAR")
+
+targ.Position = UDim2.new(0, 10, 0, 450)
+
+-- Gear Selection Container
+local gearContainer = Instance.new("Frame")
+gearContainer.Size = UDim2.new(1, 0, 0, 100)
+gearContainer.Position = UDim2.new(0, 0, 0, #shopViewContent:GetChildren() * 45)
+gearContainer.BackgroundTransparency = 1
+gearContainer.ZIndex = 3
+gearContainer.Parent = shopViewContent
+
+-- Target Gear Dropdown
+local targetGearDropdown = Instance.new("TextButton")
+targetGearDropdown.Size = UDim2.new(0.7, -10, 0, 35)  -- Taller button
+targetGearDropdown.Position = UDim2.new(0, 0, 0, 270)
+targetGearDropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+targetGearDropdown.BackgroundTransparency = 0.5
+targetGearDropdown.Text = "SELECT TARGET GEAR"
+targetGearDropdown.TextColor3 = Color3.new(1, 1, 1)
+targetGearDropdown.TextSize = 14
+targetGearDropdown.Font = Enum.Font.GothamBold
+targetGearDropdown.ZIndex = 3
+targetGearDropdown.Parent = gearContainer
+
+local targetGearCorner = Instance.new("UICorner")
+targetGearCorner.CornerRadius = UDim.new(0, 8)
+targetGearCorner.Parent = targetGearDropdown
+
+local targetGearOutline = Instance.new("UIStroke")
+targetGearOutline.Color = Color3.new(1, 1, 1)
+targetGearOutline.Thickness = 1
+targetGearOutline.Transparency = 0.3
+targetGearOutline.Parent = targetGearDropdown
+
+-- Target Gear Quantity
+local gearQuantityBox = createTextBox(gearContainer, "QUANTITY", function(text)
+    local num = tonumber(text)
+    if num and num > 0 then
+        targetGearQuantity = math.floor(num)
+    end
+end)
+gearQuantityBox.Size = UDim2.new(0.3, 0, 0, 35)  -- Taller input
+gearQuantityBox.Position = UDim2.new(0.7, 0, 0, 270)
+gearQuantityBox.Text = "1"  -- Default quantity
+gearQuantityBox.Parent = gearContainer
+
+-- Toggles container
+local gearToggleContainer = Instance.new("Frame")
+gearToggleContainer.Size = UDim2.new(1, 0, 0, 40)
+gearToggleContainer.Position = UDim2.new(0, 0, 0, 45)  -- More spacing
+gearToggleContainer.BackgroundTransparency = 1
+gearToggleContainer.ZIndex = 3
+gearToggleContainer.Parent = gearContainer
+
+-- Auto Buy Target Gear Toggle
+local autoBuyGearToggle = createToggle(gearToggleContainer, "AUTO BUY", "AUTO BUY: ON", "AUTO BUY: OFF", 
+    function() autoBuyTargetGear = true; notifyTargetGear = false end,
+    function() autoBuyTargetGear = false end
+)
+autoBuyGearToggle.Size = UDim2.new(0.5, -5, 1, 0)
+autoBuyGearToggle.Position = UDim2.new(0, 0, 0, 280)
+autoBuyGearToggle.Parent = gearToggleContainer
+
+-- Notify Target Gear Toggle
+local notifyGearToggle = createToggle(gearToggleContainer, "NOTIFY", "NOTIFY: ON", "NOTIFY: OFF", 
+    function() notifyTargetGear = true; autoBuyTargetGear = false end,
+    function() notifyTargetGear = false; stopNotificationSounds() end
+)
+notifyGearToggle.Size = UDim2.new(0.5, -5, 1, 0)
+notifyGearToggle.Position = UDim2.new(0.5, 5, 0, 280)
+notifyGearToggle.Parent = gearToggleContainer
+
+-- Stop Notifications Button
+local ppp = createButton(shopViewContent, "STOP ALL NOTIFICATIONS", function()
+    stopNotificationSounds()
+end)
+
+ppp.Position = UDim2.new(0, 0, 0, 600)
+
+-- Dropdown Frames (positioned off-screen until needed)
+local function createDropdownFrame(parent)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 250, 0, 200)  -- Larger dropdown
+    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    frame.BackgroundTransparency = 0.1
+    frame.ZIndex = 1000
+    frame.Visible = false
+    frame.Parent = parent
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 12)
+    corner.Parent = frame
+
+    local outline = Instance.new("UIStroke")
+    outline.Color = Color3.new(1, 1, 1)
+    outline.Thickness = 1
+    outline.Transparency = 0.2
+    outline.Parent = frame
+
+    local scroll = Instance.new("ScrollingFrame")
+    scroll.Size = UDim2.new(1, -10, 1, -10)
+    scroll.Position = UDim2.new(0, 5, 0, 5)
+    scroll.BackgroundTransparency = 1
+    scroll.ScrollBarThickness = 8
+    scroll.ZIndex = 1001
+    scroll.Parent = frame
+
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.Parent = scroll
+
+    return frame, scroll
+end
+
+-- Seed Dropdown Frame
+-- Seed Dropdown Frame
+local targetSeedDropFrame, targetSeedScrollFrame = createDropdownFrame(screenGui)
+local targetSeedListLayout = Instance.new("UIListLayout")
+targetSeedListLayout.Parent = targetSeedScrollFrame
+targetSeedListLayout.Padding = UDim.new(0, 5) -- Added padding between items
+
+-- Make scroll frame properly sized
+targetSeedScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0) -- Will be auto-updated
+targetSeedScrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y -- Auto-size to content
+targetSeedScrollFrame.ScrollingDirection = Enum.ScrollingDirection.Y -- Vertical only
+targetSeedScrollFrame.ScrollBarImageColor3 = Color3.new(1, 1, 1) -- White scrollbar
+targetSeedScrollFrame.ScrollBarThickness = 8 -- Thicker scrollbar
+
+for _, seed in ipairs(seedList) do
+    local optBtn = Instance.new("TextButton")
+    optBtn.Size = UDim2.new(1, -10, 0, 35)  -- Taller options
+    optBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    optBtn.BackgroundTransparency = 0.3
+    optBtn.Text = seed
+    optBtn.TextColor3 = Color3.new(1, 1, 1)
+    optBtn.TextSize = 14
+    optBtn.Font = Enum.Font.GothamBold
+    optBtn.ZIndex = 1002
+    optBtn.Parent = targetSeedScrollFrame
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = optBtn
+    
+    optBtn.MouseButton1Click:Connect(function()
+        targetSeed = seed
+        targetSeedDropdown.Text = seed
+        targetSeedDropFrame.Visible = false
+    end)
+end
+
+targetSeedDropdown.MouseButton1Click:Connect(function()
+    local btnPos = targetSeedDropdown.AbsolutePosition
+    targetSeedDropFrame.Position = UDim2.new(0, btnPos.X, 0, btnPos.Y + 40)
+    targetSeedDropFrame.Visible = not targetSeedDropFrame.Visible
+end)
+
+-- Gear Dropdown Frame
+-- Gear Dropdown Frame
+local targetGearDropFrame, targetGearScrollFrame = createDropdownFrame(screenGui)
+local targetGearListLayout = Instance.new("UIListLayout")
+targetGearListLayout.Padding = UDim.new(0, 5)
+targetGearListLayout.Parent = targetGearScrollFrame
+
+targetGearScrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+targetGearScrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+targetGearScrollFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+targetGearScrollFrame.ScrollBarImageColor3 = Color3.new(1, 1, 1)
+targetGearScrollFrame.ScrollBarThickness = 8
+
+for _, gear in ipairs(allGears) do
+    local optBtn = Instance.new("TextButton")
+    optBtn.Size = UDim2.new(1, -10, 0, 35)
+    optBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+    optBtn.BackgroundTransparency = 0.3
+    optBtn.Text = gear
+    optBtn.TextColor3 = Color3.new(1, 1, 1)
+    optBtn.TextSize = 14
+    optBtn.Font = Enum.Font.GothamBold
+    optBtn.ZIndex = 1002
+    optBtn.Parent = targetGearScrollFrame
+    
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 8)
+    btnCorner.Parent = optBtn
+    
+    optBtn.MouseButton1Click:Connect(function()
+        targetGear = gear
+        targetGearDropdown.Text = gear
+        targetGearDropFrame.Visible = false
+    end)
+end
+
+targetGearDropdown.MouseButton1Click:Connect(function()
+    local btnPos = targetGearDropdown.AbsolutePosition
+    targetGearDropFrame.Position = UDim2.new(0, btnPos.X, 0, btnPos.Y + 40)
+    targetGearDropFrame.Visible = not targetGearDropFrame.Visible
+end)
+
+-- Update shop monitoring function to use separate displays
+local function MonitorShops()
+    pcall(function()
+        -- Update both displays first
+        UpdateStockDisplay()
+        
+        local seedStock = GetSeedStock()
+        local gearStock = GetGearStock()
+        
+        -- Check target seed
+        if targetSeed ~= "" then
+            local stock = seedStock[targetSeed] or 0
+            if stock > 0 then
+                if autoBuyTargetSeed then
+                    local buyAmount = math.min(stock, targetSeedQuantity)
+                    for i = 1, buyAmount do
+                        BuySeedStock:FireServer(targetSeed)
+                        task.wait(0.1)
+                    end
+                    showNotification("Auto Buy", "Bought " .. buyAmount .. "x " .. targetSeed, 3)
+                    startNotificationSounds()
+                elseif notifyTargetSeed then
+                    showNotification("Seed In Stock!", targetSeed .. " is available! Stock: " .. stock, 5)
+                    startNotificationSounds()
+                end
+            end
+        end
+        
+        -- Check target gear
+        if targetGear ~= "" then
+            local stock = gearStock[targetGear] or 0
+            if stock > 0 then
+                if autoBuyTargetGear then
+                    local buyAmount = math.min(stock, targetGearQuantity)
+                    for i = 1, buyAmount do
+                        BuyGearStock:FireServer(targetGear)
+                        task.wait(0.1)
+                    end
+                    showNotification("Auto Buy", "Bought " .. buyAmount .. "x " .. targetGear, 3)
+                    startNotificationSounds()
+                elseif notifyTargetGear then
+                    showNotification("Gear In Stock!", targetGear .. " is available! Stock: " .. stock, 5)
+                    startNotificationSounds()
+                end
+            end
+        end
+    end)
+end
+
+-- PLAYER TAB
+addCategory(playerContent, "MOVEMENT")
+
+local noclipEnabled = false
+createToggle(playerContent, "Noclip", "NOCLIP: ON", "NOCLIP: OFF", 
+    function()
+        noclipEnabled = true
+        noClip = true
+    end,
+    function() 
+        noclipEnabled = false
+        noClip = false
+    end
+)
+
+local infJumpEnabled = false
+createToggle(playerContent, "Infinite Jump", "INF JUMP: ON", "INF JUMP: OFF", 
+    function() infJumpEnabled = true end,
+    function() infJumpEnabled = false end
+)
+
+UserInputService.JumpRequest:Connect(function()
+    if infJumpEnabled and Humanoid then
+        Humanoid:ChangeState("Jumping")
+    end
+end)
+
+addCategory(playerContent, "SPEED")
+
+local walkSpeed = 16
+local speedDisplay = Instance.new("TextLabel")
+speedDisplay.Size = UDim2.new(0, 200, 0, 20)
+speedDisplay.Position = UDim2.new(0, 0, 0, #playerContent:GetChildren() * 45)
+speedDisplay.BackgroundTransparency = 1
+speedDisplay.Text = "Speed: "..walkSpeed
+speedDisplay.TextColor3 = Color3.new(1, 1, 1)
+speedDisplay.TextSize = 14
+speedDisplay.Font = Enum.Font.Gotham
+speedDisplay.ZIndex = 3
+speedDisplay.Parent = playerContent
+
+createButton(playerContent, "Decrease Speed", function()
+    walkSpeed = math.max(walkSpeed - 5, 5)
+    Humanoid.WalkSpeed = walkSpeed
+    speedDisplay.Text = "Speed: "..walkSpeed
+end)
+
+createButton(playerContent, "Increase Speed", function()
+    walkSpeed = math.min(walkSpeed + 5, 200)
+    Humanoid.WalkSpeed = walkSpeed
+    speedDisplay.Text = "Speed: "..walkSpeed
+end)
+
+createButton(playerContent, "Reset Speed", function()
+    walkSpeed = 16
+    Humanoid.WalkSpeed = walkSpeed
+    speedDisplay.Text = "Speed: "..walkSpeed
+end)
+
+local antiAfkEnabled = false
+createToggle(playerContent, "Anti-AFK", "ANTI-AFK: ON", "ANTI-AFK: OFF", 
+    function() antiAfkEnabled = true end,
+    function() antiAfkEnabled = false end
+)
+
+LocalPlayer.Idled:Connect(function()
+    if antiAfkEnabled then
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end
+end)
+
+createButton(playerContent, "Steal Best Fruit", StealBestFruit)
+
+-- DUPE TAB
+addCategory(dupeContent, "DUPLICATION")
+
+createToggle(dupeContent, "Dupe Seeds", "DUPING: ON", "DUPING: OFF", 
+    function() dupeMode = true end,
+    function() dupeMode = false end
+)
+
+createButton(dupeContent, "Dupe Once", DupeSeeds)
+
+-- SERVER TAB
+addCategory(serverContent, "SERVER")
+
+createButton(serverContent, "Rejoin Server", function()
+    TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId)
+end)
+
+createButton(serverContent, "Server Hop", function()
+    TeleportService:Teleport(game.PlaceId)
+end)
+
+-- EVENTS TAB
+addCategory(eventContent, "EVENTS")
+
+createButton(eventContent, "Night Event", function()
+    pcall(function()
+        ReplicatedStorage.GameEvents.NightQuestRemoteEvent:FireServer("SubmitAllPlants")
+    end)
+end)
+
+createButton(eventContent, "Bee Event", function()
+    pcall(function()
+        ReplicatedStorage.GameEvents.HoneyMachineService_RE:FireServer("MachineInteract")
+    end)
+end)
+
+-- Noclip Function
+local noclipActive = false
+local originalCollideStates = {}
+local function NoclipLoop()
+    pcall(function()
+        if not Character then return end
+        if noClip and not noclipActive then
+            originalCollideStates = {}
+            for _, Part in ipairs(Character:GetDescendants()) do
+                if Part:IsA("BasePart") then
+                    originalCollideStates[Part] = Part.CanCollide
+                    Part.CanCollide = false
+                end
+            end
+            noclipActive = true
+        elseif not noClip and noclipActive then
+            for Part, canCollide in pairs(originalCollideStates) do
+                if Part and Part.Parent then 
+                    Part.CanCollide = canCollide
+                end
+            end
+            originalCollideStates = {}
+            noclipActive = false
+        end
+    end)
+end
+
+-- UI Functions
+local function toggleUI(visible)
+    mainFrame.Visible = visible
+    toggleBtn.Visible = not visible
+end
+
+closeBtn.MouseButton1Click:Connect(function()
+    toggleUI(false)
+end)
+
+toggleBtn.MouseButton1Click:Connect(function()
+    toggleUI(true)
+end)
+
+-- Opening Animation
+local function openAnimation()
+    toggleBtn.Visible = false
+    mainFrame.Visible = true
+    mainFrame.Size = UDim2.new(0, 700, 0, 2)
+    
+    mainFrame:TweenSize(UDim2.new(0, 700, 0, 380), Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.7, true, function()
+        switchTab("MAIN")
+    end)
+end
+
+-- Keyboard toggle
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.Insert then
+        if mainFrame.Visible then
+            toggleUI(false)
+        else
+            toggleUI(true)
+        end
+    end
+end)
+
+-- Shop View Update Function
+local function UpdateStockDisplay()
+    pcall(function()
+        local seedStock = GetSeedStock()
+        local gearStock = GetGearStock()
+        
+        local displayText = "=== LIVE STOCK ===\n\n--- SEEDS ---\n"
+        for seedName, stock in pairs(seedStock) do
+            if stock > 0 then
+                displayText = displayText .. seedName .. ": " .. stock .. "\n"
+            end
+        end
+        
+        displayText = displayText .. "\n--- GEARS ---\n"
+        for gearName, stock in pairs(gearStock) do
+            if stock > 0 then
+                displayText = displayText .. gearName .. ": " .. stock .. "\n"
+            end
+        end
+        
+        if displayText == "=== LIVE STOCK ===\n\n--- SEEDS ---\n\n--- GEARS ---\n" then
+            displayText = "No items in stock currently.\nShops restock every 5 minutes!"
+        end
+        
+        stockDisplay.Text = displayText
+    end)
+end
+
+-- Initialize Loops
+MakeLoop(function() return autoPlant end, AutoPlantLoop, 1)
+MakeLoop(function() return autoHarvest end, HarvestAllPlantsFunction, 1)
+MakeLoop(function() return autoBuy end, function()
+    if selectedBuySeed and selectedBuySeed ~= "" then
+        local cleanSeedName = selectedBuySeed:gsub(" Seed", "")
+        BuySeedStock:FireServer(cleanSeedName)
+    end
+end, 2)
+MakeLoop(function() return dupeMode end, DupeSeeds, 2)
+MakeLoop(function() return noClip end, NoclipLoop, 0.1)
+
+-- Auto Sell Loop
+MakeLoop(function() return autoSell end, function()
+    local cropCount = 0
+    for _, tool in ipairs(Backpack:GetChildren()) do
+        if tool:IsA("Tool") and not tool.Name:find("Seed") then
+            cropCount = cropCount + 1
+        end
+    end
+    if cropCount >= sellThreshold then
+        SellInventory()
+    end
+end, 3)
+
+-- Shop Monitoring Loop
+MakeLoop(function() return true end, function()
+    UpdateStockDisplay()
+    MonitorShops()
+end, 5)
+
+-- Initialize Data and UI
+InitializeFarmData()
+openAnimation()
+
+
+-- AUTO FARM SYSTEM FOR GROW A GARDEN
+local autoFarmEnabled = false
+local autoFarmPosition = nil
+local autoFarmCoroutine = nil
+
+-- Seed Profitability Data
+local seedProfitability = {
+    ["Carrot"] = {price = 10, profit = 12, profitPerSheckle = 1.2, harvestType = "single"},
+    ["Strawberry Seed"] = {price = 50, profit = 26, profitPerSheckle = 0.52, harvestType = "multiple"},
+    ["Blueberry Seed"] = {price = 400, profit = -148, profitPerSheckle = -0.37, harvestType = "multiple"},
+    ["Tomato Seed"] = {price = 800, profit = -660, profitPerSheckle = -0.825, harvestType = "multiple"},
+    ["Bamboo"] = {price = 4000, profit = 50, profitPerSheckle = 0.0125, harvestType = "single"},
+    ["Bell Pepper Seed"] = {price = 1000000, profit = -986000, profitPerSheckle = -0.986, harvestType = "multiple"},
+    ["Cauliflower Seed"] = {price = 100, profit = 50, profitPerSheckle = 0.5, harvestType = "single"},
+    ["Watermelon Seed"] = {price = 200, profit = 80, profitPerSheckle = 0.4, harvestType = "single"}
+}
+
+-- Function to get local player's farm number
+local function getLocalPlayerFarmNumber()
+    pcall(function()
+        for i, farm in ipairs(workspace.Farm:GetChildren()) do
+            local important = farm:FindFirstChild("Important")
+            if important then
+                local data = important:FindFirstChild("Data")
+                if data then
+                    local owner = data:FindFirstChild("Owner")
+                    if owner and owner.Value == LocalPlayer.Name then
+                        return i
+                    end
+                end
+            end
+        end
+    end)
+    return nil
+end
+
+-- Function to get best affordable seed based on current Sheckles
+local function getBestAffordableSeed()
+    local currentSheckles = game:GetService("Players").LocalPlayer.leaderstats.Sheckles.Value
+    local bestSeed = nil
+    local bestRatio = -999
+    
+    for seedName, data in pairs(seedProfitability) do
+        if currentSheckles >= data.price and data.profitPerSheckle > bestRatio then
+            bestSeed = seedName
+            bestRatio = data.profitPerSheckle
+        end
+    end
+    
+    for seedName, data in pairs(seedProfitability) do
+        if currentSheckles >= data.price and data.harvestType == "multiple" and data.profitPerSheckle > 0 then
+            bestSeed = seedName
+            break
+        end
+    end
+    
+    return bestSeed or "Carrot"
+end
+
+-- Function to check if inventory has harvested crops
+local function hasHarvestedCrops()
+    for _, tool in ipairs(Backpack:GetChildren()) do
+        if tool:IsA("Tool") and tool.Name:find("Kg") then
+            return true
+        end
+    end
+    return false
+end
+
+-- Function to check if inventory has seeds
+local function hasSeeds()
+    for _, tool in ipairs(Backpack:GetChildren()) do
+        if tool:IsA("Tool") and (tool.Name:find("Seed") or tool.Name == "Carrot") and not tool.Name:find("Shovel") then
+            return true
+        end
+    end
+    return false
+end
+
+-- Function to detect planted crops around farm
+local function hasPlantedCropsNearby()
+    if not PlantsPhysical then 
+        InitializeFarmData() 
+    end
+    
+    if PlantsPhysical then
+        local plants = GetHarvestablePlants()
+        return #plants > 0
+    end
+    return false
+end
+
+-- Function to buy best seed
+local function buyBestSeed()
+    pcall(function()
+        local bestSeed = getBestAffordableSeed()
+        local currentSheckles = game:GetService("Players").LocalPlayer.leaderstats.Sheckles.Value
+        local seedData = seedProfitability[bestSeed]
+        
+        if seedData and currentSheckles >= seedData.price then
+            local cleanSeedName = bestSeed:gsub(" Seed", "")
+            BuySeedStock:FireServer(cleanSeedName)
+            task.wait(1)
+        end
+    end)
+end
+
+-- Function to set auto farm position
+local function SetPosition()
+    if HumanoidRootPart then
+        autoFarmPosition = HumanoidRootPart.CFrame
+    end
+end
+
+-- Main Auto Farm Loop
+local function autoFarmLoop()
+    while autoFarmEnabled do
+        pcall(function()
+            if not autoFarmPosition then
+                task.wait(5)
+                return
+            end
+            
+            HumanoidRootPart.CFrame = autoFarmPosition
+            task.wait(1)
+            
+            if hasHarvestedCrops() then
+                SellInventory()
+                task.wait(2)
+            end
+            
+            if hasPlantedCropsNearby() then
+                HarvestAllPlantsFunction()
+                task.wait(3)
+                
+                if hasHarvestedCrops() then
+                    SellInventory()
+                    task.wait(2)
+                end
+            end
+            
+            if not hasSeeds() then
+                buyBestSeed()
+                task.wait(2)
+            end
+            
+            while hasSeeds() and autoFarmEnabled do
+                local seedTools = {}
+                for _, tool in ipairs(Backpack:GetChildren()) do
+                    if tool:IsA("Tool") and (tool.Name:find("Seed") or tool.Name == "Carrot") and not tool.Name:find("Shovel") then
+                        table.insert(seedTools, tool)
+                    end
+                end
+                
+                if #seedTools > 0 then
+                    local humanoid = Character:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        local seedTool = seedTools[1]
+                        humanoid:EquipTool(seedTool)
+                        task.wait(0.5)
+                        
+                        local playerPos = HumanoidRootPart.Position
+                        for angle = 0, 315, 45 do
+                            local offset = Vector3.new(
+                                math.cos(math.rad(angle)) * 2,
+                                0.13,
+                                math.sin(math.rad(angle)) * 2
+                            )
+                            local plantName = seedTool.Name:match("(.+) Seed") or seedTool.Name
+                            plantName = plantName:gsub(" %[X%d+%]", "")
+                            Plant_RE:FireServer(playerPos + offset, plantName)
+                            task.wait(0.1)
+                        end
+                    end
+                else
+                    break
+                end
+                task.wait(1)
+            end
+            
+            task.wait(5)
+            
+            if not hasPlantedCropsNearby() and not hasSeeds() then
+                buyBestSeed()
+                task.wait(2)
+            end
+        end)
+        
+        task.wait(1)
+    end
+end
+
+-- Function to start auto farm
+local function startAutoFarm()
+    if autoFarmEnabled then return end
+    
+    if not autoFarmPosition then
+        return
+    end
+    
+    autoFarmEnabled = true
+    autoFarmCoroutine = coroutine.create(autoFarmLoop)
+    coroutine.resume(autoFarmCoroutine)
+end
+
+-- Function to stop auto farm
+local function stopAutoFarm()
+    if not autoFarmEnabled then return end
+    
+    autoFarmEnabled = false
+    if autoFarmCoroutine then
+        coroutine.close(autoFarmCoroutine)
+        autoFarmCoroutine = nil
+    end
+end
