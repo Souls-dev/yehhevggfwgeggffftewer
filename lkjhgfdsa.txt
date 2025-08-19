@@ -8620,19 +8620,20 @@ function Compkiller:Loader(IconId,Duration)
 	Loader.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	Loader.BorderSizePixel = 0
 	Loader.Position = UDim2.new(0.5, 0, 0.5, 0)
-	Loader.Size = UDim2.new(1, 0, 1, 0)
+	Loader.Size = UDim2.new(1, 0, 1, 0)Icon.Name = "Icon"
 
-	Icon.Name = "Icon"
-	Icon.Parent = Loader
-	Icon.AnchorPoint = Vector2.new(0.5, 0.5)
-	Icon.BackgroundTransparency = 1.000
-	Icon.BorderColor3 = Color3.fromRGB(0, 0, 0)
-	Icon.BorderSizePixel = 0
-	Icon.Position = UDim2.new(0.5, 0, 0.5, 0)
-	Icon.Size = UDim2.new(0, 750, 0, 750)
-	Icon.ZIndex = 100
-	Icon.Image = IconId or "rbxassetid://83508800509243"
-	Icon.ImageTransparency = 1
+Icon.Parent = Loader
+Icon.AnchorPoint = Vector2.new(0.5, 0.5)
+Icon.BackgroundTransparency = 1.000
+Icon.BorderColor3 = Color3.fromRGB(0, 0, 0)
+Icon.BorderSizePixel = 0
+Icon.Position = UDim2.new(0.5, 0, 0.5, 0)
+Icon.Size = UDim2.new(0, 750, 0, 750)
+Icon.ZIndex = 100
+Icon.Image = IconId or "rbxassetid://83508800509243"
+Icon.ImageTransparency = 1
+Icon.ScaleType = Enum.ScaleType.Fit -- 🔥 keeps your logo ratio
+
 
 	Vignette.Name = "Vignette"
 	Vignette.Parent = Loader
