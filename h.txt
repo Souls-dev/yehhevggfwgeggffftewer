@@ -7984,7 +7984,7 @@ function Compkiller.new(Config : Window)
 	Watermark.Name = "Watermark"
 	Watermark.Parent = CompKiller
 	Watermark.AnchorPoint = Vector2.new(1, 0)
-	Watermark.BackgroundColor3 = Compkiller.Colors.BGDBColor -- black / dark gray background
+	Watermark.BackgroundColor3 = Compkiller.Colors.BGDBColor
 
 	table.insert(Compkiller.Elements.BGDBColor,{
 		Element = Watermark,
@@ -8016,7 +8016,7 @@ function Compkiller.new(Config : Window)
 	Logo.Name = "Logo"
 	Logo.Parent = Watermark
 	Logo.AnchorPoint = Vector2.new(1, 0.5)
-	Logo.BackgroundColor3 = Compkiller.Colors.BGDBColor -- dark gray logo box
+	Logo.BackgroundColor3 = Compkiller.Colors.BGDBColor
 
 	table.insert(Compkiller.Elements.BGDBColor,{
 		Element = Logo,
@@ -8036,7 +8036,7 @@ function Compkiller.new(Config : Window)
 
 	Frame.Parent = Logo
 	Frame.AnchorPoint = Vector2.new(0, 0.5)
-	Frame.BackgroundColor3 = Compkiller.Colors.Highlight -- white line
+	Frame.BackgroundColor3 = Compkiller.Colors.Highlight -- white/gray line
 	Frame.BorderColor3 = Color3.fromRGB(0, 0, 0)
 	Frame.BorderSizePixel = 0
 	Frame.Position = UDim2.new(1, -5, 0.5, 0)
@@ -8058,7 +8058,7 @@ function Compkiller.new(Config : Window)
 	CompLogo.Size = UDim2.new(0.800000012, 0, 0.800000012, 0)
 	CompLogo.SizeConstraint = Enum.SizeConstraint.RelativeYY
 	CompLogo.ZIndex = 159
-	CompLogo.Image = Config.Logo -- keep your logo image
+	CompLogo.Image = Config.Logo
 
 	WaternarkList.Name = "WaternarkList"
 	WaternarkList.Parent = Watermark
@@ -8125,7 +8125,7 @@ function Compkiller.new(Config : Window)
 		TextLabel.ZIndex = 156
 		TextLabel.Font = Enum.Font.GothamMedium
 		TextLabel.Text = Watermark.Text
-		TextLabel.TextColor3 = Compkiller.Colors.SwitchColor -- white text
+		TextLabel.TextColor3 = Compkiller.Colors.SwitchColor -- white/gray text
 		TextLabel.TextSize = 10.000
 		TextLabel.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -8133,10 +8133,6 @@ function Compkiller.new(Config : Window)
 			Element = TextLabel,
 			Property = 'TextColor3'
 		});
-	end
-
-	return Args
-end
 				local Update = function()
 					local scale = TextService:GetTextSize(TextLabel.Text,TextLabel.TextSize,TextLabel.Font,Vector2.new(math.huge,math.huge));
 
