@@ -343,18 +343,18 @@ local Compkiller = {
 };
 
 Compkiller.Colors = {
-	Highlight = Color3.fromRGB(255, 255, 255), -- White for highlight
-	Toggle = Color3.fromRGB(200, 200, 200), -- Light gray toggle
-	Risky = Color3.fromRGB(150, 150, 150), -- Mid gray (no yellow)
-	BGDBColor = Color3.fromRGB(15, 15, 15), -- Dark background
-	BlockColor = Color3.fromRGB(25, 25, 25), -- Slightly lighter block
-	StrokeColor = Color3.fromRGB(40, 40, 40), -- Border stroke
-	SwitchColor = Color3.fromRGB(255, 255, 255), -- White switch
-	DropColor = Color3.fromRGB(30, 30, 30), -- Dark dropdown background
-	MouseEnter = Color3.fromRGB(60, 60, 60), -- Hover gray
-	BlockBackground = Color3.fromRGB(35, 35, 35), -- Block background
-	LineColor = Color3.fromRGB(80, 80, 80), -- Divider lines
-	HighStrokeColor = Color3.fromRGB(100, 100, 100), -- Stronger stroke
+	Highlight       = Color3.fromRGB(189, 189, 189), -- Soft silver highlight (#BDBDBD)
+	Toggle          = Color3.fromRGB(150, 150, 150), -- Smooth mid-gray toggle (#969696)
+	Risky           = Color3.fromRGB(88, 88, 88),    -- Darker graphite gray (#585858)
+	BGDBColor       = Color3.fromRGB(30, 30, 30),    -- Deep graphite background (#1E1E1E)
+	BlockColor      = Color3.fromRGB(44, 44, 44),    -- Graphite block (#2C2C2C)
+	StrokeColor     = Color3.fromRGB(70, 70, 70),    -- Subtle chrome border (#464646)
+	SwitchColor     = Color3.fromRGB(189, 189, 189), -- Chrome switch accent (#BDBDBD)
+	DropColor       = Color3.fromRGB(38, 38, 38),    -- Dark dropdown (#262626)
+	MouseEnter      = Color3.fromRGB(88, 88, 88),    -- Graphite hover effect (#585858)
+	BlockBackground = Color3.fromRGB(50, 50, 50),    -- Mid graphite background (#323232)
+	LineColor       = Color3.fromRGB(100, 100, 100), -- Divider lines (#646464)
+	HighStrokeColor = Color3.fromRGB(120, 120, 120), -- Stronger chrome stroke (#787878)
 }
 
 Compkiller.Elements = {
