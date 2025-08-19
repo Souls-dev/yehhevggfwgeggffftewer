@@ -356,7 +356,7 @@ Compkiller.Colors = {
 	BlockBackground = Color3.fromRGB(35, 35, 35),    -- Graphite block background
 	LineColor       = Color3.fromRGB(85, 85, 85),    -- Divider lines
 	HighStrokeColor = Color3.fromRGB(110, 110, 110), -- Stronger stroke
-}
+};
 
 
 Compkiller.Elements = {
