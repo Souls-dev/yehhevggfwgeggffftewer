@@ -343,18 +343,19 @@ local Compkiller = {
 };
 
 Compkiller.Colors = {
-	Highlight       = Color3.fromRGB(180, 180, 180), -- Softer highlight, not blinding
-	Toggle          = Color3.fromRGB(255, 255, 255), -- Pure white toggle
+	Highlight       = Color3.fromRGB(180, 180, 180), -- Softer highlight
+	Toggle          = Color3.fromRGB(255, 255, 255), -- Pure white when toggled ON
 	Risky           = Color3.fromRGB(90, 90, 90),    -- Deeper gray for risky
 	BGDBColor       = Color3.fromRGB(15, 15, 15),    -- Very dark background
 	BlockColor      = Color3.fromRGB(25, 25, 25),    -- Dark block
 	StrokeColor     = Color3.fromRGB(45, 45, 45),    -- Subtle border stroke
 	SwitchColor     = Color3.fromRGB(255, 255, 255), -- Pure white slider/switch
-	DropColor       = Color3.fromRGB(10, 10, 10),    -- Pure dark dropdown background
-	MouseEnter      = Color3.fromRGB(70, 70, 70),    -- Dark hover gray
+	DropColor       = Color3.fromRGB(0, 0, 0),       -- Pure black dropdown background
+	DropTextColor   = Color3.fromRGB(255, 255, 255), -- Pure white dropdown text
+	MouseEnter      = Color3.fromRGB(70, 70, 70),    -- Hover gray
 	BlockBackground = Color3.fromRGB(35, 35, 35),    -- Graphite block background
-	LineColor       = Color3.fromRGB(255, 255, 255), -- White divider lines for dropdown contrast
-	HighStrokeColor = Color3.fromRGB(110, 110, 110), -- Stronger stroke for emphasis
+	LineColor       = Color3.fromRGB(85, 85, 85),    -- Divider lines
+	HighStrokeColor = Color3.fromRGB(110, 110, 110), -- Stronger stroke
 }
 
 
