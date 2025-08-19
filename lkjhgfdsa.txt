@@ -343,19 +343,19 @@ local Compkiller = {
 };
 
 Compkiller.Colors = {
-	Highlight = Color3.fromRGB(255, 255, 255), -- White for highlight
-	Toggle = Color3.fromRGB(200, 200, 200), -- Light gray toggle
-	Risky = Color3.fromRGB(150, 150, 150), -- Mid gray (no yellow)
-	BGDBColor = Color3.fromRGB(15, 15, 15), -- Dark background
-	BlockColor = Color3.fromRGB(25, 25, 25), -- Slightly lighter block
-	StrokeColor = Color3.fromRGB(40, 40, 40), -- Border stroke
-	SwitchColor = Color3.fromRGB(255, 255, 255), -- White switch
-	DropColor = Color3.fromRGB(30, 30, 30), -- Dark dropdown background
-	MouseEnter = Color3.fromRGB(60, 60, 60), -- Hover gray
-	BlockBackground = Color3.fromRGB(35, 35, 35), -- Block background
-	LineColor = Color3.fromRGB(80, 80, 80), -- Divider lines
-	HighStrokeColor = Color3.fromRGB(100, 100, 100), -- Stronger stroke
-}
+	Highlight = Color3.fromRGB(150, 150, 150), -- Light grey for highlights
+	Toggle = Color3.fromRGB(180, 180, 180),    -- A slightly lighter grey for toggles when active
+	Risky = Color3.fromRGB(255, 80, 80),        -- Kept a subtle red for risky actions for clarity
+	BGDBColor = Color3.fromRGB(25, 25, 25),     -- Main background (dark grey)
+	BlockColor = Color3.fromRGB(40, 40, 40),    -- UI block color
+	StrokeColor = Color3.fromRGB(60, 60, 60),   -- Stroke/border color
+	SwitchColor = Color3.fromRGB(255, 255, 255),-- White for text and switches
+	DropColor = Color3.fromRGB(50, 50, 50),     -- Dropdown and other elements background
+	MouseEnter = Color3.fromRGB(80, 80, 80),    -- Hover color
+	BlockBackground = Color3.fromRGB(35, 35, 35),-- Background for larger blocks/sections
+	LineColor = Color3.fromRGB(100, 100, 100),  -- Line separators
+	HighStrokeColor = Color3.fromRGB(90, 90, 90), -- Highlighted stroke color
+};
 
 Compkiller.Elements = {
 	Highlight = {},
