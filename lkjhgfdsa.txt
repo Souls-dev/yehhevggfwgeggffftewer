@@ -8656,7 +8656,7 @@ Icon.ScaleType = Enum.ScaleType.Fit -- 🔥 keeps your logo ratio
 	task.delay(0.5,function()
 		Compkiller:_Animation(Icon,TweenInfo.new(0.75,Enum.EasingStyle.Quint),{
 			ImageTransparency = 0.01,
-			Size = UDim2.new(0, 200, 0, 200)
+			Size = UDim2.new(0, 500, 0, 500)
 		});
 
 		task.delay(0.25,function()
