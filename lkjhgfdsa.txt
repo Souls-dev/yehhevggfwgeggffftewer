@@ -8631,7 +8631,7 @@ function Compkiller:Loader(IconId,Duration)
 	Icon.Position = UDim2.new(0.5, 0, 0.5, 0)
 	Icon.Size = UDim2.new(0, 750, 0, 750)
 	Icon.ZIndex = 100
-	Icon.Image = IconId or ""
+	Icon.Image = IconId or "rbxassetid://83508800509243"
 	Icon.ImageTransparency = 1
 
 	Vignette.Name = "Vignette"
