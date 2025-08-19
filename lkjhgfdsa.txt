@@ -343,18 +343,18 @@ local Compkiller = {
 };
 
 Compkiller.Colors = {
-	Highlight       = Color3.fromRGB(170, 170, 170), -- Polished steel highlight
-	Toggle          = Color3.fromRGB(100, 120, 140), -- Graphite-blue toggle accent (adds life)
-	Risky           = Color3.fromRGB(80, 80, 80),    -- Deep neutral gray
-	BGDBColor       = Color3.fromRGB(12, 12, 12),    -- Ultra dark background
-	BlockColor      = Color3.fromRGB(24, 24, 24),    -- Dark block
-	StrokeColor     = Color3.fromRGB(45, 45, 45),    -- Subtle chrome border
-	SwitchColor     = Color3.fromRGB(160, 160, 160), -- Metallic switch accent
-	DropColor       = Color3.fromRGB(20, 20, 20),    -- Dropdown background
-	MouseEnter      = Color3.fromRGB(70, 70, 70),    -- Hover graphite shade
-	BlockBackground = Color3.fromRGB(32, 32, 32),    -- Block background
+	Highlight       = Color3.fromRGB(180, 180, 180), -- Softer highlight, not blinding
+	Toggle          = Color3.fromRGB(120, 120, 120), -- Mid graphite, stands out but still dark
+	Risky           = Color3.fromRGB(90, 90, 90),    -- Deeper gray for risky
+	BGDBColor       = Color3.fromRGB(15, 15, 15),    -- Very dark background
+	BlockColor      = Color3.fromRGB(25, 25, 25),    -- Dark block
+	StrokeColor     = Color3.fromRGB(45, 45, 45),    -- Subtle border stroke
+	SwitchColor     = Color3.fromRGB(160, 160, 160), -- Chrome-like switch
+	DropColor       = Color3.fromRGB(22, 22, 22),    -- Dropdown graphite
+	MouseEnter      = Color3.fromRGB(70, 70, 70),    -- Dark hover gray
+	BlockBackground = Color3.fromRGB(35, 35, 35),    -- Graphite block background
 	LineColor       = Color3.fromRGB(85, 85, 85),    -- Divider lines
-	HighStrokeColor = Color3.fromRGB(110, 110, 110), -- Stronger stroke
+	HighStrokeColor = Color3.fromRGB(110, 110, 110), -- Stronger stroke for emphasis
 }
 
 Compkiller.Elements = {
