@@ -5123,69 +5123,178 @@ function Compkiller.new(Config : Window)
 	local ExpireText = Instance.new("TextLabel")
 	local TabMainFrame = Instance.new("Frame")
 
+-- Add this at the top of the module
+local CurrentUI = nil
+
+-- Wrap the main UI creation
+local originalCreate = Compkiller.Create
+
+function Compkiller.Create(...)
+    if CurrentUI then
+        CurrentUI:Destroy()
+    end
+    local newUI = originalCreate(...)
+    CurrentUI = newUI
+    return newUI
+end
+
+-- Create a proper Destroy method
+function Compkiller:DestroyUI()
+    if CurrentUI then
+        pcall(function()
+            if CurrentUI.ScreenGui then
+                CurrentUI.ScreenGui:Destroy()
+            else
+                CurrentUI.MainFrame:Destroy()
+            end
+        end)
+        CurrentUI = nil
+    end
+end
+
 -- === Close and Minimize Buttons ===
+-- Find where MainFrame is ALREADY created (don't create a new one!)
+-- It should look something like: local MainFrame = Instance.new("Frame") [already exists]
+
+-- Add buttons after MainFrame is created
 local ButtonContainer = Instance.new("Frame")
 ButtonContainer.Name = "ButtonContainer"
 ButtonContainer.Parent = MainFrame
 ButtonContainer.AnchorPoint = Vector2.new(1, 0)
-ButtonContainer.Position = UDim2.new(1, -10, 0, 10)
-ButtonContainer.Size = UDim2.new(0, 60, 0, 20)
+ButtonContainer.Position = UDim2.new(1, -5, 0, 5)
+ButtonContainer.Size = UDim2.new(0, 40, 0, 20)
 ButtonContainer.BackgroundTransparency = 1
 
 local MinimizeButton = Instance.new("ImageButton")
 MinimizeButton.Name = "MinimizeButton"
 MinimizeButton.Parent = ButtonContainer
-MinimizeButton.Position = UDim2.new(0, 0, 0, 0)
 MinimizeButton.Size = UDim2.new(0, 20, 0, 20)
-MinimizeButton.BackgroundTransparency = 0.8
-MinimizeButton.BorderSizePixel = 0
-MinimizeButton.Image = "rbxassetid://10723426393"  -- Line chart icon (lucide-line-chart)
-MinimizeButton.ImageColor3 = Color3.fromRGB(200, 200, 200)
-MinimizeButton.ImageTransparency = 0.3
+MinimizeButton.Image = "rbxassetid://10723426393" -- Use existing icon IDs from your library
+MinimizeButton.ImageColor3 = Color3.fromRGB(180, 180, 180)
+MinimizeButton.ImageTransparency = 0.5
 MinimizeButton.ZIndex = 10
 
 local CloseButton = Instance.new("ImageButton")
 CloseButton.Name = "CloseButton"
 CloseButton.Parent = ButtonContainer
-CloseButton.Position = UDim2.new(0, 30, 0, 0)
+CloseButton.Position = UDim2.new(1, 5, 0, 0)
 CloseButton.Size = UDim2.new(0, 20, 0, 20)
-CloseButton.BackgroundTransparency = 0.8
-CloseButton.BorderSizePixel = 0
-CloseButton.Image = "rbxassetid://10723426722"  -- X icon (lucide-x)
-CloseButton.ImageColor3 = Color3.fromRGB(200, 200, 200)
-CloseButton.ImageTransparency = 0.3
+CloseButton.Image = "rbxassetid://10723426722" -- Use existing icon IDs from your library
+CloseButton.ImageColor3 = Color3.fromRGB(220, 50, 50)
+CloseButton.ImageTransparency = 0.5
 CloseButton.ZIndex = 10
 
--- Add hover effects using the library's pattern
+-- Add hover effects
 Compkiller:_Hover(MinimizeButton, function()
-    Compkiller:_Animation(MinimizeButton, TweenInfo.new(0.1), {ImageTransparency = 0})
+    Compkiller:_Animation(MinimizeButton, TweenInfo.new(0.1), {ImageTransparency = 0.2})
 end, function()
-    Compkiller:_Animation(MinimizeButton, TweenInfo.new(0.1), {ImageTransparency = 0.3})
+    Compkiller:_Animation(MinimizeButton, TweenInfo.new(0.1), {ImageTransparency = 0.5})
 end)
 
 Compkiller:_Hover(CloseButton, function()
-    Compkiller:_Animation(CloseButton, TweenInfo.new(0.1), {ImageTransparency = 0})
+    Compkiller:_Animation(CloseButton, TweenInfo.new(0.1), {ImageTransparency = 0.2})
 end, function()
-    Compkiller:_Animation(CloseButton, TweenInfo.new(0.1), {ImageTransparency = 0.3})
+    Compkiller:_Animation(CloseButton, TweenInfo.new(0.1), {ImageTransparency = 0.5})
 end)
 
 -- Add click handlers
 Compkiller:_Input(MinimizeButton, function()
-    -- Toggle minimize state
     if WindowArgs.IsMinimized then
-        -- Restore window
-        Compkiller:_Animation(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = WindowArgs.OriginalSize})
+        -- Restore window with proper animation
+        Compkiller:_Animation(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = WindowArgs.OriginalSize})
+        
+        -- Animate all elements back in
+        if CompLogo then
+            Compkiller:_Animation(CompLogo, TweenInfo.new(0.3), {Size = UDim2.new(0, 50, 0, 50), Position = UDim2.new(0, 5, 0.5, 0)})
+        end
+        if WindowLabel then
+            Compkiller:_Animation(WindowLabel, TweenInfo.new(0.35), {TextTransparency = 0})
+        end
+        if UserProfile then
+            Compkiller:_Animation(UserProfile, TweenInfo.new(0.35), {ImageTransparency = 0})
+        end
+        if UserText then
+            Compkiller:_Animation(UserText, TweenInfo.new(0.35), {TextTransparency = 0.1})
+        end
+        if ExpireText then
+            Compkiller:_Animation(ExpireText, TweenInfo.new(0.35), {TextTransparency = 0.5})
+        end
+        if TabFrame then
+            Compkiller:_Animation(TabFrame, TweenInfo.new(0.35), {Size = UDim2.new(0, 185, 1, 0)})
+        end
+        
         WindowArgs.IsMinimized = false
     else
-        -- Minimize window
+        -- Store original size
         WindowArgs.OriginalSize = MainFrame.Size
-        Compkiller:_Animation(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0, WindowArgs.OriginalSize.X.Offset, 0, 30)})
+        
+        -- Minimize to logo-only block with smooth animation
+        local logoSize = 40  -- Size of the minimized block
+        
+        -- Animate main frame to small square
+        Compkiller:_Animation(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, logoSize + 10, 0, logoSize + 10)
+        })
+        
+        -- Hide all text elements with staggered animation
+        if WindowLabel then
+            Compkiller:_Animation(WindowLabel, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TextTransparency = 1})
+        end
+        if UserText then
+            Compkiller:_Animation(UserText, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TextTransparency = 1})
+        end
+        if ExpireText then
+            Compkiller:_Animation(ExpireText, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {TextTransparency = 1})
+        end
+        if TabFrame then
+            Compkiller:_Animation(TabFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 1, 0)})
+        end
+        
+        -- Slightly scale up the logo in minimized state for better visibility
+        if CompLogo then
+            Compkiller:_Animation(CompLogo, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, logoSize, 0, logoSize),
+                Position = UDim2.new(0.5, 0, 0.5, 0)
+            })
+        end
+        
         WindowArgs.IsMinimized = true
     end
 end)
 
+-- Add hover effect for minimized state
+Compkiller:_Hover(MinimizeButton, function()
+    if WindowArgs.IsMinimized then
+        -- Slightly enlarge when hovering over minimized logo
+        Compkiller:_Animation(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 50, 0, 50)
+        })
+        if CompLogo then
+            Compkiller:_Animation(CompLogo, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, 45, 0, 45)
+            })
+        end
+    else
+        -- Standard hover effect when not minimized
+        Compkiller:_Animation(MinimizeButton, TweenInfo.new(0.1), {ImageTransparency = 0.2})
+    end
+end, function()
+    if WindowArgs.IsMinimized then
+        -- Return to minimized size
+        Compkiller:_Animation(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 40, 0, 40)
+        })
+        if CompLogo then
+            Compkiller:_Animation(CompLogo, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                Size = UDim2.new(0, 35, 0, 35)
+            })
+        end
+    else
+        Compkiller:_Animation(MinimizeButton, TweenInfo.new(0.1), {ImageTransparency = 0.5})
+    end
+end)
+
 Compkiller:_Input(CloseButton, function()
-    -- Destroy the UI
     WindowArgs:Destroy()
 end)
 
