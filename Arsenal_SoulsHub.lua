@@ -61,15 +61,15 @@ general:AddDropdown({
 ----------------------------------------------------
 -- Silent Aim
 combat:AddToggle({
-    Name = "Silent Aim",
+    Name = "Silent Aim1",
     Flag = "silentAimToggle",
     Callback = function(v)
         state.SilentAim = v
         if v and not OldNameCall then
             OldNameCall = hookmetamethod(game, "__namecall", function(Self, ...)
                 local Method, Args = getnamecallmethod(), {...}
-                if state.SilentAim and Self == Workspace and Method == "Raycast" and BodyPart then
-                    Args[2] = (BodyPart.Position - Args[1]).Unit * 600
+                if state.SilentAim and Method == "FindPartOnRayWithIgnoreList" and BodyPart then
+                    Args[1] = Ray.new(camera.CFrame.Position, (BodyPart.Position - camera.CFrame.Position).Unit * 600)
                     return OldNameCall(Self, unpack(Args))
                 end
                 return OldNameCall(Self, ...)
@@ -168,12 +168,10 @@ local function isVisible(character)
     local root = character:FindFirstChild("HumanoidRootPart")
     if not root then return false end
     local origin = camera.CFrame.Position
-    local direction = root.Position - origin
-    if direction.Magnitude == 0 then return true end
     local params = RaycastParams.new()
     params.FilterDescendantsInstances = {localPlayer.Character}
     params.FilterType = Enum.RaycastFilterType.Blacklist
-    local result = Workspace:Raycast(origin, direction, params)
+    local result = Workspace:Raycast(origin, root.Position-origin, params)
     return not result or result.Instance:IsDescendantOf(character)
 end
 
@@ -202,16 +200,16 @@ end
 local function GetClosestBodyPartFromCursor()
     local ClosestDistance = math.huge
     BodyPart = nil
-    local center = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
-    for _, target in ipairs(getTargets()) do
-        local char = target.Character
-        for _, x in ipairs(char:GetChildren()) do
-            if (x:IsA("Part") or x:IsA("MeshPart")) then
-                local ScreenPos, onScreen = camera:WorldToViewportPoint(x.Position)
-                if onScreen then
-                    local Distance = (Vector2.new(ScreenPos.X, ScreenPos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
-                    if Distance < ClosestDistance and Distance <= fovAngle then
-                        ClosestDistance, BodyPart = Distance, x
+    for _, v in next, Players:GetPlayers() do
+        if v~=localPlayer and v.Team~=localPlayer.Team and v.Character and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health>0 then
+            for _, x in next, v.Character:GetChildren() do
+                if (x:IsA("Part") or x:IsA("MeshPart")) then
+                    local ScreenPos, onScreen = camera:WorldToScreenPoint(x.Position)
+                    if onScreen then
+                        local Distance = (Vector2.new(ScreenPos.X, ScreenPos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+                        if Distance < ClosestDistance then
+                            ClosestDistance, BodyPart = Distance, x
+                        end
                     end
                 end
             end
@@ -236,8 +234,7 @@ RunService.RenderStepped:Connect(function()
         if not(root and head) then continue end
         local rootPos,onScreenRoot = camera:WorldToViewportPoint(root.Position)
         local headPos,onScreenHead = camera:WorldToViewportPoint(head.Position)
-        local dir = (root.Position-camPos).Unit
-        local angle = math.deg(math.acos(camLook:Dot(dir)))
+        local dir,angle = (root.Position-camPos).Unit, math.deg(math.acos(camLook:Dot((root.Position-camPos).Unit)))
         local dist,dist2D = (root.Position-camPos).Magnitude, (Vector2.new(rootPos.X,rootPos.Y)-center).Magnitude
 
         if onScreenRoot and dist2D<=fovCircle.Radius and angle<=bestAngle and dist<=maxDistance and isVisible(char) then
@@ -266,7 +263,6 @@ RunService.RenderStepped:Connect(function()
     end
 
     if bestTarget and state.Aimbot then
-        camera.CameraType = Enum.CameraType.Scriptable
         camera.CFrame = CFrame.new(camera.CFrame.Position, bestTarget.Position)
     else
         camera.CameraType = Enum.CameraType.Custom
