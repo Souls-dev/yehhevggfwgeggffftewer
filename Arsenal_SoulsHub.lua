@@ -67,8 +67,10 @@ combat:AddToggle({
         if v and not OldNameCall then
             OldNameCall = hookmetamethod(game, "__namecall", function(Self, ...)
                 local Method, Args = getnamecallmethod(), {...}
-                if state.SilentAim and Method == "FindPartOnRayWithIgnoreList" and BodyPart then
-                    Args[1] = Ray.new(camera.CFrame.Position, (BodyPart.Position - camera.CFrame.Position).Unit * 600)
+                if state.SilentAim and Self == Workspace and Method == "Raycast" and BodyPart then
+                    local origin = Args[1]
+                    local direction = (BodyPart.Position - origin).Unit * 600
+                    Args[2] = direction
                     return OldNameCall(Self, unpack(Args))
                 end
                 return OldNameCall(Self, ...)
@@ -108,37 +110,20 @@ combat:AddToggle({
         end
 
         if enabled then
-            -- hook InputBegan to fire bullet and set ammo on click
+            -- loop to set ammo
             if ammoConn and ammoConn.Connected then ammoConn:Disconnect() end
-            ammoConn = UserInputService.InputBegan:Connect(function(i, g)
-                if i.UserInputType == Enum.UserInputType.MouseButton1 and not g then
-                    -- only trigger when not equipping (same check as your snippet)
-                    safeDo(function()
-                        local gui = localPlayer:FindFirstChild("PlayerGui") and localPlayer.PlayerGui:FindFirstChild("GUI")
-                        if gui and gui.Client and gui.Client:FindFirstChild("Variables") then
-                            local vars = gui.Client.Variables
-                            if vars:FindFirstChild("equipping") and not vars.equipping.Value then
-                                if vars:FindFirstChild("DISABLED") then vars.DISABLED.Value = true end
-                                if vars:FindFirstChild("ammocount") then vars.ammocount.Value = 300 end
-                                if vars:FindFirstChild("ammocount2") then vars.ammocount2.Value = 300 end
-                                -- call firebullet if available
-                                if gui.Client.Functions and gui.Client.Functions:FindFirstChild("Weapons") then
-                                    local ok, mod = pcall(function()
-                                        return require(gui.Client.Functions.Weapons)
-                                    end)
-                                    if ok and type(mod) == "table" and type(mod.firebullet) == "function" then
-                                        pcall(function() mod.firebullet() end)
-                                    end
-                                else
-                                    -- fallback try the require path used in your snippet (if present)
-                                    pcall(function()
-                                        require(localPlayer.PlayerGui.GUI.Client.Functions.Weapons).firebullet()
-                                    end)
-                                end
-                            end
-                        end
-                    end)
-                end
+            ammoConn = RunService.Heartbeat:Connect(function()
+                safeDo(function()
+                    local gui = localPlayer:FindFirstChild("PlayerGui") and localPlayer.PlayerGui:FindFirstChild("GUI")
+                    if gui and gui.Client and gui.Client:FindFirstChild("Variables") then
+                        local vars = gui.Client.Variables
+                        if vars:FindFirstChild("equipping") then vars.equipping.Value = false end
+                        if vars:FindFirstChild("DISABLED") then vars.DISABLED.Value = false end
+                        if vars:FindFirstChild("ammocount") then vars.ammocount.Value = 300 end
+                        if vars:FindFirstChild("ammocount2") then vars.ammocount2.Value = 300 end
+                        if vars:FindFirstChild("reloading") then vars.reloading.Value = false end
+                    end
+                end)
             end)
 
             -- set no recoil, no spread, auto true for all weapons and save old values for restore
@@ -230,16 +215,15 @@ end
 local function GetClosestBodyPartFromCursor()
     local ClosestDistance = math.huge
     BodyPart = nil
-    for _, v in next, Players:GetPlayers() do
-        if v~=localPlayer and v.Team~=localPlayer.Team and v.Character and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health>0 then
-            for _, x in next, v.Character:GetChildren() do
-                if (x:IsA("Part") or x:IsA("MeshPart")) then
-                    local ScreenPos, onScreen = camera:WorldToScreenPoint(x.Position)
-                    if onScreen then
-                        local Distance = (Vector2.new(ScreenPos.X, ScreenPos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
-                        if Distance < ClosestDistance then
-                            ClosestDistance, BodyPart = Distance, x
-                        end
+    for _, target in ipairs(getTargets()) do
+        local char = target.Character
+        for _, x in next, char:GetChildren() do
+            if (x:IsA("Part") or x:IsA("MeshPart")) and x.Transparency < 1 then
+                local ScreenPos, onScreen = camera:WorldToScreenPoint(x.Position)
+                if onScreen then
+                    local Distance = (Vector2.new(ScreenPos.X, ScreenPos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+                    if Distance < ClosestDistance then
+                        ClosestDistance, BodyPart = Distance, x
                     end
                 end
             end
@@ -294,7 +278,8 @@ RunService.RenderStepped:Connect(function()
 
     if bestTarget and state.Aimbot then
         camera.CameraType = Enum.CameraType.Scriptable
-        camera.CFrame = CFrame.new(camera.CFrame.Position, bestTarget.Position)
+        local targetCFrame = CFrame.new(camera.CFrame.Position, bestTarget.Position)
+        camera.CFrame = camera.CFrame:Lerp(targetCFrame, 0.1)
     else
         camera.CameraType = Enum.CameraType.Custom
     end
