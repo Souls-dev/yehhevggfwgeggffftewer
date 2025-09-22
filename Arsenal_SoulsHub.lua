@@ -1,3 +1,4 @@
+-- Load Souls Hub UI
 local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))();
 local Window = SoulsHub.new({ Keybind = "LeftAlt" })
 
@@ -68,9 +69,7 @@ combat:AddToggle({
             OldNameCall = hookmetamethod(game, "__namecall", function(Self, ...)
                 local Method, Args = getnamecallmethod(), {...}
                 if state.SilentAim and Self == Workspace and Method == "Raycast" and BodyPart then
-                    local origin = Args[1]
-                    local direction = (BodyPart.Position - origin).Unit * 600
-                    Args[2] = direction
+                    Args[2] = (BodyPart.Position - Args[1]).Unit * 600
                     return OldNameCall(Self, unpack(Args))
                 end
                 return OldNameCall(Self, ...)
@@ -96,26 +95,22 @@ combat:AddButton({
     end
 })
 
--- comeing soon
--- toggle (your snippet integrated safely)
 combat:AddToggle({
-    Name = "soon",
+    Name = "Infinite Ammo",
     Flag = "infAmmoToggle",
     Callback = function(enabled)
         state.InfAmmo = enabled
-        -- helper to safely pcall the PlayerGui access or function calls
         local function safeDo(fn)
             local ok, _ = pcall(fn)
             return ok
         end
 
         if enabled then
-            -- loop to set ammo
             if ammoConn and ammoConn.Connected then ammoConn:Disconnect() end
             ammoConn = RunService.Heartbeat:Connect(function()
                 safeDo(function()
-                    local gui = localPlayer:FindFirstChild("PlayerGui") and localPlayer.PlayerGui:FindFirstChild("GUI")
-                    if gui and gui.Client and gui.Client:FindFirstChild("Variables") then
+                    local gui = localPlayer.PlayerGui:FindFirstChild("GUI")
+                    if gui and gui:FindFirstChild("Client") and gui.Client:FindFirstChild("Variables") then
                         local vars = gui.Client.Variables
                         if vars:FindFirstChild("equipping") then vars.equipping.Value = false end
                         if vars:FindFirstChild("DISABLED") then vars.DISABLED.Value = false end
@@ -126,29 +121,21 @@ combat:AddToggle({
                 end)
             end)
 
-            -- set no recoil, no spread, auto true for all weapons and save old values for restore
             prevWeaponValues = {}
             for _, v in pairs(ReplicatedStorage:WaitForChild("Weapons"):GetDescendants()) do
-                if v:IsA("BoolValue") or v:IsA("NumberValue") or v:IsA("IntValue") or v:IsA("StringValue") then
-                    if v.Name == 'RecoilControl' or v.Name == 'MaxSpread' or v.Name == 'Auto' then
+                if v:IsA("ValueBase") then
+                    if v.Name == 'RecoilControl' or v.Name == 'MaxSpread' or v.Name == 'Auto' or v.Name == 'FireRate' then
                         prevWeaponValues[v] = v.Value
                         pcall(function()
                             if v.Name == "RecoilControl" then v.Value = 0 end
                             if v.Name == "MaxSpread" then v.Value = 0 end
-                            if v.Name == "Auto" then
-                                -- Auto may be boolean, ensure correct type
-                                if typeof(v.Value) == "boolean" then
-                                    v.Value = true
-                                else
-                                    v.Value = 1
-                                end
-                            end
+                            if v.Name == "Auto" then v.Value = true end
+                            if v.Name == "FireRate" then v.Value = 0.01 end
                         end)
                     end
                 end
             end
         else
-            -- disabled: disconnect input, try to restore previous weapon values
             if ammoConn and ammoConn.Connected then
                 ammoConn:Disconnect()
                 ammoConn = nil
@@ -184,7 +171,7 @@ local function isVisible(character)
     local direction = root.Position - origin
     if direction.Magnitude == 0 then return true end
     local params = RaycastParams.new()
-    params.FilterDescendantsInstances = localPlayer.Character and {localPlayer.Character} or {}
+    params.FilterDescendantsInstances = {localPlayer.Character}
     params.FilterType = Enum.RaycastFilterType.Blacklist
     local result = Workspace:Raycast(origin, direction, params)
     return not result or result.Instance:IsDescendantOf(character)
@@ -215,14 +202,15 @@ end
 local function GetClosestBodyPartFromCursor()
     local ClosestDistance = math.huge
     BodyPart = nil
+    local center = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
     for _, target in ipairs(getTargets()) do
         local char = target.Character
-        for _, x in next, char:GetChildren() do
-            if (x:IsA("Part") or x:IsA("MeshPart")) and x.Transparency < 1 then
-                local ScreenPos, onScreen = camera:WorldToScreenPoint(x.Position)
+        for _, x in ipairs(char:GetChildren()) do
+            if (x:IsA("Part") or x:IsA("MeshPart")) then
+                local ScreenPos, onScreen = camera:WorldToViewportPoint(x.Position)
                 if onScreen then
                     local Distance = (Vector2.new(ScreenPos.X, ScreenPos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
-                    if Distance < ClosestDistance then
+                    if Distance < ClosestDistance and Distance <= fovAngle then
                         ClosestDistance, BodyPart = Distance, x
                     end
                 end
@@ -248,7 +236,8 @@ RunService.RenderStepped:Connect(function()
         if not(root and head) then continue end
         local rootPos,onScreenRoot = camera:WorldToViewportPoint(root.Position)
         local headPos,onScreenHead = camera:WorldToViewportPoint(head.Position)
-        local dir,angle = (root.Position-camPos).Unit, math.deg(math.acos(camLook:Dot((root.Position-camPos).Unit)))
+        local dir = (root.Position-camPos).Unit
+        local angle = math.deg(math.acos(camLook:Dot(dir)))
         local dist,dist2D = (root.Position-camPos).Magnitude, (Vector2.new(rootPos.X,rootPos.Y)-center).Magnitude
 
         if onScreenRoot and dist2D<=fovCircle.Radius and angle<=bestAngle and dist<=maxDistance and isVisible(char) then
@@ -278,8 +267,7 @@ RunService.RenderStepped:Connect(function()
 
     if bestTarget and state.Aimbot then
         camera.CameraType = Enum.CameraType.Scriptable
-        local targetCFrame = CFrame.new(camera.CFrame.Position, bestTarget.Position)
-        camera.CFrame = camera.CFrame:Lerp(targetCFrame, 0.1)
+        camera.CFrame = CFrame.new(camera.CFrame.Position, bestTarget.Position)
     else
         camera.CameraType = Enum.CameraType.Custom
     end
