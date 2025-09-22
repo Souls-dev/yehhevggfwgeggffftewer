@@ -88,22 +88,29 @@ combat:AddToggle({
     end
 })
 
--- Teleport to Nearest Enemy as Keybind
-combat:AddKeybind({
-    Name = "Teleport to Nearest Enemy",
-    Default = Enum.KeyCode.T,
-    Callback = function()
-        local nearest, dist = nil, math.huge
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= localPlayer and p.Team ~= localPlayer.Team and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-                local d = (p.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-                if d < dist then dist, nearest = d, p end
-            end
-        end
-        if nearest and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
+-- Teleport to Nearest Enemy
+local tp_func = function()
+    local nearest, dist = nil, math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= localPlayer and p.Team ~= localPlayer.Team and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+            local d = (p.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
+            if d < dist then dist, nearest = d, p end
         end
     end
+    if nearest and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
+    end
+end
+
+combat:AddButton({
+    Name = "Teleport to Nearest Enemy",
+    Callback = tp_func
+})
+
+combat:AddKeybind({
+    Name = "TP Nearest Key",
+    Default = Enum.KeyCode.T,
+    Callback = tp_func
 })
 
 combat:AddToggle({
@@ -284,37 +291,44 @@ combat:AddToggle({
     end
 })
 
--- Kill All as Keybind
-combat:AddKeybind({
-    Name = "Kill All",
-    Default = Enum.KeyCode.K,
-    Callback = function()
-        local oldCFrame = localPlayer.Character.HumanoidRootPart.CFrame
-        local safeDo = function(fn)
-            local ok, _ = pcall(fn)
-            return ok
-        end
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.Humanoid.Health > 0 then
-                localPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
-                task.wait(0.2)
-                for i = 1, 20 do
-                    safeDo(function()
-                        local gui = localPlayer.PlayerGui:FindFirstChild("GUI")
-                        if gui and gui.Client and gui.Client.Functions and gui.Client.Functions:FindFirstChild("Weapons") then
-                            local mod = require(gui.Client.Functions.Weapons)
-                            if mod and type(mod.firebullet) == "function" then
-                                mod.firebullet()
-                            end
-                        end
-                    end)
-                    task.wait(0.05)
-                end
-                task.wait(0.3)
-            end
-        end
-        localPlayer.Character.HumanoidRootPart.CFrame = oldCFrame
+-- Kill All
+local kill_all_func = function()
+    local oldCFrame = localPlayer.Character.HumanoidRootPart.CFrame
+    local safeDo = function(fn)
+        local ok, _ = pcall(fn)
+        return ok
     end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.Humanoid.Health > 0 then
+            localPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
+            task.wait(0.2)
+            for i = 1, 20 do
+                safeDo(function()
+                    local gui = localPlayer.PlayerGui:FindFirstChild("GUI")
+                    if gui and gui.Client and gui.Client.Functions and gui.Client.Functions:FindFirstChild("Weapons") then
+                        local mod = require(gui.Client.Functions.Weapons)
+                        if mod and type(mod.firebullet) == "function" then
+                            mod.firebullet()
+                        end
+                    end
+                end)
+                task.wait(0.05)
+            end
+            task.wait(0.3)
+        end
+    end
+    localPlayer.Character.HumanoidRootPart.CFrame = oldCFrame
+end
+
+combat:AddButton({
+    Name = "Kill All",
+    Callback = kill_all_func
+})
+
+combat:AddKeybind({
+    Name = "Kill All Key",
+    Default = Enum.KeyCode.K,
+    Callback = kill_all_func
 })
 
 -- Movement Tab with Float Toggle
