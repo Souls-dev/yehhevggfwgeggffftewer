@@ -13,7 +13,7 @@ local camera = Workspace.CurrentCamera
 local Mouse = localPlayer:GetMouse()
 
 -- State
-local state = { ESP = false, Aimbot = false, Rainbow = false, TeamCheck = false, SilentAim = false, InfAmmo = false, Hitbox = false }
+local state = { ESP = false, Aimbot = false, Rainbow = false, TeamCheck = false, SilentAim = false, InfAmmo = false, Hitbox = false, Float = false }
 local hue, rainbowSpeedIndex = 0, 1
 local rainbowSpeeds = {1, 3, 6}
 local rainbowSpeed = rainbowSpeeds[rainbowSpeedIndex]
@@ -31,6 +31,7 @@ local hitboxConns = {}
 local originalHeads = {}
 local hitboxSize = 5
 local inputBeganConn, inputEndedConn
+local floatConn
 
 -- Tabs
 local Rage = Window:DrawTab({ Icon = "skull", Name = "Arsenal", Type = "Double" })
@@ -87,9 +88,10 @@ combat:AddToggle({
     end
 })
 
--- Teleport to Nearest Enemy
-combat:AddButton({
+-- Teleport to Nearest Enemy as Keybind
+combat:AddKeybind({
     Name = "Teleport to Nearest Enemy",
+    Default = Enum.KeyCode.T,
     Callback = function()
         local nearest, dist = nil, math.huge
         for _, p in ipairs(Players:GetPlayers()) do
@@ -282,8 +284,10 @@ combat:AddToggle({
     end
 })
 
-combat:AddButton({
+-- Kill All as Keybind
+combat:AddKeybind({
     Name = "Kill All",
+    Default = Enum.KeyCode.K,
     Callback = function()
         local oldCFrame = localPlayer.Character.HumanoidRootPart.CFrame
         local safeDo = function(fn)
@@ -310,6 +314,74 @@ combat:AddButton({
             end
         end
         localPlayer.Character.HumanoidRootPart.CFrame = oldCFrame
+    end
+})
+
+-- Movement Tab with Float Toggle
+local Movement = Window:DrawTab({
+    Icon = "run",
+    Name = "Movement"
+})
+
+local movementSection = Movement:DrawSection({
+    Name = "Player Movement",
+    Position = "LEFT"
+})
+
+movementSection:AddSlider({
+    Name = "WalkSpeed",
+    Min = 16,
+    Max = 100,
+    Round = 0,
+    Default = 16,
+    Type = "studs/s",
+    Callback = function(value)
+        local player = game.Players.LocalPlayer
+        if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+            player.Character.Humanoid.WalkSpeed = value
+            print("WalkSpeed set to: " .. value)
+        end
+    end
+})
+
+movementSection:AddSlider({
+    Name = "JumpPower",
+    Min = 50,
+    Max = 200,
+    Round = 0,
+    Default = 50,
+    Type = "studs",
+    Callback = function(value)
+        local player = game.Players.LocalPlayer
+        if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+            player.Character.Humanoid.JumpPower = value
+            print("JumpPower set to: " .. value)
+        end
+    end
+})
+
+movementSection:AddToggle({
+    Name = "Float",
+    Flag = "floatToggle",
+    Callback = function(v)
+        state.Float = v
+        if v then
+            if floatConn and floatConn.Connected then floatConn:Disconnect() end
+            floatConn = RunService.Stepped:Connect(function()
+                local char = localPlayer.Character
+                if char then
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    if hrp then
+                        hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+                    end
+                end
+            end)
+        else
+            if floatConn and floatConn.Connected then
+                floatConn:Disconnect()
+                floatConn = nil
+            end
+        end
     end
 })
 
