@@ -13,7 +13,7 @@ local camera = Workspace.CurrentCamera
 local Mouse = localPlayer:GetMouse()
 
 -- State
-local state = { ESP = false, Aimbot = false, Rainbow = false, TeamCheck = false, SilentAim = false, InfAmmo = false, Hitbox = false, Float = false }
+local state = { ESP = false, Aimbot = false, Rainbow = false, TeamCheck = false, SilentAim = false, InfAmmo = false, Hitbox = false }
 local hue, rainbowSpeedIndex = 0, 1
 local rainbowSpeeds = {1, 3, 6}
 local rainbowSpeed = rainbowSpeeds[rainbowSpeedIndex]
@@ -31,7 +31,6 @@ local hitboxConns = {}
 local originalHeads = {}
 local hitboxSize = 5
 local inputBeganConn, inputEndedConn
-local floatConn
 
 -- Tabs
 local Rage = Window:DrawTab({ Icon = "skull", Name = "Arsenal", Type = "Double" })
@@ -89,28 +88,20 @@ combat:AddToggle({
 })
 
 -- Teleport to Nearest Enemy
-local tp_func = function()
-    local nearest, dist = nil, math.huge
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= localPlayer and p.Team ~= localPlayer.Team and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-            local d = (p.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-            if d < dist then dist, nearest = d, p end
-        end
-    end
-    if nearest and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
-    end
-end
-
 combat:AddButton({
     Name = "Teleport to Nearest Enemy",
-    Callback = tp_func
-})
-
-combat:AddKeybind({
-    Name = "TP Nearest Key",
-    Default = Enum.KeyCode.T,
-    Callback = tp_func
+    Callback = function()
+        local nearest, dist = nil, math.huge
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= localPlayer and p.Team ~= localPlayer.Team and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                local d = (p.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
+                if d < dist then dist, nearest = d, p end
+            end
+        end
+        if nearest and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
+        end
+    end
 })
 
 combat:AddToggle({
@@ -291,111 +282,34 @@ combat:AddToggle({
     end
 })
 
--- Kill All
-local kill_all_func = function()
-    local oldCFrame = localPlayer.Character.HumanoidRootPart.CFrame
-    local safeDo = function(fn)
-        local ok, _ = pcall(fn)
-        return ok
-    end
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.Humanoid.Health > 0 then
-            localPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
-            task.wait(0.2)
-            for i = 1, 20 do
-                safeDo(function()
-                    local gui = localPlayer.PlayerGui:FindFirstChild("GUI")
-                    if gui and gui.Client and gui.Client.Functions and gui.Client.Functions:FindFirstChild("Weapons") then
-                        local mod = require(gui.Client.Functions.Weapons)
-                        if mod and type(mod.firebullet) == "function" then
-                            mod.firebullet()
-                        end
-                    end
-                end)
-                task.wait(0.05)
-            end
-            task.wait(0.3)
-        end
-    end
-    localPlayer.Character.HumanoidRootPart.CFrame = oldCFrame
-end
-
 combat:AddButton({
     Name = "Kill All",
-    Callback = kill_all_func
-})
-
-combat:AddKeybind({
-    Name = "Kill All Key",
-    Default = Enum.KeyCode.K,
-    Callback = kill_all_func
-})
-
--- Movement Tab with Float Toggle
-local Movement = Window:DrawTab({
-    Icon = "run",
-    Name = "Movement"
-})
-
-local movementSection = Movement:DrawSection({
-    Name = "Player Movement",
-    Position = "LEFT"
-})
-
-movementSection:AddSlider({
-    Name = "WalkSpeed",
-    Min = 16,
-    Max = 100,
-    Round = 0,
-    Default = 16,
-    Type = "studs/s",
-    Callback = function(value)
-        local player = game.Players.LocalPlayer
-        if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-            player.Character.Humanoid.WalkSpeed = value
-            print("WalkSpeed set to: " .. value)
+    Callback = function()
+        local oldCFrame = localPlayer.Character.HumanoidRootPart.CFrame
+        local safeDo = function(fn)
+            local ok, _ = pcall(fn)
+            return ok
         end
-    end
-})
-
-movementSection:AddSlider({
-    Name = "JumpPower",
-    Min = 50,
-    Max = 200,
-    Round = 0,
-    Default = 50,
-    Type = "studs",
-    Callback = function(value)
-        local player = game.Players.LocalPlayer
-        if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-            player.Character.Humanoid.JumpPower = value
-            print("JumpPower set to: " .. value)
-        end
-    end
-})
-
-movementSection:AddToggle({
-    Name = "Float",
-    Flag = "floatToggle",
-    Callback = function(v)
-        state.Float = v
-        if v then
-            if floatConn and floatConn.Connected then floatConn:Disconnect() end
-            floatConn = RunService.Stepped:Connect(function()
-                local char = localPlayer.Character
-                if char then
-                    local hrp = char:FindFirstChild("HumanoidRootPart")
-                    if hrp then
-                        hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
-                    end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.Humanoid.Health > 0 then
+                localPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
+                task.wait(0.2)
+                for i = 1, 20 do
+                    safeDo(function()
+                        local gui = localPlayer.PlayerGui:FindFirstChild("GUI")
+                        if gui and gui.Client and gui.Client.Functions and gui.Client.Functions:FindFirstChild("Weapons") then
+                            local mod = require(gui.Client.Functions.Weapons)
+                            if mod and type(mod.firebullet) == "function" then
+                                mod.firebullet()
+                            end
+                        end
+                    end)
+                    task.wait(0.05)
                 end
-            end)
-        else
-            if floatConn and floatConn.Connected then
-                floatConn:Disconnect()
-                floatConn = nil
+                task.wait(0.3)
             end
         end
+        localPlayer.Character.HumanoidRootPart.CFrame = oldCFrame
     end
 })
 
