@@ -41,18 +41,18 @@ general:AddToggle({ Name = "Team Check", Flag = "teamToggle", Callback = functio
 
 -- Sliders
 general:AddSlider({
-    Name = "FOV", Min = 50, Max = 150, Default = fovAngle, Round = 0,
-    Flag = "fovSlider", Callback = function(v) fovAngle = v end
+    Name = "FOV", Min = 50, Max = 150, Default = fovAngle, Round = 0,
+    Flag = "fovSlider", Callback = function(v) fovAngle = v end
 })
 general:AddSlider({
-    Name = "Rainbow Speed", Min = 1, Max = 6, Default = 1, Round = 0,
-    Flag = "rainbowSpeed", Callback = function(v) rainbowSpeed = v end
+    Name = "Rainbow Speed", Min = 1, Max = 6, Default = 1, Round = 0,
+    Flag = "rainbowSpeed", Callback = function(v) rainbowSpeed = v end
 })
 
 -- Dropdown
 general:AddDropdown({
-    Name = "Aimbot Mode", Values = {"All","NPC","Players"}, Default = "All",
-    Multi = false, Flag = "aimbotMode", Callback = function(v) aimbotMode = v end
+    Name = "Aimbot Mode", Values = {"All","NPC","Players"}, Default = "All",
+    Multi = false, Flag = "aimbotMode", Callback = function(v) aimbotMode = v end
 })
 
 ----------------------------------------------------
@@ -60,122 +60,122 @@ general:AddDropdown({
 ----------------------------------------------------
 -- Silent Aim
 combat:AddToggle({
-    Name = "Silent Aim",
-    Flag = "silentAimToggle",
-    Callback = function(v)
-        state.SilentAim = v
-        if v and not OldNameCall then
-            OldNameCall = hookmetamethod(game, "__namecall", function(Self, ...)
-                local Method, Args = getnamecallmethod(), {...}
-                if state.SilentAim and Method == "FindPartOnRayWithIgnoreList" and BodyPart then
-                    Args[1] = Ray.new(camera.CFrame.Position, (BodyPart.Position - camera.CFrame.Position).Unit * 600)
-                    return OldNameCall(Self, unpack(Args))
-                end
-                return OldNameCall(Self, ...)
-            end)
-        end
-    end
+    Name = "Silent Aim",
+    Flag = "silentAimToggle",
+    Callback = function(v)
+        state.SilentAim = v
+        if v and not OldNameCall then
+            OldNameCall = hookmetamethod(game, "__namecall", function(Self, ...)
+                local Method, Args = getnamecallmethod(), {...}
+                if state.SilentAim and Method == "FindPartOnRayWithIgnoreList" and BodyPart then
+                    Args[1] = Ray.new(camera.CFrame.Position, (BodyPart.Position - camera.CFrame.Position).Unit * 600)
+                    return OldNameCall(Self, unpack(Args))
+                end
+                return OldNameCall(Self, ...)
+            end)
+        end
+    end
 })
 
 -- Teleport to Nearest Enemy
 combat:AddButton({
-    Name = "Teleport to Nearest Enemy",
-    Callback = function()
-        local nearest, dist = nil, math.huge
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= localPlayer and p.Team ~= localPlayer.Team and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-                local d = (p.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-                if d < dist then dist, nearest = d, p end
-            end
-        end
-        if nearest and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame + Vector3.new(0,3,0)
-        end
-    end
+    Name = "Teleport to Nearest Enemy",
+    Callback = function()
+        local nearest, dist = nil, math.huge
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= localPlayer and p.Team ~= localPlayer.Team and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                local d = (p.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
+                if d < dist then dist, nearest = d, p end
+            end
+        end
+        if nearest and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame + Vector3.new(0,3,0)
+        end
+    end
 })
 
-comeing soon
-toggle (your snippet integrated safely)
+-- comeing soon
+-- toggle (your snippet integrated safely)
 combat:AddToggle({
-    Name = "soon",
-    Flag = "infAmmoToggle",
-    Callback = function(enabled)
-        state.InfAmmo = enabled
-        -- helper to safely pcall the PlayerGui access or function calls
-        local function safeDo(fn)
-            local ok, _ = pcall(fn)
-            return ok
-        end
+    Name = "soon",
+    Flag = "infAmmoToggle",
+    Callback = function(enabled)
+        state.InfAmmo = enabled
+        -- helper to safely pcall the PlayerGui access or function calls
+        local function safeDo(fn)
+            local ok, _ = pcall(fn)
+            return ok
+        end
 
-        if enabled then
-            -- hook InputBegan to fire bullet and set ammo on click
-            if ammoConn and ammoConn.Connected then ammoConn:Disconnect() end
-            ammoConn = UserInputService.InputBegan:Connect(function(i, g)
-                if i.UserInputType == Enum.UserInputType.MouseButton1 and not g then
-                    -- only trigger when not equipping (same check as your snippet)
-                    safeDo(function()
-                        local gui = localPlayer:FindFirstChild("PlayerGui") and localPlayer.PlayerGui:FindFirstChild("GUI")
-                        if gui and gui.Client and gui.Client:FindFirstChild("Variables") then
-                            local vars = gui.Client.Variables
-                            if vars:FindFirstChild("equipping") and not vars.equipping.Value then
-                                if vars:FindFirstChild("DISABLED") then vars.DISABLED.Value = true end
-                                if vars:FindFirstChild("ammocount") then vars.ammocount.Value = 300 end
-                                if vars:FindFirstChild("ammocount2") then vars.ammocount2.Value = 300 end
-                                -- call firebullet if available
-                                if gui.Client.Functions and gui.Client.Functions:FindFirstChild("Weapons") then
-                                    local ok, mod = pcall(function()
-                                        return require(gui.Client.Functions.Weapons)
-                                    end)
-                                    if ok and type(mod) == "table" and type(mod.firebullet) == "function" then
-                                        pcall(function() mod.firebullet() end)
-                                    end
-                                else
-                                    -- fallback try the require path used in your snippet (if present)
-                                    pcall(function()
-                                        require(localPlayer.PlayerGui.GUI.Client.Functions.Weapons).firebullet()
-                                    end)
-                                end
-                            end
-                        end
-                    end)
-                end
-            end)
+        if enabled then
+            -- hook InputBegan to fire bullet and set ammo on click
+            if ammoConn and ammoConn.Connected then ammoConn:Disconnect() end
+            ammoConn = UserInputService.InputBegan:Connect(function(i, g)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 and not g then
+                    -- only trigger when not equipping (same check as your snippet)
+                    safeDo(function()
+                        local gui = localPlayer:FindFirstChild("PlayerGui") and localPlayer.PlayerGui:FindFirstChild("GUI")
+                        if gui and gui.Client and gui.Client:FindFirstChild("Variables") then
+                            local vars = gui.Client.Variables
+                            if vars:FindFirstChild("equipping") and not vars.equipping.Value then
+                                if vars:FindFirstChild("DISABLED") then vars.DISABLED.Value = true end
+                                if vars:FindFirstChild("ammocount") then vars.ammocount.Value = 300 end
+                                if vars:FindFirstChild("ammocount2") then vars.ammocount2.Value = 300 end
+                                -- call firebullet if available
+                                if gui.Client.Functions and gui.Client.Functions:FindFirstChild("Weapons") then
+                                    local ok, mod = pcall(function()
+                                        return require(gui.Client.Functions.Weapons)
+                                    end)
+                                    if ok and type(mod) == "table" and type(mod.firebullet) == "function" then
+                                        pcall(function() mod.firebullet() end)
+                                    end
+                                else
+                                    -- fallback try the require path used in your snippet (if present)
+                                    pcall(function()
+                                        require(localPlayer.PlayerGui.GUI.Client.Functions.Weapons).firebullet()
+                                    end)
+                                end
+                            end
+                        end
+                    end)
+                end
+            end)
 
-            -- set no recoil, no spread, auto true for all weapons and save old values for restore
-            prevWeaponValues = {}
-            for _, v in pairs(ReplicatedStorage:WaitForChild("Weapons"):GetDescendants()) do
-                if v:IsA("BoolValue") or v:IsA("NumberValue") or v:IsA("IntValue") or v:IsA("StringValue") then
-                    if v.Name == 'RecoilControl' or v.Name == 'MaxSpread' or v.Name == 'Auto' then
-                        prevWeaponValues[v] = v.Value
-                        pcall(function()
-                            if v.Name == "RecoilControl" then v.Value = 0 end
-                            if v.Name == "MaxSpread" then v.Value = 0 end
-                            if v.Name == "Auto" then
-                                -- Auto may be boolean, ensure correct type
-                                if typeof(v.Value) == "boolean" then
-                                    v.Value = true
-                                else
-                                    v.Value = 1
-                                end
-                            end
-                        end)
-                    end
-                end
-            end
-        else
-            -- disabled: disconnect input, try to restore previous weapon values
-            if ammoConn and ammoConn.Connected then
-                ammoConn:Disconnect()
-                ammoConn = nil
-            end
-            for inst, val in pairs(prevWeaponValues) do
-                if inst and inst.Parent then
-                    pcall(function() inst.Value = val end)
-                end
-            end
-            prevWeaponValues = {}
-        end
-    end
+            -- set no recoil, no spread, auto true for all weapons and save old values for restore
+            prevWeaponValues = {}
+            for _, v in pairs(ReplicatedStorage:WaitForChild("Weapons"):GetDescendants()) do
+                if v:IsA("BoolValue") or v:IsA("NumberValue") or v:IsA("IntValue") or v:IsA("StringValue") then
+                    if v.Name == 'RecoilControl' or v.Name == 'MaxSpread' or v.Name == 'Auto' then
+                        prevWeaponValues[v] = v.Value
+                        pcall(function()
+                            if v.Name == "RecoilControl" then v.Value = 0 end
+                            if v.Name == "MaxSpread" then v.Value = 0 end
+                            if v.Name == "Auto" then
+                                -- Auto may be boolean, ensure correct type
+                                if typeof(v.Value) == "boolean" then
+                                    v.Value = true
+                                else
+                                    v.Value = 1
+                                end
+                            end
+                        end)
+                    end
+                end
+            end
+        else
+            -- disabled: disconnect input, try to restore previous weapon values
+            if ammoConn and ammoConn.Connected then
+                ammoConn:Disconnect()
+                ammoConn = nil
+            end
+            for inst, val in pairs(prevWeaponValues) do
+                if inst and inst.Parent then
+                    pcall(function() inst.Value = val end)
+                end
+            end
+            prevWeaponValues = {}
+        end
+    end
 })
 
 ----------------------------------------------------
@@ -188,114 +188,116 @@ fovCircle.Color = Color3.new(1,1,1)
 fovCircle.Visible = false
 
 local function clearDrawings()
-    for _, d in ipairs(drawings) do d:Remove() end
-    table.clear(drawings)
+    for _, d in ipairs(drawings) do d:Remove() end
+    table.clear(drawings)
 end
 
 local function isVisible(character)
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not root then return false end
-    local origin = camera.CFrame.Position
-    local params = RaycastParams.new()
-    params.FilterDescendantsInstances = {localPlayer.Character}
-    params.FilterType = Enum.RaycastFilterType.Blacklist
-    local result = Workspace:Raycast(origin, root.Position-origin, params)
-    return not result or result.Instance:IsDescendantOf(character)
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return false end
+    local origin = camera.CFrame.Position
+    local direction = root.Position - origin
+    if direction.Magnitude == 0 then return true end
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = localPlayer.Character and {localPlayer.Character} or {}
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    local result = Workspace:Raycast(origin, direction, params)
+    return not result or result.Instance:IsDescendantOf(character)
 end
 
 local function getTargets()
-    local t = {}
-    if aimbotMode ~= "NPC" then
-        for _, p in ipairs(Players:GetPlayers()) do
-            local c = p.Character
-            if p~=localPlayer and c and c:FindFirstChild("Head") and c:FindFirstChild("HumanoidRootPart") and c:FindFirstChild("Humanoid") and c.Humanoid.Health>0 then
-                if not state.TeamCheck or p.Team ~= localPlayer.Team then
-                    table.insert(t, {Name=p.Name, Character=c})
-                end
-            end
-        end
-    end
-    if aimbotMode ~= "Players" then
-        for _, m in ipairs(Workspace:GetDescendants()) do
-            if m:IsA("Model") and m:FindFirstChild("Humanoid") and m.Humanoid.Health>0 and m:FindFirstChild("HumanoidRootPart") and m:FindFirstChild("Head") and not Players:GetPlayerFromCharacter(m) then
-                table.insert(t, {Name=m.Name, Character=m})
-            end
-        end
-    end
-    return t
+    local t = {}
+    if aimbotMode ~= "NPC" then
+        for _, p in ipairs(Players:GetPlayers()) do
+            local c = p.Character
+            if p~=localPlayer and c and c:FindFirstChild("Head") and c:FindFirstChild("HumanoidRootPart") and c:FindFirstChild("Humanoid") and c.Humanoid.Health>0 then
+                if not state.TeamCheck or p.Team ~= localPlayer.Team then
+                    table.insert(t, {Name=p.Name, Character=c})
+                end
+            end
+        end
+    end
+    if aimbotMode ~= "Players" then
+        for _, m in ipairs(Workspace:GetDescendants()) do
+            if m:IsA("Model") and m:FindFirstChild("Humanoid") and m.Humanoid.Health>0 and m:FindFirstChild("HumanoidRootPart") and m:FindFirstChild("Head") and not Players:GetPlayerFromCharacter(m) then
+                table.insert(t, {Name=m.Name, Character=m})
+            end
+        end
+    end
+    return t
 end
 
 local function GetClosestBodyPartFromCursor()
-    local ClosestDistance = math.huge
-    BodyPart = nil
-    for _, v in next, Players:GetPlayers() do
-        if v~=localPlayer and v.Team~=localPlayer.Team and v.Character and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health>0 then
-            for _, x in next, v.Character:GetChildren() do
-                if (x:IsA("Part") or x:IsA("MeshPart")) then
-                    local ScreenPos, onScreen = camera:WorldToScreenPoint(x.Position)
-                    if onScreen then
-                        local Distance = (Vector2.new(ScreenPos.X, ScreenPos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
-                        if Distance < ClosestDistance then
-                            ClosestDistance, BodyPart = Distance, x
-                        end
-                    end
-                end
-            end
-        end
-    end
+    local ClosestDistance = math.huge
+    BodyPart = nil
+    for _, v in next, Players:GetPlayers() do
+        if v~=localPlayer and v.Team~=localPlayer.Team and v.Character and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health>0 then
+            for _, x in next, v.Character:GetChildren() do
+                if (x:IsA("Part") or x:IsA("MeshPart")) then
+                    local ScreenPos, onScreen = camera:WorldToScreenPoint(x.Position)
+                    if onScreen then
+                        local Distance = (Vector2.new(ScreenPos.X, ScreenPos.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude
+                        if Distance < ClosestDistance then
+                            ClosestDistance, BodyPart = Distance, x
+                        end
+                    end
+                end
+            end
+        end
+    end
 end
 
 RunService:BindToRenderStep("Dynamic Silent Aim",120,GetClosestBodyPartFromCursor)
 
 RunService.RenderStepped:Connect(function()
-    clearDrawings()
-    local center = Vector2.new(camera.ViewportSize.X/2,camera.ViewportSize.Y/2)
-    fovCircle.Position, fovCircle.Radius = center, fovAngle
-    fovCircle.Visible = state.Aimbot
-    fovCircle.Color = state.Rainbow and Color3.fromHSV(hue,1,1) or Color3.new(1,1,1)
+    clearDrawings()
+    local center = Vector2.new(camera.ViewportSize.X/2,camera.ViewportSize.Y/2)
+    fovCircle.Position, fovCircle.Radius = center, fovAngle
+    fovCircle.Visible = state.Aimbot
+    fovCircle.Color = state.Rainbow and Color3.fromHSV(hue,1,1) or Color3.new(1,1,1)
 
-    local bestTarget, bestAngle = nil, fovAngle
-    local camPos, camLook = camera.CFrame.Position, camera.CFrame.LookVector
+    local bestTarget, bestAngle = nil, fovAngle
+    local camPos, camLook = camera.CFrame.Position, camera.CFrame.LookVector
 
-    for _, target in ipairs(getTargets()) do
-        local char, root, head = target.Character, target.Character:FindFirstChild("HumanoidRootPart"), target.Character:FindFirstChild("Head")
-        if not(root and head) then continue end
-        local rootPos,onScreenRoot = camera:WorldToViewportPoint(root.Position)
-        local headPos,onScreenHead = camera:WorldToViewportPoint(head.Position)
-        local dir,angle = (root.Position-camPos).Unit, math.deg(math.acos(camLook:Dot((root.Position-camPos).Unit)))
-        local dist,dist2D = (root.Position-camPos).Magnitude, (Vector2.new(rootPos.X,rootPos.Y)-center).Magnitude
+    for _, target in ipairs(getTargets()) do
+        local char, root, head = target.Character, target.Character:FindFirstChild("HumanoidRootPart"), target.Character:FindFirstChild("Head")
+        if not(root and head) then continue end
+        local rootPos,onScreenRoot = camera:WorldToViewportPoint(root.Position)
+        local headPos,onScreenHead = camera:WorldToViewportPoint(head.Position)
+        local dir,angle = (root.Position-camPos).Unit, math.deg(math.acos(camLook:Dot((root.Position-camPos).Unit)))
+        local dist,dist2D = (root.Position-camPos).Magnitude, (Vector2.new(rootPos.X,rootPos.Y)-center).Magnitude
 
-        if onScreenRoot and dist2D<=fovCircle.Radius and angle<=bestAngle and dist<=maxDistance and isVisible(char) then
-            bestTarget, bestAngle = head, angle
-        end
+        if onScreenRoot and dist2D<=fovCircle.Radius and angle<=bestAngle and dist<=maxDistance and isVisible(char) then
+            bestTarget, bestAngle = head, angle
+        end
 
-        if state.ESP and onScreenRoot and onScreenHead then
-            local boxHeight = math.abs(headPos.Y-rootPos.Y)*4.7
-            local boxWidth = boxHeight*0.8
-            local boxCenterX, boxCenterY = rootPos.X,(headPos.Y+rootPos.Y)/2
+        if state.ESP and onScreenRoot and onScreenHead then
+            local boxHeight = math.abs(headPos.Y-rootPos.Y)*4.7
+            local boxWidth = boxHeight*0.8
+            local boxCenterX, boxCenterY = rootPos.X,(headPos.Y+rootPos.Y)/2
 
-            local box = Drawing.new("Square")
-            box.Size = Vector2.new(boxWidth, boxHeight)
-            box.Position = Vector2.new(boxCenterX-boxWidth/2, boxCenterY-boxHeight/2)
-            box.Color = state.Rainbow and Color3.fromHSV(hue,1,1) or Color3.new(1,1,1)
-            box.Thickness, box.Filled, box.Visible = 2, false, true
+            local box = Drawing.new("Square")
+            box.Size = Vector2.new(boxWidth, boxHeight)
+            box.Position = Vector2.new(boxCenterX-boxWidth/2, boxCenterY-boxHeight/2)
+            box.Color = state.Rainbow and Color3.fromHSV(hue,1,1) or Color3.new(1,1,1)
+            box.Thickness, box.Filled, box.Visible = 2, false, true
 
-            local label = Drawing.new("Text")
-            label.Text = target.Name
-            label.Position = Vector2.new(boxCenterX-(#target.Name*3), boxCenterY-boxHeight/2-20)
-            label.Size, label.Center, label.Outline, label.Color, label.Visible = 18,false,true,box.Color,true
+            local label = Drawing.new("Text")
+            label.Text = target.Name
+            label.Position = Vector2.new(boxCenterX-(#target.Name*3), boxCenterY-boxHeight/2-20)
+            label.Size, label.Center, label.Outline, label.Color, label.Visible = 18,false,true,box.Color,true
 
-            table.insert(drawings, box)
-            table.insert(drawings, 
-label)
-        end
-    end
+            table.insert(drawings, box)
+            table.insert(drawings, label)
+        end
+    end
 
-    if bestTarget and state.Aimbot then
-        camera.CFrame = CFrame.new(camera.CFrame.Position, bestTarget.Position)
-    else
-        camera.CameraType = Enum.CameraType.Custom
-    end
+    if bestTarget and state.Aimbot then
+        camera.CameraType = Enum.CameraType.Scriptable
+        camera.CFrame = CFrame.new(camera.CFrame.Position, bestTarget.Position)
+    else
+        camera.CameraType = Enum.CameraType.Custom
+    end
 
-    if state.Rainbow then hue = (hue + 0.001*rainbowSpeed) % 1 end
+    if state.Rainbow then hue = (hue + 0.001*rainbowSpeed) % 1 end
 end)
