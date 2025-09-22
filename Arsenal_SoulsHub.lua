@@ -13,7 +13,7 @@ local camera = Workspace.CurrentCamera
 local Mouse = localPlayer:GetMouse()
 
 -- State
-local state = { ESP = false, Aimbot = false, Rainbow = false, TeamCheck = false, SilentAim = false, InfAmmo = false }
+local state = { ESP = false, Aimbot = false, Rainbow = false, TeamCheck = false, SilentAim = false, InfAmmo = false, Hitbox = false }
 local hue, rainbowSpeedIndex = 0, 1
 local rainbowSpeeds = {1, 3, 6}
 local rainbowSpeed = rainbowSpeeds[rainbowSpeedIndex]
@@ -26,6 +26,11 @@ local BodyPart, OldNameCall
 -- store previous weapon property values so we can restore
 local prevWeaponValues = {}
 local ammoConn
+local weaponConn
+local hitboxConns = {}
+local originalHeads = {}
+local hitboxSize = 10
+local isFiring = false
 
 -- Tabs
 local Rage = Window:DrawTab({ Icon = "skull", Name = "Arsenal", Type = "Double" })
@@ -61,7 +66,7 @@ general:AddDropdown({
 ----------------------------------------------------
 -- Silent Aim
 combat:AddToggle({
-    Name = "Silent Aim1",
+    Name = "Silent Aim",
     Flag = "silentAimToggle",
     Callback = function(v)
         state.SilentAim = v
@@ -90,7 +95,7 @@ combat:AddButton({
             end
         end
         if nearest and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame + Vector3.new(0,3,0)
+            localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
         end
     end
 })
@@ -100,17 +105,45 @@ combat:AddToggle({
     Flag = "infAmmoToggle",
     Callback = function(enabled)
         state.InfAmmo = enabled
+        -- helper to safely pcall the PlayerGui access or function calls
         local function safeDo(fn)
             local ok, _ = pcall(fn)
             return ok
         end
 
         if enabled then
-            if ammoConn and ammoConn.Connected then ammoConn:Disconnect() end
+            -- hook Input for rapid fire
+            local inputBeganConn = UserInputService.InputBegan:Connect(function(i, g)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 and not g and state.InfAmmo then
+                    isFiring = true
+                    spawn(function()
+                        while isFiring and state.InfAmmo do
+                            safeDo(function()
+                                local gui = localPlayer.PlayerGui:FindFirstChild("GUI")
+                                if gui and gui.Client and gui.Client.Functions and gui.Client.Functions:FindFirstChild("Weapons") then
+                                    local mod = require(gui.Client.Functions.Weapons)
+                                    if mod and type(mod.firebullet) == "function" then
+                                        mod.firebullet()
+                                    end
+                                end
+                            end)
+                            task.wait(0.01)
+                        end
+                    end)
+                end
+            end)
+
+            local inputEndedConn = UserInputService.InputEnded:Connect(function(i)
+                if i.UserInputType == Enum.UserInputType.MouseButton1 then
+                    isFiring = false
+                end
+            end)
+
+            -- loop to set ammo and variables
             ammoConn = RunService.Heartbeat:Connect(function()
                 safeDo(function()
                     local gui = localPlayer.PlayerGui:FindFirstChild("GUI")
-                    if gui and gui:FindFirstChild("Client") and gui.Client:FindFirstChild("Variables") then
+                    if gui and gui.Client and gui.Client:FindFirstChild("Variables") then
                         local vars = gui.Client.Variables
                         if vars:FindFirstChild("equipping") then vars.equipping.Value = false end
                         if vars:FindFirstChild("DISABLED") then vars.DISABLED.Value = false end
@@ -121,25 +154,66 @@ combat:AddToggle({
                 end)
             end)
 
+            -- set no recoil, no spread, auto true for all weapons and save old values for restore
             prevWeaponValues = {}
             for _, v in pairs(ReplicatedStorage:WaitForChild("Weapons"):GetDescendants()) do
-                if v:IsA("ValueBase") then
-                    if v.Name == 'RecoilControl' or v.Name == 'MaxSpread' or v.Name == 'Auto' or v.Name == 'FireRate' then
+                if v:IsA("BoolValue") or v:IsA("NumberValue") or v:IsA("IntValue") then
+                    if v.Name == 'RecoilControl' or v.Name == 'MaxSpread' or v.Name == 'Auto' then
                         prevWeaponValues[v] = v.Value
                         pcall(function()
                             if v.Name == "RecoilControl" then v.Value = 0 end
                             if v.Name == "MaxSpread" then v.Value = 0 end
                             if v.Name == "Auto" then v.Value = true end
-                            if v.Name == "FireRate" then v.Value = 0.01 end
                         end)
                     end
                 end
             end
+            if localPlayer.Character then
+                local tool = localPlayer.Character:FindFirstChildOfClass("Tool")
+                if tool then
+                    for _, v in pairs(tool:GetDescendants()) do
+                        if v:IsA("BoolValue") or v:IsA("NumberValue") or v:IsA("IntValue") then
+                            if v.Name == 'RecoilControl' or v.Name == 'MaxSpread' or v.Name == 'Auto' then
+                                if not prevWeaponValues[v] then prevWeaponValues[v] = v.Value end
+                                pcall(function()
+                                    if v.Name == "RecoilControl" then v.Value = 0 end
+                                    if v.Name == "MaxSpread" then v.Value = 0 end
+                                    if v.Name == "Auto" then v.Value = true end
+                                end)
+                            end
+                        end
+                    end
+                end
+            end
+
+            -- connect to new tools
+            weaponConn = localPlayer.Character.ChildAdded:Connect(function(child)
+                if child:IsA("Tool") then
+                    for _, v in pairs(child:GetDescendants()) do
+                        if v:IsA("BoolValue") or v:IsA("NumberValue") or v:IsA("IntValue") then
+                            if v.Name == 'RecoilControl' or v.Name == 'MaxSpread' or v.Name == 'Auto' then
+                                if not prevWeaponValues[v] then prevWeaponValues[v] = v.Value end
+                                pcall(function()
+                                    if v.Name == "RecoilControl" then v.Value = 0 end
+                                    if v.Name == "MaxSpread" then v.Value = 0 end
+                                    if v.Name == "Auto" then v.Value = true end
+                                end)
+                            end
+                        end
+                    end
+                end
+            end)
         else
+            -- disabled: disconnect
             if ammoConn and ammoConn.Connected then
                 ammoConn:Disconnect()
                 ammoConn = nil
             end
+            if weaponConn and weaponConn.Connected then
+                weaponConn:Disconnect()
+                weaponConn = nil
+            end
+            isFiring = false
             for inst, val in pairs(prevWeaponValues) do
                 if inst and inst.Parent then
                     pcall(function() inst.Value = val end)
@@ -147,6 +221,94 @@ combat:AddToggle({
             end
             prevWeaponValues = {}
         end
+    end
+})
+
+combat:AddToggle({
+    Name = "Hitbox Expander",
+    Flag = "hitboxToggle",
+    Callback = function(v)
+        state.Hitbox = v
+        if v then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) and p.Character then
+                    local head = p.Character:FindFirstChild("Head")
+                    if head then
+                        originalHeads[head] = {Size = head.Size, Transparency = head.Transparency, CanCollide = head.CanCollide}
+                        head.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+                        head.Transparency = 0.7
+                        head.CanCollide = false
+                    end
+                end
+                hitboxConns[p] = p.CharacterAdded:Connect(function(newChar)
+                    task.wait(0.5)
+                    local head = newChar:FindFirstChild("Head")
+                    if head then
+                        originalHeads[head] = {Size = head.Size, Transparency = head.Transparency, CanCollide = head.CanCollide}
+                        head.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+                        head.Transparency = 0.7
+                        head.CanCollide = false
+                    end
+                end)
+            end
+            hitboxConns["PlayerAdded"] = Players.PlayerAdded:Connect(function(p)
+                if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) then
+                    hitboxConns[p] = p.CharacterAdded:Connect(function(newChar)
+                        task.wait(0.5)
+                        local head = newChar:FindFirstChild("Head")
+                        if head then
+                            originalHeads[head] = {Size = head.Size, Transparency = head.Transparency, CanCollide = head.CanCollide}
+                            head.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+                            head.Transparency = 0.7
+                            head.CanCollide = false
+                        end
+                    end)
+                end
+            end)
+        else
+            for head, orig in pairs(originalHeads) do
+                if head and head.Parent then
+                    head.Size = orig.Size
+                    head.Transparency = orig.Transparency
+                    head.CanCollide = orig.CanCollide
+                end
+            end
+            originalHeads = {}
+            for _, conn in pairs(hitboxConns) do
+                conn:Disconnect()
+            end
+            hitboxConns = {}
+        end
+    end
+})
+
+combat:AddButton({
+    Name = "Kill All",
+    Callback = function()
+        local oldCFrame = localPlayer.Character.HumanoidRootPart.CFrame
+        local safeDo = function(fn)
+            local ok, _ = pcall(fn)
+            return ok
+        end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= localPlayer and p.Team ~= localPlayer.Team and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.Humanoid.Health > 0 then
+                localPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame
+                task.wait(0.1)
+                for i = 1, 10 do
+                    safeDo(function()
+                        local gui = localPlayer.PlayerGui:FindFirstChild("GUI")
+                        if gui and gui.Client and gui.Client.Functions and gui.Client.Functions:FindFirstChild("Weapons") then
+                            local mod = require(gui.Client.Functions.Weapons)
+                            if mod and type(mod.firebullet) == "function" then
+                                mod.firebullet()
+                            end
+                        end
+                    end)
+                    task.wait(0.01)
+                end
+            end
+        end
+        localPlayer.Character.HumanoidRootPart.CFrame = oldCFrame
     end
 })
 
