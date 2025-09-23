@@ -13,7 +13,7 @@ local camera = Workspace.CurrentCamera
 local Mouse = localPlayer:GetMouse()
 
 -- State
-local state = { ESP = false, Aimbot = false, Rainbow = false, TeamCheck = false, SilentAim = false, InfAmmo = false, Hitbox = false, Float = false }
+local state = { ESP = false, Aimbot = false, Rainbow = false, TeamCheck = false, SilentAim = false, InfAmmo = false, Hitbox = false, Float = false, Fly = false, TriggerBot = false }
 local hue, rainbowSpeedIndex = 0, 1
 local rainbowSpeeds = {1, 3, 6}
 local rainbowSpeed = rainbowSpeeds[rainbowSpeedIndex]
@@ -32,6 +32,11 @@ local originalHeads = {}
 local hitboxSize = 5
 local inputBeganConn, inputEndedConn
 local floatConn
+
+-- Fly state
+local flySettings = {fly = false, flyspeed = 50}
+local c, h, bv, bav, cam, flying, p = nil, nil, nil, nil, nil, nil, localPlayer
+local buttons = {W = false, S = false, A = false, D = false, Moving = false}
 
 -- Tabs
 local Rage = Window:DrawTab({ Icon = "skull", Name = "Arsenal", Type = "Double" })
@@ -78,9 +83,30 @@ combat:AddToggle({
         if v and not OldNameCall then
             OldNameCall = hookmetamethod(game, "__namecall", function(Self, ...)
                 local Method, Args = getnamecallmethod(), {...}
-                if state.SilentAim and Method == "FindPartOnRayWithIgnoreList" and BodyPart then
-                    Args[1] = Ray.new(camera.CFrame.Position, (BodyPart.Position - camera.CFrame.Position).Unit * 600)
-                    return OldNameCall(Self, unpack(Args))
+                if state.SilentAim and BodyPart then
+                    if Method == "FireServer" and Self.Name == "HitPart" then
+                        Args[1] = BodyPart
+                        return OldNameCall(Self, unpack(Args))
+                    elseif Method == "FireServer" and Self.Name == "Trail" then
+                        if type(Args[1][5]) == "string" then
+                            Args[1][6] = BodyPart
+                            Args[1][2] = BodyPart.Position
+                        end
+                        return OldNameCall(Self, unpack(Args))
+                    elseif Method == "FireServer" and Self.Name == "CreateProjectile" then
+                        Args[18] = BodyPart
+                        Args[19] = BodyPart.Position
+                        Args[17] = BodyPart.Position
+                        Args[4] = BodyPart.CFrame
+                        Args[10] = BodyPart.Position
+                        Args[3] = BodyPart.Position
+                        return OldNameCall(Self, unpack(Args))
+                    elseif Method == "FireServer" and Self.Name == "Flames" then
+                        Args[1] = BodyPart.CFrame
+                        Args[2] = BodyPart.Position
+                        Args[5] = BodyPart.Position
+                        return OldNameCall(Self, unpack(Args))
+                    end
                 end
                 return OldNameCall(Self, ...)
             end)
@@ -118,118 +144,15 @@ combat:AddToggle({
     Flag = "infAmmoToggle",
     Callback = function(enabled)
         state.InfAmmo = enabled
-        local function safeDo(fn)
-            local ok, _ = pcall(fn)
-            return ok
-        end
+        ReplicatedStorage.wkspc.CurrentCurse.Value = enabled and "Infinite Ammo" or ""
+    end
+})
 
-        if enabled then
-            -- loop to set ammo and variables
-            if ammoConn then ammoConn:Disconnect() end
-            ammoConn = RunService.Heartbeat:Connect(function()
-                safeDo(function()
-                    local gui = localPlayer.PlayerGui:FindFirstChild("GUI")
-                    if gui and gui:FindFirstChild("Client") and gui.Client:FindFirstChild("Variables") then
-                        local vars = gui.Client.Variables
-                        if vars:FindFirstChild("equipping") then vars.equipping.Value = false end
-                        if vars:FindFirstChild("DISABLED") then vars.DISABLED.Value = false end
-                        if vars:FindFirstChild("ammocount") then vars.ammocount.Value = 300 end
-                        if vars:FindFirstChild("ammocount2") then vars.ammocount2.Value = 300 end
-                        if vars:FindFirstChild("reloading") then vars.reloading.Value = false end
-                    end
-                end)
-            end)
-
-            -- set no recoil, no spread, auto true for all weapons and save old values for restore
-            prevWeaponValues = {}
-            for _, v in pairs(ReplicatedStorage:WaitForChild("Weapons"):GetDescendants()) do
-                if v:IsA("BoolValue") or v:IsA("NumberValue") or v:IsA("IntValue") or v:IsA("StringValue") then
-                    if v.Name == 'RecoilControl' or v.Name == 'MaxSpread' or v.Name == 'Auto' or v.Name == 'FireRate' then
-                        prevWeaponValues[v] = v.Value
-                        pcall(function()
-                            if v.Name == "RecoilControl" then v.Value = 0 end
-                            if v.Name == "MaxSpread" then v.Value = 0 end
-                            if v.Name == "Auto" then
-                                if typeof(v.Value) == "boolean" then
-                                    v.Value = true
-                                else
-                                    v.Value = 1
-                                end
-                            end
-                            if v.Name == "FireRate" then v.Value = 0.01 end
-                        end)
-                    end
-                end
-            end
-
-            -- apply to current tool if equipped
-            if localPlayer.Character then
-                local tool = localPlayer.Character:FindFirstChildOfClass("Tool")
-                if tool then
-                    for _, v in pairs(tool:GetDescendants()) do
-                        if v:IsA("BoolValue") or v:IsA("NumberValue") or v:IsA("IntValue") or v:IsA("StringValue") then
-                            if v.Name == 'RecoilControl' or v.Name == 'MaxSpread' or v.Name == 'Auto' or v.Name == 'FireRate' then
-                                prevWeaponValues[v] = v.Value
-                                pcall(function()
-                                    if v.Name == "RecoilControl" then v.Value = 0 end
-                                    if v.Name == "MaxSpread" then v.Value = 0 end
-                                    if v.Name == "Auto" then
-                                        if typeof(v.Value) == "boolean" then
-                                            v.Value = true
-                                        else
-                                            v.Value = 1
-                                        end
-                                    end
-                                    if v.Name == "FireRate" then v.Value = 0.01 end
-                                end)
-                            end
-                        end
-                    end
-                end
-            end
-
-            -- connect to new tools
-            if weaponConn then weaponConn:Disconnect() end
-            weaponConn = localPlayer.Character.ChildAdded:Connect(function(child)
-                if child:IsA("Tool") then
-                    for _, v in pairs(child:GetDescendants()) do
-                        if v:IsA("BoolValue") or v:IsA("NumberValue") or v:IsA("IntValue") or v:IsA("StringValue") then
-                            if v.Name == 'RecoilControl' or v.Name == 'MaxSpread' or v.Name == 'Auto' or v.Name == 'FireRate' then
-                                prevWeaponValues[v] = v.Value
-                                pcall(function()
-                                    if v.Name == "RecoilControl" then v.Value = 0 end
-                                    if v.Name == "MaxSpread" then v.Value = 0 end
-                                    if v.Name == "Auto" then
-                                        if typeof(v.Value) == "boolean" then
-                                            v.Value = true
-                                        else
-                                            v.Value = 1
-                                        end
-                                    end
-                                    if v.Name == "FireRate" then v.Value = 0.01 end
-                                end)
-                            end
-                        end
-                    end
-                end
-            end)
-        else
-            -- disabled: disconnect input, try to restore previous weapon values
-            if ammoConn and ammoConn.Connected then
-                ammoConn:Disconnect()
-                ammoConn = nil
-            end
-            if weaponConn and weaponConn.Connected then
-                weaponConn:Disconnect()
-                weaponConn = nil
-            end
-            for inst, val in pairs(prevWeaponValues) do
-                if inst and inst.Parent then
-                    pcall(function() inst.Value = val end)
-                end
-            end
-            prevWeaponValues = {}
-        end
+combat:AddToggle({
+    Name = "TriggerBot",
+    Flag = "triggerBotToggle",
+    Callback = function(v)
+        state.TriggerBot = v
     end
 })
 
@@ -398,6 +321,111 @@ movementSection:AddToggle({
         end
     end
 })
+
+movementSection:AddToggle({
+    Name = "Fly",
+    Flag = "flyToggle",
+    Callback = function(v)
+        state.Fly = v
+        if v then
+            startFly()
+        else
+            endFly()
+        end
+    end
+})
+
+movementSection:AddSlider({
+    Name = "Fly Speed",
+    Min = 1,
+    Max = 500,
+    Default = 50,
+    Round = 0,
+    Callback = function(v)
+        flySettings.flyspeed = v
+    end
+})
+
+-- Fly functions
+local startFly = function() 
+    if not p.Character or not p.Character.Head or flying then return end 
+    c = p.Character 
+    h = c.Humanoid 
+    h.PlatformStand = true 
+    cam = workspace:WaitForChild('Camera') 
+    bv = Instance.new("BodyVelocity") 
+    bav = Instance.new("BodyAngularVelocity") 
+    bv.Velocity, bv.MaxForce, bv.P = Vector3.new(0, 0, 0), Vector3.new(10000, 10000, 10000), 1000 
+    bav.AngularVelocity, bav.MaxTorque, bav.P = Vector3.new(0, 0, 0), Vector3.new(10000, 10000, 10000), 1000 
+    bv.Parent = c.Head 
+    bav.Parent = c.Head 
+    flying = true 
+    h.Died:connect(function() flying = false end) 
+end 
+local endFly = function() 
+    if not p.Character or not flying then return end 
+    h.PlatformStand = false 
+    bv:Destroy() 
+    bav:Destroy() 
+    flying = false 
+end 
+UserInputService.InputBegan:connect(function(input, GPE) 
+    if GPE then return end 
+    for i,e in pairs(buttons) do 
+        if i ~="Moving" and input.KeyCode == Enum.KeyCode[i] then 
+            buttons[i] = true 
+            buttons.Moving = true 
+        end 
+    end 
+end) 
+UserInputService.InputEnded:connect(function(input, GPE) 
+    if GPE then return end 
+    local a = false 
+    for i,e in pairs(buttons) do 
+        if i ~="Moving" then 
+            if input.KeyCode == Enum.KeyCode[i] then 
+                buttons[i] = false 
+            end 
+            if buttons[i] then a = true end 
+        end 
+    end 
+    buttons.Moving = a 
+end) 
+local setVec = function(vec) 
+    return vec * (flySettings.flyspeed / vec.Magnitude) 
+end 
+RunService.Heartbeat:connect(function(step) 
+    if flying and c and c.PrimaryPart then 
+        local p = c.PrimaryPart.Position 
+        local cf = cam.CFrame 
+        local ax, ay, az = cf:toEulerAnglesXYZ() 
+        c:SetPrimaryPartCFrame(CFrame.new(p.x, p.y, p.z) * CFrame.Angles(ax, ay, az)) 
+        if buttons.Moving then 
+            local t = Vector3.new() 
+            if buttons.W then t = t + (setVec(cf.lookVector)) end 
+            if buttons.S then t = t - (setVec(cf.lookVector)) end 
+            if buttons.A then t = t - (setVec(cf.rightVector)) end 
+            if buttons.D then t = t + (setVec(cf.rightVector)) end 
+            c:TranslateBy(t * step) 
+        end 
+    end 
+end)
+
+-- TriggerBot loop
+RunService.RenderStepped:Connect(function()
+    if state.TriggerBot then
+        local mouse = localPlayer:GetMouse()
+        local target = mouse.Target
+        if target and target.Parent:FindFirstChild("Humanoid") and target.Parent.Name ~= localPlayer.Name then
+            local targetPlayer = Players:FindFirstChild(target.Parent.Name)
+            if targetPlayer and (not state.TeamCheck or targetPlayer.Team ~= localPlayer.Team) then
+                mouse1press()
+                task.wait(0.2)
+                mouse1release()
+            end
+        end
+    end
+end)
 
 ----------------------------------------------------
 -- ESP + Aimbot + Silent Aim Core
