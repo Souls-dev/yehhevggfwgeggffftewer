@@ -75,15 +75,12 @@ local state = {
     SilentAim = false, 
     InfAmmo = false, 
     Hitbox = false, 
-    Float = false, 
-    Fly = false, 
     TriggerBot = false,
     Backtrack = false,
     Prediction = true,
     SmoothAim = true,
     NoRecoil = false,
     NoSpread = false,
-    AntiAim = false,
     AutoShoot = false,
     CustomHitboxes = false
 }
@@ -102,22 +99,9 @@ local backtrackDelay = 100
 local backtrackColor = Color3.fromRGB(255, 0, 255)
 local backtrackMaterial = "ForceField"
 local hitboxSize = 5
-local inputBeganConn, inputEndedConn
-local floatConn
 local backtrackParts = {}
-local isAlive = true
-local originalWeaponValues = {}
-
--- store previous weapon property values so we can restore
-local prevWeaponValues = {}
-local ammoConn
-local weaponConn
-local hitboxConns = {}
 local originalHeads = {}
-local flySettings = {fly = false, flyspeed = 50}
-local c, h, bv, bav, cam, flying, p = nil, nil, nil, nil, nil, nil, localPlayer
-local buttons = {W = false, S = false, A = false, D = false, Moving = false}
-local currentGun = ""
+local hitboxConns = {}
 local originalValues = {
     FireRate = {},
     ReloadTime = {},
@@ -127,71 +111,9 @@ local originalValues = {
     Recoil = {}
 }
 
--- Backtrack system
-local function ClearBacktrack()
-    for _, part in ipairs(backtrackParts) do
-        part:Destroy()
-    end
-    backtrackParts = {}
-end
-
--- Enhanced ESP features
-local function GetNearestTarget()
-    local players = {}
-    local PLAYER_HOLD = {}
-    local DISTANCES = {}
-    
-    for i, v in ipairs(Players:GetPlayers()) do
-        if v ~= localPlayer then
-            table.insert(players, v)
-        end
-    end
-    
-    for i, v in ipairs(players) do
-        if v.Character ~= nil then
-            local AIM = v.Character:FindFirstChild("Head")
-            if state.TeamCheck == true and v.Team ~= localPlayer.Team then
-                local DISTANCE = (v.Character:FindFirstChild("Head").Position - camera.CFrame.p).magnitude
-                local RAY = Ray.new(camera.CFrame.p, (Mouse.Hit.p - camera.CFrame.p).unit * DISTANCE)
-                local HIT, POS = Workspace:FindPartOnRay(RAY, Workspace)
-                local DIFF = math.floor((POS - AIM.Position).magnitude)
-                PLAYER_HOLD[v.Name .. i] = {}
-                PLAYER_HOLD[v.Name .. i].dist = DISTANCE
-                PLAYER_HOLD[v.Name .. i].plr = v
-                PLAYER_HOLD[v.Name .. i].diff = DIFF
-                table.insert(DISTANCES, DIFF)
-            elseif state.TeamCheck == false then
-                local DISTANCE = (v.Character:FindFirstChild("Head").Position - camera.CFrame.p).magnitude
-                local RAY = Ray.new(camera.CFrame.p, (Mouse.Hit.p - camera.CFrame.p).unit * DISTANCE)
-                local HIT, POS = Workspace:FindPartOnRay(RAY, Workspace)
-                local DIFF = math.floor((POS - AIM.Position).magnitude)
-                PLAYER_HOLD[v.Name .. i] = {}
-                PLAYER_HOLD[v.Name .. i].dist = DISTANCE
-                PLAYER_HOLD[v.Name .. i].plr = v
-                PLAYER_HOLD[v.Name .. i].diff = DIFF
-                table.insert(DISTANCES, DIFF)
-            end
-        end
-    end
-    
-    if #DISTANCES == 0 then
-        return nil
-    end
-    
-    local L_DISTANCE = math.floor(math.min(unpack(DISTANCES)))
-    if L_DISTANCE > fovAngle then
-        return nil
-    end
-    
-    for i, v in pairs(PLAYER_HOLD) do
-        if v.diff == L_DISTANCE then
-            return v.plr
-        end
-    end
-    return nil
-end
-
+----------------------------------------------------
 -- UI Sections with safety checks
+----------------------------------------------------
 local Rage
 if Window and type(Window.DrawTab) == "function" then
     Rage = Window:DrawTab({ Icon = "skull", Name = "Arsenal", Type = "Double" })
@@ -205,7 +127,6 @@ end
 local general = Rage and type(Rage.DrawSection) == "function" and Rage:DrawSection({ Name = "General", Position = "LEFT" }) or {}
 local combat = Rage and type(Rage.DrawSection) == "function" and Rage:DrawSection({ Name = "Combat", Position = "RIGHT" }) or {}
 local visual = Rage and type(Rage.DrawSection) == "function" and Rage:DrawSection({ Name = "Visuals", Position = "LEFT" }) or {}
-local movement = Rage and type(Rage.DrawSection) == "function" and Rage:DrawSection({ Name = "Movement", Position = "RIGHT" }) or {}
 local gunMods = Rage and type(Rage.DrawSection) == "function" and Rage:DrawSection({ Name = "Gun Mods", Position = "LEFT" }) or {}
 local misc = Rage and type(Rage.DrawSection) == "function" and Rage:DrawSection({ Name = "Misc", Position = "RIGHT" }) or {}
 
@@ -547,126 +468,6 @@ if visual and type(visual.AddToggle) == "function" then
 end
 
 ----------------------------------------------------
--- Movement Features with safety checks
-----------------------------------------------------
--- WalkSpeed
-if movement and type(movement.AddSlider) == "function" then
-    movement:AddSlider({
-        Name = "WalkSpeed",
-        Min = 16,
-        Max = 100,
-        Round = 0,
-        Default = 16,
-        Type = "studs/s",
-        Callback = function(value)
-            local player = game.Players.LocalPlayer
-            if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-                player.Character.Humanoid.WalkSpeed = value
-            end
-        end
-    })
-end
-
--- JumpPower
-if movement and type(movement.AddSlider) == "function" then
-    movement:AddSlider({
-        Name = "JumpPower",
-        Min = 50,
-        Max = 200,
-        Round = 0,
-        Default = 50,
-        Type = "studs",
-        Callback = function(value)
-            local player = game.Players.LocalPlayer
-            if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-                player.Character.Humanoid.JumpPower = value
-            end
-        end
-    })
-end
-
--- Float
-if movement and type(movement.AddToggle) == "function" then
-    movement:AddToggle({
-        Name = "Float",
-        Flag = "floatToggle",
-        Callback = function(v)
-            state.Float = v
-            if v then
-                if floatConn and floatConn.Connected then floatConn:Disconnect() end
-                floatConn = RunService.Stepped:Connect(function()
-                    local char = localPlayer.Character
-                    if char then
-                        local hrp = char:FindFirstChild("HumanoidRootPart")
-                        if hrp then
-                            hrp.Velocity = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
-                        end
-                    end
-                end)
-            else
-                if floatConn and floatConn.Connected then
-                    floatConn:Disconnect()
-                    floatConn = nil
-                end
-            end
-        end
-    })
-end
-
--- Fly
-if movement and type(movement.AddToggle) == "function" then
-    movement:AddToggle({
-        Name = "Fly",
-        Flag = "flyToggle",
-        Callback = function(v)
-            state.Fly = v
-            if v then
-                startFly()
-            else
-                endFly()
-            end
-        end
-    })
-end
-
-if movement and type(movement.AddSlider) == "function" then
-    movement:AddSlider({
-        Name = "Fly Speed",
-        Min = 1,
-        Max = 500,
-        Default = 50,
-        Round = 0,
-        Callback = function(v)
-            flySettings.flyspeed = v
-        end
-    })
-end
-
--- Anti-Aim
-if movement and type(movement.AddToggle) == "function" then
-    movement:AddToggle({
-        Name = "Anti-Aim",
-        Flag = "antiAimToggle",
-        Callback = function(v)
-            state.AntiAim = v
-        end
-    })
-end
-
-if movement and type(movement.AddDropdown) == "function" then
-    movement:AddDropdown({
-        Name = "Anti-Aim Type",
-        Values = {"Down", "Up", "Random", "Spin"},
-        Default = "Down",
-        Multi = false,
-        Flag = "antiAimType",
-        Callback = function(v)
-            state.AntiAimType = v
-        end
-    })
-end
-
-----------------------------------------------------
 -- Gun Modifications with safety checks
 ----------------------------------------------------
 -- No Recoil
@@ -804,79 +605,7 @@ if misc and type(misc.AddToggle) == "function" then
 end
 
 ----------------------------------------------------
--- Fly functions
-----------------------------------------------------
-local startFly = function() 
-    if not p.Character or not p.Character.Head or flying then return end 
-    c = p.Character 
-    h = c.Humanoid 
-    h.PlatformStand = true 
-    cam = workspace:WaitForChild('Camera') 
-    bv = Instance.new("BodyVelocity") 
-    bav = Instance.new("BodyAngularVelocity") 
-    bv.Velocity, bv.MaxForce, bv.P = Vector3.new(0, 0, 0), Vector3.new(10000, 10000, 10000), 1000 
-    bav.AngularVelocity, bav.MaxTorque, bav.P = Vector3.new(0, 0, 0), Vector3.new(10000, 10000, 10000), 1000 
-    bv.Parent = c.Head 
-    bav.Parent = c.Head 
-    flying = true 
-    h.Died:connect(function() flying = false end) 
-end 
-
-local endFly = function() 
-    if not p.Character or not flying then return end 
-    h.PlatformStand = false 
-    bv:Destroy() 
-    bav:Destroy() 
-    flying = false 
-end 
-
-UserInputService.InputBegan:connect(function(input, GPE) 
-    if GPE then return end 
-    for i,e in pairs(buttons) do 
-        if i ~="Moving" and input.KeyCode == Enum.KeyCode[i] then 
-            buttons[i] = true 
-            buttons.Moving = true 
-        end 
-    end 
-end) 
-
-UserInputService.InputEnded:connect(function(input, GPE) 
-    if GPE then return end 
-    local a = false 
-    for i,e in pairs(buttons) do 
-        if i ~="Moving" then 
-            if input.KeyCode == Enum.KeyCode[i] then 
-                buttons[i] = false 
-            end 
-            if buttons[i] then a = true end 
-        end 
-    end 
-    buttons.Moving = a 
-end) 
-
-local setVec = function(vec) 
-    return vec * (flySettings.flyspeed / vec.Magnitude) 
-end 
-
-RunService.Heartbeat:connect(function(step) 
-    if flying and c and c.PrimaryPart then 
-        local p = c.PrimaryPart.Position 
-        local cf = cam.CFrame 
-        local ax, ay, az = cf:toEulerAnglesXYZ() 
-        c:SetPrimaryPartCFrame(CFrame.new(p.x, p.y, p.z) * CFrame.Angles(ax, ay, az)) 
-        if buttons.Moving then 
-            local t = Vector3.new() 
-            if buttons.W then t = t + (setVec(cf.lookVector)) end 
-            if buttons.S then t = t - (setVec(cf.lookVector)) end 
-            if buttons.A then t = t - (setVec(cf.rightVector)) end 
-            if buttons.D then t = t + (setVec(cf.rightVector)) end 
-            c:TranslateBy(t * step) 
-        end 
-    end 
-end)
-
-----------------------------------------------------
--- ESP + Aimbot + Silent Aim Core
+-- ESP + Aimbot + Silent Aim Core (FIXED)
 ----------------------------------------------------
 local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness = 1
@@ -978,19 +707,6 @@ end
 RunService:BindToRenderStep("Dynamic Silent Aim", 120, GetClosestBodyPartFromCursor)
 
 RunService.RenderStepped:Connect(function()
-    -- Anti-Aim logic
-    if state.AntiAim and localPlayer.Character and localPlayer.Character:FindFirstChild("Spawned") then
-        if state.AntiAimType == "Down" then
-            ReplicatedStorage.Events.ControlTurn:FireServer(-100, nil, nil)
-        elseif state.AntiAimType == "Up" then
-            ReplicatedStorage.Events.ControlTurn:FireServer(100, nil, nil)
-        elseif state.AntiAimType == "Random" then
-            ReplicatedStorage.Events.ControlTurn:FireServer(math.random(-100, 100), nil, nil)
-        elseif state.AntiAimType == "Spin" then
-            ReplicatedStorage.Events.ControlTurn:FireServer(180, nil, nil)
-        end
-    end
-    
     -- Auto Vote
     if state.AutoVote and ReplicatedStorage.wkspc.Status.RoundOver.Value then
         ReplicatedStorage.Events.Vote:FireServer({"MapVote", "Matrix"})
@@ -1098,21 +814,32 @@ RunService.RenderStepped:Connect(function()
         table.insert(drawings, arrow)
     end
 
-    -- Aimbot logic
+    -- FIXED AIMBOT LOGIC
     if bestTarget and state.Aimbot then
         local predictedPosition = bestTarget.Position
+        
+        -- Only apply prediction if enabled
         if state.Prediction then
             local velocity = bestTarget.Velocity
             predictedPosition = bestTarget.Position + velocity * predictionVelocity
         end
         
+        -- Get the direction to the target
+        local direction = (predictedPosition - camera.CFrame.Position).Unit
+        
+        -- Create a new CFrame looking at the target
+        local newCFrame = CFrame.lookAt(camera.CFrame.Position, predictedPosition)
+        
+        -- Apply smoothing if enabled
         if state.SmoothAim then
-            local main = CFrame.new(camera.CFrame.p, predictedPosition)
-            camera.CFrame = camera.CFrame:Lerp(main, smoothnessAmount, Enum.EasingStyle.Elastic, Enum.EasingDirection.InOut)
+            -- Apply smooth aiming with a fixed speed
+            camera.CFrame = camera.CFrame:Lerp(newCFrame, smoothnessAmount, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         else
-            camera.CFrame = CFrame.new(camera.CFrame.p, predictedPosition)
+            -- Snap to target instantly
+            camera.CFrame = newCFrame
         end
     else
+        -- Reset camera type to default
         camera.CameraType = Enum.CameraType.Custom
     end
 
