@@ -8,55 +8,22 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
-local TeleportService = game:GetService("TeleportService")
-local TweenService = game:GetService("TweenService")
-local VirtualUser = game:GetService("VirtualUser")
 local localPlayer = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
 local Mouse = localPlayer:GetMouse()
 
 -- State
-local state = {
-    ESP = false, Aimbot = false, Rainbow = false, TeamCheck = false, SilentAim = false,
-    InfAmmo = false, Hitbox = false, Float = false, Fly = false, TriggerBot = false,
-    BunnyHop = false, NoSpread = false, NoRecoil = false, AutoShoot = false, AspectRatio = false,
-    NameSpoof = false, VisualModifications = false, FakeDesync = false, AntiAim = false,
-    AimPart = "Head" -- Can be "Head", "UpperTorso", "HumanoidRootPart"
-}
+local state = { ESP = false, Aimbot = false, Rainbow = false, TeamCheck = false, SilentAim = false, InfAmmo = false, Hitbox = false, Float = false, Fly = false, TriggerBot = false }
 local hue, rainbowSpeedIndex = 0, 1
 local rainbowSpeeds = {1, 3, 6}
 local rainbowSpeed = rainbowSpeeds[rainbowSpeedIndex]
 local fovAngle = 90
 local maxDistance = 1000
 local drawings = {}
-local aimbotMode = "All" -- "All", "NPC", "Players"
+local aimbotMode = "All"
 local BodyPart, OldNameCall
 
--- Configuration Tables (from open sources)
-local configTable = {
-    NameESP = { TextSize = 14, Font = Enum.Font.SourceSans, Color = Color3.fromRGB(255, 255, 255) },
-    Killers = false,
-    Desync = false,
-    NRcoil = false, -- No Recoil
-    NSpread = false, -- No Spread
-    AutoShoot2 = false, -- Auto Shoot
-    Aspect = false, -- Aspect Ratio
-    BHopMethod = "Velocity", -- Bunny Hop Method
-    ModifiedCharacters = {}, -- For Inventory Changer
-    Skin = "Default", -- Current Skin
-    Melees = {}, -- List of Melee Skins
-    Hitsound = "skeet.cc" -- Hitsound name
-}
-local locker = {
-    SwapWith = "Delinquent",
-    SwapTo = "MonkyGamer!!",
-    RarityColor = Color3.new(0,0,0),
-    Shirt = "",
-    Pants = ""
-}
-
--- Store previous weapon property values so we can restore
+-- store previous weapon property values so we can restore
 local prevWeaponValues = {}
 local ammoConn
 local weaponConn
@@ -71,26 +38,20 @@ local flySettings = {fly = false, flyspeed = 50}
 local c, h, bv, bav, cam, flying, p = nil, nil, nil, nil, nil, nil, localPlayer
 local buttons = {W = false, S = false, A = false, D = false, Moving = false}
 
--- Name Spoof State
-local originalName = localPlayer.Name
-local spoofedName = "SpoofedName"
-
 -- Tabs
 local Rage = Window:DrawTab({ Icon = "skull", Name = "Arsenal", Type = "Double" })
 local general = Rage:DrawSection({ Name = "General", Position = "LEFT" })
 local combat = Rage:DrawSection({ Name = "Combat", Position = "RIGHT" })
-local visuals = Rage:DrawSection({ Name = "Visuals", Position = "LEFT" })
-local misc = Rage:DrawSection({ Name = "Misc", Position = "RIGHT" })
 
 ----------------------------------------------------
--- UI Toggles - General
+-- UI Toggles
 ----------------------------------------------------
 general:AddToggle({ Name = "ESP", Flag = "espToggle", Callback = function(v) state.ESP = v end })
 general:AddToggle({ Name = "Aimbot", Flag = "aimbotToggle", Callback = function(v) state.Aimbot = v end })
 general:AddToggle({ Name = "Rainbow ESP", Flag = "rainbowToggle", Callback = function(v) state.Rainbow = v end })
 general:AddToggle({ Name = "Team Check", Flag = "teamToggle", Callback = function(v) state.TeamCheck = v end })
 
--- Sliders - General
+-- Sliders
 general:AddSlider({
     Name = "FOV", Min = 50, Max = 150, Default = fovAngle, Round = 0,
     Flag = "fovSlider", Callback = function(v) fovAngle = v end
@@ -104,7 +65,7 @@ general:AddSlider({
     Flag = "hitboxSize", Callback = function(v) hitboxSize = v end
 })
 
--- Dropdown - General
+-- Dropdown
 general:AddDropdown({
     Name = "Aimbot Mode", Values = {"All","NPC","Players"}, Default = "All",
     Multi = false, Flag = "aimbotMode", Callback = function(v) aimbotMode = v end
@@ -150,16 +111,11 @@ combat:AddToggle({
                 return OldNameCall(Self, ...)
             end)
         elseif not v and OldNameCall then
+             -- Restore the original metamethod when disabled
             hookmetamethod(game, "__namecall", OldNameCall)
             OldNameCall = nil
         end
     end
-})
-
--- Aim Part Dropdown
-combat:AddDropdown({
-    Name = "Aim Part", Values = {"Head","UpperTorso","HumanoidRootPart"}, Default = "Head",
-    Multi = false, Flag = "aimPart", Callback = function(v) state.AimPart = v end
 })
 
 -- Teleport to Nearest Enemy
@@ -172,7 +128,12 @@ local tp_func = function()
         end
     end
     if nearest and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
+        -- Ensure the target character exists before teleporting
+        if nearest.Character and nearest.Character:FindFirstChild("HumanoidRootPart") then
+             localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
+        else
+             warn("Target character invalid during teleport attempt.")
+        end
     end
 end
 
@@ -181,11 +142,7 @@ combat:AddButton({
     Callback = tp_func
 })
 
-combat:AddKeybind({
-    Name = "TP Nearest Key",
-    Default = Enum.KeyCode.T,
-    Callback = tp_func
-})
+-- Removed keybind for TP as requested if it was causing issues
 
 combat:AddToggle({
     Name = "Infinite Ammo",
@@ -210,9 +167,9 @@ combat:AddToggle({
     Callback = function(v)
         state.Hitbox = v
         if v then
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) and p.Character then
-                    local head = p.Character:FindFirstChild(state.AimPart) -- Use Aim Part setting
+            for _, plr in ipairs(Players:GetPlayers()) do
+                if plr ~= localPlayer and (not state.TeamCheck or plr.Team ~= localPlayer.Team) and plr.Character then
+                    local head = plr.Character:FindFirstChild("Head") -- Changed back to Head for simplicity
                     if head then
                         originalHeads[head] = {Size = head.Size, Transparency = head.Transparency, CanCollide = head.CanCollide}
                         head.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
@@ -220,9 +177,13 @@ combat:AddToggle({
                         head.CanCollide = false
                     end
                 end
-                hitboxConns[p] = p.CharacterAdded:Connect(function(newChar)
+                -- Disconnect old connection if it exists
+                if hitboxConns[plr] then
+                    hitboxConns[plr]:Disconnect()
+                end
+                hitboxConns[plr] = plr.CharacterAdded:Connect(function(newChar)
                     task.wait(0.5)
-                    local head = newChar:FindFirstChild(state.AimPart) -- Use Aim Part setting
+                    local head = newChar:FindFirstChild("Head") -- Changed back to Head for simplicity
                     if head then
                         originalHeads[head] = {Size = head.Size, Transparency = head.Transparency, CanCollide = head.CanCollide}
                         head.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
@@ -231,11 +192,15 @@ combat:AddToggle({
                     end
                 end)
             end
-            hitboxConns["PlayerAdded"] = Players.PlayerAdded:Connect(function(p)
-                if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) then
-                    hitboxConns[p] = p.CharacterAdded:Connect(function(newChar)
+            -- Disconnect old connection if it exists
+            if hitboxConns["PlayerAdded"] then
+                 hitboxConns["PlayerAdded"]:Disconnect()
+            end
+            hitboxConns["PlayerAdded"] = Players.PlayerAdded:Connect(function(plr)
+                if plr ~= localPlayer and (not state.TeamCheck or plr.Team ~= localPlayer.Team) then
+                    hitboxConns[plr] = plr.CharacterAdded:Connect(function(newChar)
                         task.wait(0.5)
-                        local head = newChar:FindFirstChild(state.AimPart) -- Use Aim Part setting
+                        local head = newChar:FindFirstChild("Head") -- Changed back to Head for simplicity
                         if head then
                             originalHeads[head] = {Size = head.Size, Transparency = head.Transparency, CanCollide = head.CanCollide}
                             head.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
@@ -271,21 +236,24 @@ local kill_all_func = function()
     end
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.Humanoid.Health > 0 then
-            localPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
-            task.wait(0.2)
-            for i = 1, 20 do
-                safeDo(function()
-                    local gui = localPlayer.PlayerGui:FindFirstChild("GUI")
-                    if gui and gui.Client and gui.Client.Functions and gui.Client.Functions:FindFirstChild("Weapons") then
-                        local mod = require(gui.Client.Functions.Weapons)
-                        if mod and type(mod.firebullet) == "function" then
-                            mod.firebullet()
+            -- Check if target is valid before teleporting
+            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                localPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
+                task.wait(0.2)
+                for i = 1, 20 do
+                    safeDo(function()
+                        local gui = localPlayer.PlayerGui:FindFirstChild("GUI")
+                        if gui and gui.Client and gui.Client.Functions and gui.Client.Functions:FindFirstChild("Weapons") then
+                            local mod = require(gui.Client.Functions.Weapons)
+                            if mod and type(mod.firebullet) == "function" then
+                                mod.firebullet()
+                            end
                         end
-                    end
-                end)
-                task.wait(0.05)
+                    end)
+                    task.wait(0.05)
+                end
+                task.wait(0.3)
             end
-            task.wait(0.3)
         end
     end
     localPlayer.Character.HumanoidRootPart.CFrame = oldCFrame
@@ -296,55 +264,20 @@ combat:AddButton({
     Callback = kill_all_func
 })
 
-combat:AddKeybind({
-    Name = "Kill All Key",
-    Default = Enum.KeyCode.K,
-    Callback = kill_all_func
+-- Removed keybind for Kill All as requested if it was causing issues
+
+-- Movement Tab with Float Toggle
+local Movement = Window:DrawTab({
+    Icon = "run",
+    Name = "Movement"
 })
 
-----------------------------------------------------
--- Visuals Features
-----------------------------------------------------
-visuals:AddToggle({
-    Name = "No Spread",
-    Flag = "noSpreadToggle",
-    Callback = function(v)
-        state.NoSpread = v
-        configTable.NSpread = v -- Update config table
-    end
+local movementSection = Movement:DrawSection({
+    Name = "Player Movement",
+    Position = "LEFT"
 })
 
-visuals:AddToggle({
-    Name = "No Recoil",
-    Flag = "noRecoilToggle",
-    Callback = function(v)
-        state.NoRecoil = v
-        configTable.NRcoil = v -- Update config table
-    end
-})
-
-visuals:AddToggle({
-    Name = "Auto Shoot",
-    Flag = "autoShootToggle",
-    Callback = function(v)
-        state.AutoShoot = v
-        configTable.AutoShoot2 = v -- Update config table
-    end
-})
-
-visuals:AddToggle({
-    Name = "Aspect Ratio",
-    Flag = "aspectRatioToggle",
-    Callback = function(v)
-        state.AspectRatio = v
-        configTable.Aspect = v -- Update config table
-    end
-})
-
-----------------------------------------------------
--- Movement Features (Movement Tab moved here)
-----------------------------------------------------
-misc:AddSlider({
+movementSection:AddSlider({
     Name = "WalkSpeed",
     Min = 16,
     Max = 100,
@@ -360,7 +293,7 @@ misc:AddSlider({
     end
 })
 
-misc:AddSlider({
+movementSection:AddSlider({
     Name = "JumpPower",
     Min = 50,
     Max = 200,
@@ -376,7 +309,7 @@ misc:AddSlider({
     end
 })
 
-misc:AddToggle({
+movementSection:AddToggle({
     Name = "Float",
     Flag = "floatToggle",
     Callback = function(v)
@@ -401,7 +334,7 @@ misc:AddToggle({
     end
 })
 
-misc:AddToggle({
+movementSection:AddToggle({
     Name = "Fly",
     Flag = "flyToggle",
     Callback = function(v)
@@ -414,7 +347,7 @@ misc:AddToggle({
     end
 })
 
-misc:AddSlider({
+movementSection:AddSlider({
     Name = "Fly Speed",
     Min = 1,
     Max = 500,
@@ -425,86 +358,7 @@ misc:AddSlider({
     end
 })
 
-misc:AddToggle({
-    Name = "Bunny Hop",
-    Flag = "bunnyHopToggle",
-    Callback = function(v)
-        state.BunnyHop = v
-        configTable.BunnyHop = v -- Update config table
-    end
-})
-
-----------------------------------------------------
--- Misc Features
-----------------------------------------------------
-misc:AddToggle({
-    Name = "Name Spoof",
-    Flag = "nameSpoofToggle",
-    Callback = function(v)
-        state.NameSpoof = v
-        if v then
-            -- Apply name spoof (example: append level)
-            task.spawn(function()
-                while state.NameSpoof and task.wait(1) do
-                    local currentGui = localPlayer.PlayerGui:FindFirstChild("Menew")
-                    if currentGui and currentGui:FindFirstChild("Main") and currentGui.Main:FindFirstChild("PlrName") then
-                        currentGui.Main.PlrName.Text = originalName .. " - " .. "Level: inf"
-                    end
-                end
-            end)
-        else
-            -- Restore original name
-            local currentGui = localPlayer.PlayerGui:FindFirstChild("Menew")
-            if currentGui and currentGui:FindFirstChild("Main") and currentGui.Main:FindFirstChild("PlrName") then
-                currentGui.Main.PlrName.Text = originalName
-            end
-        end
-    end
-})
-
-misc:AddToggle({
-    Name = "Visual Modifications",
-    Flag = "visualModToggle",
-    Callback = function(v)
-        state.VisualModifications = v
-        -- Example: Hide health bar
-        local healthFrame = localPlayer.PlayerGui:FindFirstChild("GUI")
-        if healthFrame and healthFrame:FindFirstChild("Interface") and healthFrame.Interface:FindFirstChild("Vitals") and healthFrame.Interface.Vitals:FindFirstChild("Health") then
-             healthFrame.Interface.Vitals.Health.Visible = not v
-        end
-        -- Store in getgenv for potential access by other scripts
-        getgenv().HealthFrame = healthFrame and healthFrame.Interface and healthFrame.Interface.Vitals and healthFrame.Interface.Vitals.Health
-        if getgenv().HealthFrame then
-            getgenv().HealthFrame.Visible = not v
-        end
-    end
-})
-
--- Example Teleport Button (from open source)
-misc:AddButton({
-    Name = "Teleport to Froggy's Apartment",
-    Callback = function()
-        TeleportService:Teleport(5133094040, localPlayer, {SuperSecretCode = "NotSoSuperSecretPoggyWoggy"});
-    end
-})
-
--- Example Code Redeemer Button (from open source)
-misc:AddButton({
-    Name = "Redeem All Codes",
-    Callback = function()
-        -- Example codes, replace with actual redeem logic if needed
-        local codes = {'pog', 'bloxy','xonae', 'JOHN', 'POKE', 'CBROX', 'EPRIKA', 'FLAMINGO', 'Pet', 'ANNA', 'Bandites', 'F00LISH', 'E', 'Garcello', 'kitten'}
-        for _, code in ipairs(codes) do
-            -- Assuming there's a remote for redeeming codes
-            -- game:GetService("ReplicatedStorage").Redeem:InvokeServer(code)
-            print("Attempting to redeem code: " .. code)
-        end
-    end
-})
-
-----------------------------------------------------
--- Fly functions (from open source)
-----------------------------------------------------
+-- Fly functions
 local startFly = function()
     if not p.Character or not p.Character.Head or flying then return end
     c = p.Character
@@ -520,8 +374,8 @@ local startFly = function()
     flying = true
     h.Died:connect(function()
         flying = false
-        if bv then bv:Destroy() end
-        if bav then bav:Destroy() end
+         if bv then bv:Destroy() end
+         if bav then bav:Destroy() end
     end)
 end
 local endFly = function()
@@ -589,20 +443,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Auto Shoot loop
-RunService.RenderStepped:Connect(function()
-    if state.AutoShoot then
-        VirtualUser:Button1Down(Vector2.new(0, 0), camera.CFrame)
-    end
-end)
-
--- Aspect Ratio loop
-RunService.RenderStepped:Connect(function()
-    if state.AspectRatio and not localPlayer.PlayerGui:FindFirstChild("Menew").Enabled then
-        camera.CFrame = camera.CFrame * CFrame.new(0, 0, 0, 1, 0, 0, 0, 0.6, 0, 0, 0, 1);
-    end
-end)
-
 ----------------------------------------------------
 -- ESP + Aimbot + Silent Aim Core
 ----------------------------------------------------
@@ -633,7 +473,7 @@ local function getTargets()
     if aimbotMode ~= "NPC" then
         for _, p in ipairs(Players:GetPlayers()) do
             local c = p.Character
-            if p~=localPlayer and c and c:FindFirstChild(state.AimPart) and c:FindFirstChild("HumanoidRootPart") and c:FindFirstChild("Humanoid") and c.Humanoid.Health>0 then -- Use Aim Part setting
+            if p~=localPlayer and c and c:FindFirstChild("Head") and c:FindFirstChild("HumanoidRootPart") and c:FindFirstChild("Humanoid") and c.Humanoid.Health>0 then
                 if not state.TeamCheck or p.Team ~= localPlayer.Team then
                     table.insert(t, {Name=p.Name, Character=c})
                 end
@@ -642,7 +482,7 @@ local function getTargets()
     end
     if aimbotMode ~= "Players" then
         for _, m in ipairs(Workspace:GetDescendants()) do
-            if m:IsA("Model") and m:FindFirstChild("Humanoid") and m.Humanoid.Health>0 and m:FindFirstChild("HumanoidRootPart") and m:FindFirstChild(state.AimPart) and not Players:GetPlayerFromCharacter(m) then -- Use Aim Part setting
+            if m:IsA("Model") and m:FindFirstChild("Humanoid") and m.Humanoid.Health>0 and m:FindFirstChild("HumanoidRootPart") and m:FindFirstChild("Head") and not Players:GetPlayerFromCharacter(m) then
                 table.insert(t, {Name=m.Name, Character=m})
             end
         end
@@ -683,21 +523,21 @@ RunService.RenderStepped:Connect(function()
     local camPos, camLook = camera.CFrame.Position, camera.CFrame.LookVector
 
     for _, target in ipairs(getTargets()) do
-        local char, root, aimPart = target.Character, target.Character:FindFirstChild("HumanoidRootPart"), target.Character:FindFirstChild(state.AimPart) -- Use Aim Part setting
-        if not(root and aimPart) then continue end -- Use Aim Part setting
+        local char, root, head = target.Character, target.Character:FindFirstChild("HumanoidRootPart"), target.Character:FindFirstChild("Head")
+        if not(root and head) then continue end
         local rootPos,onScreenRoot = camera:WorldToViewportPoint(root.Position)
-        local aimPartPos,onScreenAimPart = camera:WorldToViewportPoint(aimPart.Position) -- Use Aim Part setting
-        local dir,angle = (aimPart.Position-camPos).Unit, math.deg(math.acos(camLook:Dot((aimPart.Position-camPos).Unit))) -- Use Aim Part setting
-        local dist,dist2D = (aimPart.Position-camPos).Magnitude, (Vector2.new(aimPartPos.X,aimPartPos.Y)-center).Magnitude -- Use Aim Part setting
+        local headPos,onScreenHead = camera:WorldToScreenPoint(head.Position)
+        local dir,angle = (root.Position-camPos).Unit, math.deg(math.acos(camLook:Dot((root.Position-camPos).Unit)))
+        local dist,dist2D = (root.Position-camPos).Magnitude, (Vector2.new(rootPos.X,rootPos.Y)-center).Magnitude
 
-        if onScreenAimPart and dist2D<=fovCircle.Radius and angle<=bestAngle and dist<=maxDistance and isVisible(char) then -- Use Aim Part setting
-            bestTarget, bestAngle = aimPart, angle -- Use Aim Part setting
+        if onScreenRoot and dist2D<=fovCircle.Radius and angle<=bestAngle and dist<=maxDistance and isVisible(char) then
+            bestTarget, bestAngle = head, angle
         end
 
-        if state.ESP and onScreenRoot and onScreenAimPart then -- Use Aim Part setting
-            local boxHeight = math.abs(aimPartPos.Y-rootPos.Y)*4.7 -- Use Aim Part setting
+        if state.ESP and onScreenRoot and onScreenHead then
+            local boxHeight = math.abs(headPos.Y-rootPos.Y)*4.7
             local boxWidth = boxHeight*0.8
-            local boxCenterX, boxCenterY = rootPos.X,(aimPartPos.Y+rootPos.Y)/2 -- Use Aim Part setting
+            local boxCenterX, boxCenterY = rootPos.X,(headPos.Y+rootPos.Y)/2
 
             local box = Drawing.new("Square")
             box.Size = Vector2.new(boxWidth, boxHeight)
