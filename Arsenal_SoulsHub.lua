@@ -6,7 +6,6 @@ end)
 if not success or not SoulsHub then
     warn("Failed to load UI library. Creating basic UI instead.")
     
-    -- Fallback UI system if library fails
     local fallbackWindow = {
         DrawTab = function(self, tabData)
             return {
@@ -111,76 +110,275 @@ local originalValues = {
     Recoil = {}
 }
 
-----------------------------------------------------
--- UI Sections with safety checks
-----------------------------------------------------
-local Rage
-if Window and type(Window.DrawTab) == "function" then
-    Rage = Window:DrawTab({ Icon = "skull", Name = "Arsenal", Type = "Double" })
-else
-    warn("Window is not properly initialized. UI may not work correctly.")
-    Rage = {
-        DrawSection = function() return {} end
-    }
+-- Backtrack system
+local function ClearBacktrack()
+    for _, part in ipairs(backtrackParts) do
+        part:Destroy()
+    end
+    backtrackParts = {}
 end
 
-local general = Rage and type(Rage.DrawSection) == "function" and Rage:DrawSection({ Name = "General", Position = "LEFT" }) or {}
-local combat = Rage and type(Rage.DrawSection) == "function" and Rage:DrawSection({ Name = "Combat", Position = "RIGHT" }) or {}
-local visual = Rage and type(Rage.DrawSection) == "function" and Rage:DrawSection({ Name = "Visuals", Position = "LEFT" }) or {}
-local gunMods = Rage and type(Rage.DrawSection) == "function" and Rage:DrawSection({ Name = "Gun Mods", Position = "LEFT" }) or {}
-local misc = Rage and type(Rage.DrawSection) == "function" and Rage:DrawSection({ Name = "Misc", Position = "RIGHT" }) or {}
-
-----------------------------------------------------
--- UI Toggles with safety checks
-----------------------------------------------------
--- General Section
-if general and type(general.AddToggle) == "function" then
-    general:AddToggle({ Name = "ESP", Flag = "espToggle", Callback = function(v) state.ESP = v end })
-    general:AddToggle({ Name = "Aimbot", Flag = "aimbotToggle", Callback = function(v) state.Aimbot = v end })
-    general:AddToggle({ Name = "Rainbow ESP", Flag = "rainbowToggle", Callback = function(v) state.Rainbow = v end })
-    general:AddToggle({ Name = "Team Check", Flag = "teamToggle", Callback = function(v) state.TeamCheck = v end })
-    general:AddToggle({ Name = "Backtrack", Flag = "backtrackToggle", Callback = function(v) state.Backtrack = v end })
-    general:AddToggle({ Name = "Prediction", Flag = "predictionToggle", Callback = function(v) state.Prediction = v end })
-    general:AddToggle({ Name = "Smooth Aim", Flag = "smoothAimToggle", Callback = function(v) state.SmoothAim = v end })
+-- Enhanced ESP features
+local function GetNearestTarget()
+    local players = {}
+    local PLAYER_HOLD = {}
+    local DISTANCES = {}
+    for i, v in ipairs(Players:GetPlayers()) do
+        if v ~= localPlayer then
+            table.insert(players, v)
+        end
+    end
+    for i, v in ipairs(players) do
+        if v.Character ~= nil then
+            local AIM = v.Character:FindFirstChild("Head")
+            if state.TeamCheck == true and v.Team ~= localPlayer.Team then
+                local DISTANCE = (v.Character:FindFirstChild("Head").Position - camera.CFrame.p).magnitude
+                local RAY = Ray.new(camera.CFrame.p, (Mouse.Hit.p - camera.CFrame.p).unit * DISTANCE)
+                local HIT, POS = Workspace:FindPartOnRay(RAY, Workspace)
+                local DIFF = math.floor((POS - AIM.Position).magnitude)
+                PLAYER_HOLD[v.Name .. i] = {}
+                PLAYER_HOLD[v.Name .. i].dist = DISTANCE
+                PLAYER_HOLD[v.Name .. i].plr = v
+                PLAYER_HOLD[v.Name .. i].diff = DIFF
+                table.insert(DISTANCES, DIFF)
+            elseif state.TeamCheck == false then
+                local DISTANCE = (v.Character:FindFirstChild("Head").Position - camera.CFrame.p).magnitude
+                local RAY = Ray.new(camera.CFrame.p, (Mouse.Hit.p - camera.CFrame.p).unit * DISTANCE)
+                local HIT, POS = Workspace:FindPartOnRay(RAY, Workspace)
+                local DIFF = math.floor((POS - AIM.Position).magnitude)
+                PLAYER_HOLD[v.Name .. i] = {}
+                PLAYER_HOLD[v.Name .. i].dist = DISTANCE
+                PLAYER_HOLD[v.Name .. i].plr = v
+                PLAYER_HOLD[v.Name .. i].diff = DIFF
+                table.insert(DISTANCES, DIFF)
+            end
+        end
+    end
+    if #DISTANCES == 0 then
+        return nil
+    end
+    local L_DISTANCE = math.floor(math.min(unpack(DISTANCES)))
+    if L_DISTANCE > fovAngle then
+        return nil
+    end
+    for i, v in pairs(PLAYER_HOLD) do
+        if v.diff == L_DISTANCE then
+            return v.plr
+        end
+    end
+    return nil
 end
 
--- Sliders
-if general and type(general.AddSlider) == "function" then
-    general:AddSlider({
-        Name = "FOV", Min = 50, Max = 150, Default = fovAngle, Round = 0,
-        Flag = "fovSlider", Callback = function(v) fovAngle = v end
+----------------------------------------------------
+-- ESP Tab
+----------------------------------------------------
+local ESP_Tab = Window:DrawTab({
+    Icon = "eye",
+    Name = "ESP",
+    Type = "Single"
+})
+
+local ESP_Section = ESP_Tab:DrawSection({
+    Name = "Visuals",
+    Position = "LEFT"
+})
+
+if ESP_Section and type(ESP_Section.AddToggle) == "function" then
+    ESP_Section:AddToggle({
+        Name = "ESP",
+        Flag = "espToggle",
+        Callback = function(v) 
+            state.ESP = v 
+        end
     })
-    general:AddSlider({
-        Name = "Rainbow Speed", Min = 1, Max = 6, Default = 1, Round = 0,
-        Flag = "rainbowSpeed", Callback = function(v) rainbowSpeed = v end
+    
+    ESP_Section:AddToggle({
+        Name = "Rainbow ESP",
+        Flag = "rainbowToggle",
+        Callback = function(v) 
+            state.Rainbow = v 
+        end
     })
-    general:AddSlider({
-        Name = "Hitbox Size", Min = 1, Max = 20, Default = hitboxSize, Round = 0,
-        Flag = "hitboxSize", Callback = function(v) hitboxSize = v end
+    
+    ESP_Section:AddToggle({
+        Name = "Health Bars",
+        Flag = "healthBarToggle",
+        Callback = function(v) 
+            state.HealthBar = v 
+        end
     })
-    general:AddSlider({
-        Name = "Smoothness", Min = 0.01, Max = 0.5, Default = 0.08, Round = 2,
-        Flag = "smoothness", Callback = function(v) smoothnessAmount = v end
+    
+    ESP_Section:AddToggle({
+        Name = "Offscreen Arrows",
+        Flag = "offscreenToggle",
+        Callback = function(v) 
+            state.Offscreen = v 
+        end
     })
-    general:AddSlider({
-        Name = "Backtrack Delay", Min = 50, Max = 500, Default = 100, Round = 0,
-        Flag = "backtrackDelay", Callback = function(v) backtrackDelay = v end
+    
+    ESP_Section:AddToggle({
+        Name = "Show Distance",
+        Flag = "distanceToggle",
+        Callback = function(v) 
+            state.ShowDistance = v 
+        end
+    })
+    
+    ESP_Section:AddColorPicker({
+        Name = "ESP Color",
+        Default = Color3.new(1,1,1),
+        Flag = "espColor",
+        Callback = function(color)
+            for _, d in ipairs(drawings) do
+                if d.Type == "Square" or d.Type == "Text" then
+                    d.Color = color
+                end
+            end
+        end
     })
 end
 
--- Dropdowns
-if general and type(general.AddDropdown) == "function" then
-    general:AddDropdown({
-        Name = "Aimbot Mode", Values = {"All","NPC","Players"}, Default = "All",
-        Multi = false, Flag = "aimbotMode", Callback = function(v) aimbotMode = v end
+----------------------------------------------------
+-- Aimbot Tab
+----------------------------------------------------
+local Aimbot_Tab = Window:DrawTab({
+    Icon = "crosshair",
+    Name = "Aimbot",
+    Type = "Single"
+})
+
+local Aimbot_General = Aimbot_Tab:DrawSection({
+    Name = "General",
+    Position = "LEFT"
+})
+
+local Aimbot_Settings = Aimbot_Tab:DrawSection({
+    Name = "Settings",
+    Position = "RIGHT"
+})
+
+if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
+    Aimbot_General:AddToggle({
+        Name = "Aimbot",
+        Flag = "aimbotToggle",
+        Callback = function(v) 
+            state.Aimbot = v 
+        end
     })
-    general:AddDropdown({
-        Name = "Aim Part", Values = {"Head","UpperTorso","LowerTorso"}, Default = "Head",
-        Multi = false, Flag = "aimPart", Callback = function(v) aimPart = v end
+    
+    Aimbot_General:AddToggle({
+        Name = "Prediction",
+        Flag = "predictionToggle",
+        Callback = function(v) 
+            state.Prediction = v 
+        end
     })
-    general:AddDropdown({
-        Name = "Backtrack Color", Values = {"Red","Blue","Green","Yellow","Purple","Custom"}, Default = "Red",
-        Multi = false, Flag = "backtrackColor", Callback = function(v)
+    
+    Aimbot_General:AddToggle({
+        Name = "Smooth Aim",
+        Flag = "smoothAimToggle",
+        Callback = function(v) 
+            state.SmoothAim = v 
+        end
+    })
+    
+    Aimbot_General:AddToggle({
+        Name = "Team Check",
+        Flag = "teamToggle",
+        Callback = function(v) 
+            state.TeamCheck = v 
+        end
+    })
+    
+    Aimbot_General:AddToggle({
+        Name = "Backtrack",
+        Flag = "backtrackToggle",
+        Callback = function(v) 
+            state.Backtrack = v 
+        end
+    })
+end
+
+if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
+    Aimbot_Settings:AddSlider({
+        Name = "FOV",
+        Min = 50,
+        Max = 150,
+        Default = fovAngle,
+        Round = 0,
+        Flag = "fovSlider",
+        Callback = function(v) 
+            fovAngle = v 
+        end
+    })
+    
+    Aimbot_Settings:AddSlider({
+        Name = "Rainbow Speed",
+        Min = 1,
+        Max = 6,
+        Default = 1,
+        Round = 0,
+        Flag = "rainbowSpeed",
+        Callback = function(v) 
+            rainbowSpeed = v 
+        end
+    })
+    
+    Aimbot_Settings:AddSlider({
+        Name = "Smoothness",
+        Min = 0.01,
+        Max = 0.5,
+        Default = 0.08,
+        Round = 2,
+        Flag = "smoothness",
+        Callback = function(v) 
+            smoothnessAmount = v 
+        end
+    })
+    
+    Aimbot_Settings:AddSlider({
+        Name = "Backtrack Delay",
+        Min = 50,
+        Max = 500,
+        Default = 100,
+        Round = 0,
+        Flag = "backtrackDelay",
+        Callback = function(v) 
+            backtrackDelay = v 
+        end
+    })
+end
+
+if Aimbot_Settings and type(Aimbot_Settings.AddDropdown) == "function" then
+    Aimbot_Settings:AddDropdown({
+        Name = "Aimbot Mode",
+        Values = {"All","NPC","Players"},
+        Default = "All",
+        Multi = false,
+        Flag = "aimbotMode",
+        Callback = function(v) 
+            aimbotMode = v 
+        end
+    })
+    
+    Aimbot_Settings:AddDropdown({
+        Name = "Aim Part",
+        Values = {"Head","UpperTorso","LowerTorso"},
+        Default = "Head",
+        Multi = false,
+        Flag = "aimPart",
+        Callback = function(v) 
+            aimPart = v 
+        end
+    })
+    
+    Aimbot_Settings:AddDropdown({
+        Name = "Backtrack Color",
+        Values = {"Red","Blue","Green","Yellow","Purple","Custom"},
+        Default = "Red",
+        Multi = false,
+        Flag = "backtrackColor",
+        Callback = function(v)
             if v == "Red" then backtrackColor = Color3.fromRGB(255,0,0)
             elseif v == "Blue" then backtrackColor = Color3.fromRGB(0,0,255)
             elseif v == "Green" then backtrackColor = Color3.fromRGB(0,255,0)
@@ -189,24 +387,45 @@ if general and type(general.AddDropdown) == "function" then
             end
         end
     })
-    general:AddDropdown({
-        Name = "Backtrack Material", Values = {"ForceField","Neon","Glass","Ice"}, Default = "ForceField",
-        Multi = false, Flag = "backtrackMaterial", Callback = function(v) backtrackMaterial = v end
+    
+    Aimbot_Settings:AddDropdown({
+        Name = "Backtrack Material",
+        Values = {"ForceField","Neon","Glass","Ice"},
+        Default = "ForceField",
+        Multi = false,
+        Flag = "backtrackMaterial",
+        Callback = function(v) 
+            backtrackMaterial = v 
+        end
     })
 end
 
 ----------------------------------------------------
--- Combat Features with safety checks
+-- Combat Tab
 ----------------------------------------------------
--- Silent Aim
-if combat and type(combat.AddToggle) == "function" then
-    combat:AddToggle({
+local Combat_Tab = Window:DrawTab({
+    Icon = "swords",
+    Name = "Combat",
+    Type = "Single"
+})
+
+local Combat_Features = Combat_Tab:DrawSection({
+    Name = "Combat Features",
+    Position = "LEFT"
+})
+
+local Combat_Utilities = Combat_Tab:DrawSection({
+    Name = "Utilities",
+    Position = "RIGHT"
+})
+
+if Combat_Features and type(Combat_Features.AddToggle) == "function" then
+    Combat_Features:AddToggle({
         Name = "Silent Aim",
         Flag = "silentAimToggle",
         Callback = function(v)
             state.SilentAim = v
             if v and not OldNameCall then
-                -- Check if hookmetamethod is available
                 if hookmetamethod and newcclosure then
                     OldNameCall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
                         local method = getnamecallmethod()
@@ -245,74 +464,24 @@ if combat and type(combat.AddToggle) == "function" then
             end
         end
     })
-end
-
--- Teleport to Nearest Enemy
-local tp_func = function()
-    local nearest, dist = nil, math.huge
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= localPlayer and p.Team ~= localPlayer.Team and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-            local d = (p.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-            if d < dist then dist, nearest = d, p end
-        end
-    end
-    if nearest and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
-    end
-end
-
-if combat and type(combat.AddButton) == "function" then
-    combat:AddButton({
-        Name = "Teleport to Nearest Enemy",
-        Callback = tp_func
-    })
-end
-
-if combat and type(combat.AddKeybind) == "function" then
-    combat:AddKeybind({
-        Name = "TP Nearest Key",
-        Default = Enum.KeyCode.T,
-        Callback = tp_func
-    })
-end
-
--- Infinite Ammo
-if combat and type(combat.AddToggle) == "function" then
-    combat:AddToggle({
-        Name = "Infinite Ammo",
-        Flag = "infAmmoToggle",
-        Callback = function(enabled)
-            state.InfAmmo = enabled
-            ReplicatedStorage.wkspc.CurrentCurse.Value = enabled and "Infinite Ammo" or ""
-        end
-    })
-end
-
--- TriggerBot
-if combat and type(combat.AddToggle) == "function" then
-    combat:AddToggle({
+    
+    Combat_Features:AddToggle({
         Name = "TriggerBot",
         Flag = "triggerBotToggle",
         Callback = function(v)
             state.TriggerBot = v
         end
     })
-end
-
--- Auto Shoot
-if combat and type(combat.AddToggle) == "function" then
-    combat:AddToggle({
+    
+    Combat_Features:AddToggle({
         Name = "Auto Shoot",
         Flag = "autoShootToggle",
         Callback = function(v)
             state.AutoShoot = v
         end
     })
-end
-
--- Hitbox Expander
-if combat and type(combat.AddToggle) == "function" then
-    combat:AddToggle({
+    
+    Combat_Features:AddToggle({
         Name = "Hitbox Expander",
         Flag = "hitboxToggle",
         Callback = function(v)
@@ -371,44 +540,67 @@ if combat and type(combat.AddToggle) == "function" then
     })
 end
 
--- Kill All
-local kill_all_func = function()
-    local oldCFrame = localPlayer.Character.HumanoidRootPart.CFrame
-    local safeDo = function(fn)
-        local ok, _ = pcall(fn)
-        return ok
-    end
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.Humanoid.Health > 0 then
-            localPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
-            task.wait(0.2)
-            for i = 1, 20 do
-                safeDo(function()
-                    local gui = localPlayer.PlayerGui:FindFirstChild("GUI")
-                    if gui and gui.Client and gui.Client.Functions and gui.Client.Functions:FindFirstChild("Weapons") then
-                        local mod = require(gui.Client.Functions.Weapons)
-                        if mod and type(mod.firebullet) == "function" then
-                            mod.firebullet()
-                        end
-                    end
-                end)
-                task.wait(0.05)
+if Combat_Utilities and type(Combat_Utilities.AddButton) == "function" then
+    -- Teleport to Nearest Enemy
+    local tp_func = function()
+        local nearest, dist = nil, math.huge
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= localPlayer and p.Team ~= localPlayer.Team and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                local d = (p.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
+                if d < dist then dist, nearest = d, p end
             end
-            task.wait(0.3)
+        end
+        if nearest and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
         end
     end
-    localPlayer.Character.HumanoidRootPart.CFrame = oldCFrame
-end
-
-if combat and type(combat.AddButton) == "function" then
-    combat:AddButton({
+    
+    Combat_Utilities:AddButton({
+        Name = "Teleport to Nearest Enemy",
+        Callback = tp_func
+    })
+    
+    Combat_Utilities:AddKeybind({
+        Name = "TP Nearest Key",
+        Default = Enum.KeyCode.T,
+        Callback = tp_func
+    })
+    
+    -- Kill All
+    local kill_all_func = function()
+        local oldCFrame = localPlayer.Character.HumanoidRootPart.CFrame
+        local safeDo = function(fn)
+            local ok, _ = pcall(fn)
+            return ok
+        end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.Humanoid.Health > 0 then
+                localPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
+                task.wait(0.2)
+                for i = 1, 20 do
+                    safeDo(function()
+                        local gui = localPlayer.PlayerGui:FindFirstChild("GUI")
+                        if gui and gui.Client and gui.Client.Functions and gui.Client.Functions:FindFirstChild("Weapons") then
+                            local mod = require(gui.Client.Functions.Weapons)
+                            if mod and type(mod.firebullet) == "function" then
+                                mod.firebullet()
+                            end
+                        end
+                    end)
+                    task.wait(0.05)
+                end
+                task.wait(0.3)
+            end
+        end
+        localPlayer.Character.HumanoidRootPart.CFrame = oldCFrame
+    end
+    
+    Combat_Utilities:AddButton({
         Name = "Kill All",
         Callback = kill_all_func
     })
-end
-
-if combat and type(combat.AddKeybind) == "function" then
-    combat:AddKeybind({
+    
+    Combat_Utilities:AddKeybind({
         Name = "Kill All Key",
         Default = Enum.KeyCode.K,
         Callback = kill_all_func
@@ -416,63 +608,30 @@ if combat and type(combat.AddKeybind) == "function" then
 end
 
 ----------------------------------------------------
--- Visual Features with safety checks
+-- Gun Mods Tab
 ----------------------------------------------------
--- ESP Color Picker
-if visual and type(visual.AddColorPicker) == "function" then
-    visual:AddColorPicker({
-        Name = "ESP Color",
-        Default = Color3.new(1,1,1),
-        Flag = "espColor",
-        Callback = function(color)
-            for _, d in ipairs(drawings) do
-                if d.Type == "Square" or d.Type == "Text" then
-                    d.Color = color
-                end
-            end
+local GunMods_Tab = Window:DrawTab({
+    Icon = "gun",
+    Name = "Gun Mods",
+    Type = "Single"
+})
+
+local GunMods_Settings = GunMods_Tab:DrawSection({
+    Name = "Gun Modifications",
+    Position = "LEFT"
+})
+
+if GunMods_Settings and type(GunMods_Settings.AddToggle) == "function" then
+    GunMods_Settings:AddToggle({
+        Name = "Infinite Ammo",
+        Flag = "infAmmoToggle",
+        Callback = function(enabled)
+            state.InfAmmo = enabled
+            ReplicatedStorage.wkspc.CurrentCurse.Value = enabled and "Infinite Ammo" or ""
         end
     })
-end
-
--- Health Bar Toggle
-if visual and type(visual.AddToggle) == "function" then
-    visual:AddToggle({
-        Name = "Health Bars",
-        Flag = "healthBarToggle",
-        Callback = function(v) 
-            state.HealthBar = v 
-        end
-    })
-end
-
--- Offscreen Arrows
-if visual and type(visual.AddToggle) == "function" then
-    visual:AddToggle({
-        Name = "Offscreen Arrows",
-        Flag = "offscreenToggle",
-        Callback = function(v) 
-            state.Offscreen = v 
-        end
-    })
-end
-
--- Distance Display
-if visual and type(visual.AddToggle) == "function" then
-    visual:AddToggle({
-        Name = "Show Distance",
-        Flag = "distanceToggle",
-        Callback = function(v) 
-            state.ShowDistance = v 
-        end
-    })
-end
-
-----------------------------------------------------
--- Gun Modifications with safety checks
-----------------------------------------------------
--- No Recoil
-if gunMods and type(gunMods.AddToggle) == "function" then
-    gunMods:AddToggle({
+    
+    GunMods_Settings:AddToggle({
         Name = "No Recoil",
         Flag = "noRecoilToggle",
         Callback = function(v)
@@ -486,11 +645,8 @@ if gunMods and type(gunMods.AddToggle) == "function" then
             end
         end
     })
-end
-
--- No Spread
-if gunMods and type(gunMods.AddToggle) == "function" then
-    gunMods:AddToggle({
+    
+    GunMods_Settings:AddToggle({
         Name = "No Spread",
         Flag = "noSpreadToggle",
         Callback = function(v)
@@ -504,11 +660,8 @@ if gunMods and type(gunMods.AddToggle) == "function" then
             end
         end
     })
-end
-
--- Rapid Fire
-if gunMods and type(gunMods.AddToggle) == "function" then
-    gunMods:AddToggle({
+    
+    GunMods_Settings:AddToggle({
         Name = "Rapid Fire",
         Flag = "rapidFireToggle",
         Callback = function(v)
@@ -535,11 +688,8 @@ if gunMods and type(gunMods.AddToggle) == "function" then
             end
         end
     })
-end
-
--- Instant Reload
-if gunMods and type(gunMods.AddToggle) == "function" then
-    gunMods:AddToggle({
+    
+    GunMods_Settings:AddToggle({
         Name = "Instant Reload",
         Flag = "instantReloadToggle",
         Callback = function(v)
@@ -569,37 +719,41 @@ if gunMods and type(gunMods.AddToggle) == "function" then
 end
 
 ----------------------------------------------------
--- Misc Features with safety checks
+-- Misc Tab
 ----------------------------------------------------
--- Notifications
-if misc and type(misc.AddToggle) == "function" then
-    misc:AddToggle({
-        Name = "Hit Notifications",
-        Flag = "hitNotificationsToggle",
-        Callback = function(v)
-            state.HitNotifications = v
-        end
-    })
-end
+local Misc_Tab = Window:DrawTab({
+    Icon = "settings",
+    Name = "Misc",
+    Type = "Single"
+})
 
--- Auto Vote
-if misc and type(misc.AddToggle) == "function" then
-    misc:AddToggle({
+local Misc_Settings = Misc_Tab:DrawSection({
+    Name = "Miscellaneous",
+    Position = "LEFT"
+})
+
+if Misc_Settings and type(Misc_Settings.AddToggle) == "function" then
+    Misc_Settings:AddToggle({
         Name = "Auto Vote",
         Flag = "autoVoteToggle",
         Callback = function(v)
             state.AutoVote = v
         end
     })
-end
-
--- Force Menu
-if misc and type(misc.AddToggle) == "function" then
-    misc:AddToggle({
+    
+    Misc_Settings:AddToggle({
         Name = "Force Menu (V)",
         Flag = "forceMenuToggle",
         Callback = function(v)
             state.ForceMenu = v
+        end
+    })
+    
+    Misc_Settings:AddToggle({
+        Name = "Hit Notifications",
+        Flag = "hitNotificationsToggle",
+        Callback = function(v)
+            state.HitNotifications = v
         end
     })
 end
