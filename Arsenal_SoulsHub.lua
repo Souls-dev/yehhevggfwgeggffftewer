@@ -84,7 +84,8 @@ local state = {
     CustomHitboxes = false,
     AimbotEnabled = false,
     PredictionAmount = 6.612,
-    HitboxSize = 5
+    HitboxSize = 5,
+    espColor = Color3.new(1,1,1)
 }
 local hue, rainbowSpeedIndex = 0, 1
 local rainbowSpeeds = {1, 3, 6}
@@ -191,6 +192,8 @@ if ESP_Section and type(ESP_Section.AddToggle) == "function" then
         Callback = function(v) 
             state.ESP = v 
         end
+    }).Link:AddHelper({
+        Text = "Enables/disables ESP for players"
     })
     
     ESP_Section:AddToggle({
@@ -199,19 +202,25 @@ if ESP_Section and type(ESP_Section.AddToggle) == "function" then
         Callback = function(v) 
             state.Rainbow = v 
         end
+    }).Link:AddHelper({
+        Text = "Enables rainbow color cycling for ESP"
     })
     
-    ESP_Section:AddColorPicker({
+    local espColorPicker = ESP_Section:AddColorPicker({
         Name = "ESP Color",
         Default = Color3.new(1,1,1),
         Flag = "espColor",
         Callback = function(color)
+            state.espColor = color
             for _, d in ipairs(drawings) do
                 if d.Type == "Square" or d.Type == "Text" then
                     d.Color = color
                 end
             end
         end
+    })
+    espColorPicker.Link:AddHelper({
+        Text = "Sets the color for ESP when rainbow is disabled"
     })
     
     ESP_Section:AddToggle({
@@ -220,6 +229,8 @@ if ESP_Section and type(ESP_Section.AddToggle) == "function" then
         Callback = function(v) 
             state.HealthBar = v 
         end
+    }).Link:AddHelper({
+        Text = "Shows health bars for players"
     })
     
     ESP_Section:AddToggle({
@@ -228,6 +239,8 @@ if ESP_Section and type(ESP_Section.AddToggle) == "function" then
         Callback = function(v) 
             state.Offscreen = v 
         end
+    }).Link:AddHelper({
+        Text = "Shows arrows for players outside your view"
     })
     
     ESP_Section:AddToggle({
@@ -236,6 +249,8 @@ if ESP_Section and type(ESP_Section.AddToggle) == "function" then
         Callback = function(v) 
             state.ShowDistance = v 
         end
+    }).Link:AddHelper({
+        Text = "Displays distance to players on ESP"
     })
 end
 
@@ -265,8 +280,10 @@ if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
         Flag = "aimbotToggle",
         Callback = function(v) 
             state.Aimbot = v 
-            state.AimbotEnabled = v  -- This is the main enable flag
+            state.AimbotEnabled = v
         end
+    }).Link:AddHelper({
+        Text = "Enables the main aimbot feature"
     })
     
     -- Simplified team selection
@@ -276,6 +293,8 @@ if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
         Callback = function(v) 
             state.TeamCheck = v 
         end
+    }).Link:AddHelper({
+        Text = "Only targets enemies from other teams"
     })
     
     -- Simplified aim mode
@@ -288,6 +307,8 @@ if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
         Callback = function(v) 
             aimbotMode = v 
         end
+    }).Link:AddHelper({
+        Text = "Determines what targets the aimbot can lock on"
     })
     
     -- Simplified aim part
@@ -300,6 +321,8 @@ if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
         Callback = function(v) 
             aimPart = v 
         end
+    }).Link:AddHelper({
+        Text = "Which body part the aimbot will target"
     })
     
     -- Backtrack toggle
@@ -309,17 +332,8 @@ if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
         Callback = function(v) 
             state.Backtrack = v 
         end
-    })
-    
-    -- Add information paragraphs for important settings
-    Aimbot_General:AddParagraph({
-        Title = "Prediction",
-        Content = "Adjust the slider to match bullet speed.\nHigher values for faster bullets."
-    })
-    
-    Aimbot_General:AddParagraph({
-        Title = "Backtrack",
-        Content = "Visualizes past player positions.\nAdjust delay to match game latency."
+    }).Link:AddHelper({
+        Text = "Visualizes past player positions"
     })
 end
 
@@ -335,6 +349,8 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
         Callback = function(v) 
             fovAngle = v 
         end
+    }).Link:AddHelper({
+        Text = "Field of view for aimbot target detection"
     })
     
     Aimbot_Settings:AddSlider({
@@ -347,6 +363,8 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
         Callback = function(v) 
             smoothnessAmount = v 
         end
+    }).Link:AddHelper({
+        Text = "How smooth the aimbot moves (lower = smoother)"
     })
     
     -- Prediction slider with better explanation
@@ -360,6 +378,8 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
         Callback = function(v) 
             state.PredictionAmount = v 
         end
+    }).Link:AddHelper({
+        Text = "Adjust to match bullet speed\nHigher = faster bullets"
     })
     
     -- Backtrack settings
@@ -373,6 +393,8 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
         Callback = function(v) 
             backtrackDelay = v 
         end
+    }).Link:AddHelper({
+        Text = "How long backtrack positions stay visible\nLower = more responsive"
     })
     
     -- Backtrack color with improved interface
@@ -390,6 +412,8 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
             elseif v == "Purple" then backtrackColor = Color3.fromRGB(128,0,128)
             end
         end
+    }).Link:AddHelper({
+        Text = "Color for backtrack visualization"
     })
 end
 
@@ -456,6 +480,8 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
                 end
             end
         end
+    }).Link:AddHelper({
+        Text = "Aims at your cursor without moving your view"
     })
     
     Combat_Features:AddToggle({
@@ -464,6 +490,8 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
         Callback = function(v)
             state.TriggerBot = v
         end
+    }).Link:AddHelper({
+        Text = "Automatically shoots when you see an enemy"
     })
     
     Combat_Features:AddToggle({
@@ -472,6 +500,8 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
         Callback = function(v)
             state.AutoShoot = v
         end
+    }).Link:AddHelper({
+        Text = "Automatically shoots enemies in view"
     })
     
     -- Hitbox extender with slider
@@ -531,6 +561,8 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
                 hitboxConns = {}
             end
         end
+    }).Link:AddHelper({
+        Text = "Expands player hitboxes to make them easier to hit"
     })
     
     -- Add slider to hitbox section
@@ -573,12 +605,16 @@ if Combat_Utilities and type(Combat_Utilities.AddButton) == "function" then
     Combat_Utilities:AddButton({
         Name = "Teleport to Nearest Enemy",
         Callback = tp_func
+    }).Link:AddHelper({
+        Text = "Teleports you to the nearest enemy"
     })
     
     Combat_Utilities:AddKeybind({
         Name = "TP Nearest Key",
         Default = Enum.KeyCode.T,
         Callback = tp_func
+    }).Link:AddHelper({
+        Text = "Key to teleport to nearest enemy"
     })
     
     -- Kill All
@@ -613,12 +649,16 @@ if Combat_Utilities and type(Combat_Utilities.AddButton) == "function" then
     Combat_Utilities:AddButton({
         Name = "Kill All",
         Callback = kill_all_func
+    }).Link:AddHelper({
+        Text = "Kills all enemies by teleporting to them"
     })
     
     Combat_Utilities:AddKeybind({
         Name = "Kill All Key",
         Default = Enum.KeyCode.K,
         Callback = kill_all_func
+    }).Link:AddHelper({
+        Text = "Key to kill all enemies"
     })
 end
 
@@ -626,7 +666,7 @@ end
 -- Gun Mods Tab
 ----------------------------------------------------
 local GunMods_Tab = Window:DrawTab({
-    Icon = "gun",
+    Icon = "gun",  -- Added gun icon
     Name = "Gun Mods",
     Type = "Single"
 })
@@ -644,6 +684,8 @@ if GunMods_Settings and type(GunMods_Settings.AddToggle) == "function" then
             state.InfAmmo = enabled
             ReplicatedStorage.wkspc.CurrentCurse.Value = enabled and "Infinite Ammo" or ""
         end
+    }).Link:AddHelper({
+        Text = "Makes you never run out of ammo"
     })
     
     GunMods_Settings:AddToggle({
@@ -659,6 +701,8 @@ if GunMods_Settings and type(GunMods_Settings.AddToggle) == "function" then
                 end
             end
         end
+    }).Link:AddHelper({
+        Text = "Removes weapon recoil"
     })
     
     GunMods_Settings:AddToggle({
@@ -674,6 +718,8 @@ if GunMods_Settings and type(GunMods_Settings.AddToggle) == "function" then
                 end
             end
         end
+    }).Link:AddHelper({
+        Text = "Removes weapon spread"
     })
     
     GunMods_Settings:AddToggle({
@@ -702,6 +748,8 @@ if GunMods_Settings and type(GunMods_Settings.AddToggle) == "function" then
                 end
             end
         end
+    }).Link:AddHelper({
+        Text = "Makes weapons fire much faster"
     })
     
     GunMods_Settings:AddToggle({
@@ -730,6 +778,8 @@ if GunMods_Settings and type(GunMods_Settings.AddToggle) == "function" then
                 end
             end
         end
+    }).Link:AddHelper({
+        Text = "Makes weapons reload instantly"
     })
 end
 
@@ -754,6 +804,8 @@ if Misc_Settings and type(Misc_Settings.AddToggle) == "function" then
         Callback = function(v)
             state.AutoVote = v
         end
+    }).Link:AddHelper({
+        Text = "Automatically votes for maps"
     })
     
     Misc_Settings:AddToggle({
@@ -762,6 +814,8 @@ if Misc_Settings and type(Misc_Settings.AddToggle) == "function" then
         Callback = function(v)
             state.ForceMenu = v
         end
+    }).Link:AddHelper({
+        Text = "Forces menu open with V key"
     })
     
     Misc_Settings:AddToggle({
@@ -770,6 +824,8 @@ if Misc_Settings and type(Misc_Settings.AddToggle) == "function" then
         Callback = function(v)
             state.HitNotifications = v
         end
+    }).Link:AddHelper({
+        Text = "Shows notifications when you hit enemies"
     })
 end
 
