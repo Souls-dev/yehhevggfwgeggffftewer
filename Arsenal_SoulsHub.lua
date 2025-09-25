@@ -302,13 +302,24 @@ if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
         end
     })
     
-    -- Simplified backtrack
+    -- Backtrack toggle
     Aimbot_General:AddToggle({
         Name = "Backtrack",
         Flag = "backtrackToggle",
         Callback = function(v) 
             state.Backtrack = v 
         end
+    })
+    
+    -- Add information paragraphs for important settings
+    Aimbot_General:AddParagraph({
+        Title = "Prediction",
+        Content = "Adjust the slider to match bullet speed.\nHigher values for faster bullets."
+    })
+    
+    Aimbot_General:AddParagraph({
+        Title = "Backtrack",
+        Content = "Visualizes past player positions.\nAdjust delay to match game latency."
     })
 end
 
@@ -338,7 +349,7 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
         end
     })
     
-    -- Prediction slider with better description
+    -- Prediction slider with better explanation
     Aimbot_Settings:AddSlider({
         Name = "Prediction",
         Min = 0,
@@ -349,8 +360,6 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
         Callback = function(v) 
             state.PredictionAmount = v 
         end
-    }).Link:AddHelper({
-        Text = "Adjust prediction to match bullet speed.\nHigher = faster bullets"
     })
     
     -- Backtrack settings
@@ -525,7 +534,7 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
     })
     
     -- Add slider to hitbox section
-    hitboxSection.Link:AddSlider({
+    hitboxSection.Link:AddOption():AddSlider({
         Name = "Size",
         Min = 1,
         Max = 20,
@@ -1008,7 +1017,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- TriggerBot implementation - COMPLETED
+-- TriggerBot implementation
 RunService.RenderStepped:Connect(function()
     if state.TriggerBot then
         local character = localPlayer.Character
