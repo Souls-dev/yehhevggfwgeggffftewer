@@ -81,7 +81,10 @@ local state = {
     NoRecoil = false,
     NoSpread = false,
     AutoShoot = false,
-    CustomHitboxes = false
+    CustomHitboxes = false,
+    AimbotEnabled = false,
+    PredictionAmount = 6.612,
+    HitboxSize = 5
 }
 local hue, rainbowSpeedIndex = 0, 1
 local rainbowSpeeds = {1, 3, 6}
@@ -93,11 +96,9 @@ local aimbotMode = "All"
 local BodyPart, OldNameCall
 local aimPart = "Head"
 local smoothnessAmount = 0.08
-local predictionVelocity = 6.612
 local backtrackDelay = 100
 local backtrackColor = Color3.fromRGB(255, 0, 255)
 local backtrackMaterial = "ForceField"
-local hitboxSize = 5
 local backtrackParts = {}
 local originalHeads = {}
 local hitboxConns = {}
@@ -200,6 +201,19 @@ if ESP_Section and type(ESP_Section.AddToggle) == "function" then
         end
     })
     
+    ESP_Section:AddColorPicker({
+        Name = "ESP Color",
+        Default = Color3.new(1,1,1),
+        Flag = "espColor",
+        Callback = function(color)
+            for _, d in ipairs(drawings) do
+                if d.Type == "Square" or d.Type == "Text" then
+                    d.Color = color
+                end
+            end
+        end
+    })
+    
     ESP_Section:AddToggle({
         Name = "Health Bars",
         Flag = "healthBarToggle",
@@ -221,19 +235,6 @@ if ESP_Section and type(ESP_Section.AddToggle) == "function" then
         Flag = "distanceToggle",
         Callback = function(v) 
             state.ShowDistance = v 
-        end
-    })
-    
-    ESP_Section:AddColorPicker({
-        Name = "ESP Color",
-        Default = Color3.new(1,1,1),
-        Flag = "espColor",
-        Callback = function(color)
-            for _, d in ipairs(drawings) do
-                if d.Type == "Square" or d.Type == "Text" then
-                    d.Color = color
-                end
-            end
         end
     })
 end
@@ -258,30 +259,17 @@ local Aimbot_Settings = Aimbot_Tab:DrawSection({
 })
 
 if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
+    -- Main Aimbot toggle
     Aimbot_General:AddToggle({
         Name = "Aimbot",
         Flag = "aimbotToggle",
         Callback = function(v) 
             state.Aimbot = v 
+            state.AimbotEnabled = v  -- This is the main enable flag
         end
     })
     
-    Aimbot_General:AddToggle({
-        Name = "Prediction",
-        Flag = "predictionToggle",
-        Callback = function(v) 
-            state.Prediction = v 
-        end
-    })
-    
-    Aimbot_General:AddToggle({
-        Name = "Smooth Aim",
-        Flag = "smoothAimToggle",
-        Callback = function(v) 
-            state.SmoothAim = v 
-        end
-    })
-    
+    -- Simplified team selection
     Aimbot_General:AddToggle({
         Name = "Team Check",
         Flag = "teamToggle",
@@ -290,6 +278,31 @@ if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
         end
     })
     
+    -- Simplified aim mode
+    Aimbot_General:AddDropdown({
+        Name = "Aim Mode",
+        Values = {"All","Players"},
+        Default = "All",
+        Multi = false,
+        Flag = "aimbotMode",
+        Callback = function(v) 
+            aimbotMode = v 
+        end
+    })
+    
+    -- Simplified aim part
+    Aimbot_General:AddDropdown({
+        Name = "Aim Part",
+        Values = {"Head","UpperTorso"},
+        Default = "Head",
+        Multi = false,
+        Flag = "aimPart",
+        Callback = function(v) 
+            aimPart = v 
+        end
+    })
+    
+    -- Simplified backtrack
     Aimbot_General:AddToggle({
         Name = "Backtrack",
         Flag = "backtrackToggle",
@@ -300,6 +313,7 @@ if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
 end
 
 if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
+    -- Main aimbot settings
     Aimbot_Settings:AddSlider({
         Name = "FOV",
         Min = 50,
@@ -309,18 +323,6 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
         Flag = "fovSlider",
         Callback = function(v) 
             fovAngle = v 
-        end
-    })
-    
-    Aimbot_Settings:AddSlider({
-        Name = "Rainbow Speed",
-        Min = 1,
-        Max = 6,
-        Default = 1,
-        Round = 0,
-        Flag = "rainbowSpeed",
-        Callback = function(v) 
-            rainbowSpeed = v 
         end
     })
     
@@ -336,6 +338,22 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
         end
     })
     
+    -- Prediction slider with better description
+    Aimbot_Settings:AddSlider({
+        Name = "Prediction",
+        Min = 0,
+        Max = 10,
+        Default = 6.612,
+        Round = 2,
+        Flag = "predictionAmount",
+        Callback = function(v) 
+            state.PredictionAmount = v 
+        end
+    }).Link:AddHelper({
+        Text = "Adjust prediction to match bullet speed.\nHigher = faster bullets"
+    })
+    
+    -- Backtrack settings
     Aimbot_Settings:AddSlider({
         Name = "Backtrack Delay",
         Min = 50,
@@ -347,31 +365,8 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
             backtrackDelay = v 
         end
     })
-end
-
-if Aimbot_Settings and type(Aimbot_Settings.AddDropdown) == "function" then
-    Aimbot_Settings:AddDropdown({
-        Name = "Aimbot Mode",
-        Values = {"All","NPC","Players"},
-        Default = "All",
-        Multi = false,
-        Flag = "aimbotMode",
-        Callback = function(v) 
-            aimbotMode = v 
-        end
-    })
     
-    Aimbot_Settings:AddDropdown({
-        Name = "Aim Part",
-        Values = {"Head","UpperTorso","LowerTorso"},
-        Default = "Head",
-        Multi = false,
-        Flag = "aimPart",
-        Callback = function(v) 
-            aimPart = v 
-        end
-    })
-    
+    -- Backtrack color with improved interface
     Aimbot_Settings:AddDropdown({
         Name = "Backtrack Color",
         Values = {"Red","Blue","Green","Yellow","Purple","Custom"},
@@ -385,17 +380,6 @@ if Aimbot_Settings and type(Aimbot_Settings.AddDropdown) == "function" then
             elseif v == "Yellow" then backtrackColor = Color3.fromRGB(255,255,0)
             elseif v == "Purple" then backtrackColor = Color3.fromRGB(128,0,128)
             end
-        end
-    })
-    
-    Aimbot_Settings:AddDropdown({
-        Name = "Backtrack Material",
-        Values = {"ForceField","Neon","Glass","Ice"},
-        Default = "ForceField",
-        Multi = false,
-        Flag = "backtrackMaterial",
-        Callback = function(v) 
-            backtrackMaterial = v 
         end
     })
 end
@@ -481,8 +465,9 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
         end
     })
     
-    Combat_Features:AddToggle({
-        Name = "Hitbox Expander",
+    -- Hitbox extender with slider
+    local hitboxSection = Combat_Features:AddToggle({
+        Name = "Hitbox Extender",
         Flag = "hitboxToggle",
         Callback = function(v)
             state.Hitbox = v
@@ -492,7 +477,7 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
                         local head = p.Character:FindFirstChild("Head")
                         if head then
                             originalHeads[head] = {Size = head.Size, Transparency = head.Transparency, CanCollide = head.CanCollide}
-                            head.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+                            head.Size = Vector3.new(state.HitboxSize, state.HitboxSize, state.HitboxSize)
                             head.Transparency = 0.7
                             head.CanCollide = false
                         end
@@ -502,7 +487,7 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
                         local head = newChar:FindFirstChild("Head")
                         if head then
                             originalHeads[head] = {Size = head.Size, Transparency = head.Transparency, CanCollide = head.CanCollide}
-                            head.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+                            head.Size = Vector3.new(state.HitboxSize, state.HitboxSize, state.HitboxSize)
                             head.Transparency = 0.7
                             head.CanCollide = false
                         end
@@ -515,7 +500,7 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
                             local head = newChar:FindFirstChild("Head")
                             if head then
                                 originalHeads[head] = {Size = head.Size, Transparency = head.Transparency, CanCollide = head.CanCollide}
-                                head.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+                                head.Size = Vector3.new(state.HitboxSize, state.HitboxSize, state.HitboxSize)
                                 head.Transparency = 0.7
                                 head.CanCollide = false
                             end
@@ -535,6 +520,27 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
                     if conn then conn:Disconnect() end
                 end
                 hitboxConns = {}
+            end
+        end
+    })
+    
+    -- Add slider to hitbox section
+    hitboxSection.Link:AddSlider({
+        Name = "Size",
+        Min = 1,
+        Max = 20,
+        Default = 5,
+        Round = 0,
+        Flag = "hitboxSize",
+        Callback = function(v) 
+            state.HitboxSize = v 
+            -- Update existing hitboxes if they exist
+            if state.Hitbox then
+                for head, orig in pairs(originalHeads) do
+                    if head and head.Parent then
+                        head.Size = Vector3.new(v, v, v)
+                    end
+                end
             end
         end
     })
@@ -817,20 +823,13 @@ end
 
 local function getTargets()
     local t = {}
-    if aimbotMode ~= "NPC" then
+    if aimbotMode ~= "Players" then
         for _, p in ipairs(Players:GetPlayers()) do
             local c = p.Character
             if p~=localPlayer and c and c:FindFirstChild("Head") and c:FindFirstChild("HumanoidRootPart") and c:FindFirstChild("Humanoid") and c.Humanoid.Health>0 then
                 if not state.TeamCheck or p.Team ~= localPlayer.Team then
                     table.insert(t, {Name=p.Name, Character=c})
                 end
-            end
-        end
-    end
-    if aimbotMode ~= "Players" then
-        for _, m in ipairs(Workspace:GetDescendants()) do
-            if m:IsA("Model") and m:FindFirstChild("Humanoid") and m.Humanoid.Health>0 and m:FindFirstChild("HumanoidRootPart") and m:FindFirstChild("Head") and not Players:GetPlayerFromCharacter(m) then
-                table.insert(t, {Name=m.Name, Character=m})
             end
         end
     end
@@ -908,11 +907,14 @@ RunService.RenderStepped:Connect(function()
             local boxWidth = boxHeight * 0.8
             local boxCenterX, boxCenterY = rootPos.X, (headPos.Y + rootPos.Y) / 2
 
+            -- Draw ESP box - use selected color if Rainbow is off
+            local espColor = state.Rainbow and Color3.fromHSV(hue, 1, 1) or (state.espColor or Color3.new(1,1,1))
+            
             -- Draw ESP box
             local box = Drawing.new("Square")
             box.Size = Vector2.new(boxWidth, boxHeight)
             box.Position = Vector2.new(boxCenterX - boxWidth/2, boxCenterY - boxHeight/2)
-            box.Color = state.Rainbow and Color3.fromHSV(hue, 1, 1) or Color3.new(1, 1, 1)
+            box.Color = espColor
             box.Thickness, box.Filled, box.Visible = 2, false, true
             table.insert(drawings, box)
 
@@ -920,7 +922,7 @@ RunService.RenderStepped:Connect(function()
             local label = Drawing.new("Text")
             label.Text = target.Name
             label.Position = Vector2.new(boxCenterX - (#target.Name * 3), boxCenterY - boxHeight/2 - 20)
-            label.Size, label.Center, label.Outline, label.Color, label.Visible = 18, false, true, box.Color, true
+            label.Size, label.Center, label.Outline, label.Color, label.Visible = 18, false, true, espColor, true
             table.insert(drawings, label)
 
             -- Draw health bar
@@ -942,7 +944,7 @@ RunService.RenderStepped:Connect(function()
                 distanceText.Text = distance .. "m"
                 distanceText.Position = Vector2.new(boxCenterX - boxWidth/2, boxCenterY + boxHeight/2 + 5)
                 distanceText.Size = 18
-                distanceText.Color = box.Color
+                distanceText.Color = espColor
                 distanceText.Outline = true
                 distanceText.Visible = true
                 table.insert(drawings, distanceText)
@@ -968,14 +970,14 @@ RunService.RenderStepped:Connect(function()
         table.insert(drawings, arrow)
     end
 
-    -- FIXED AIMBOT LOGIC
-    if bestTarget and state.Aimbot then
+    -- FIXED AND IMPROVED AIMBOT LOGIC
+    if state.AimbotEnabled and bestTarget then
         local predictedPosition = bestTarget.Position
         
         -- Only apply prediction if enabled
         if state.Prediction then
             local velocity = bestTarget.Velocity
-            predictedPosition = bestTarget.Position + velocity * predictionVelocity
+            predictedPosition = bestTarget.Position + velocity * state.PredictionAmount
         end
         
         -- Get the direction to the target
