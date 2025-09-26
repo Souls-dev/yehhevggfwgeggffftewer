@@ -55,11 +55,6 @@ else
     Window = SoulsHub:new({ Keybind = "LeftAlt" }) or SoulsHub({ Keybind = "LeftAlt" })
 end
 
--- Create secure folder for safe hitbox extension
-local SecureFolder = Instance.new("Folder", workspace)
-SecureFolder.Name = "4564694893204234890234802948293482094820934820985092757873687984376893476893476983476983454"..math.random(1,1000)
-SecureFolder.Archivable = false
-
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -79,7 +74,6 @@ local state = {
     SilentAim = false, 
     InfAmmo = false, 
     Hitbox = false, 
-    InstantKill = false,
     TriggerBot = false,
     Backtrack = false,
     Prediction = true,
@@ -91,9 +85,7 @@ local state = {
     AimbotEnabled = false,
     PredictionAmount = 6.612,
     HitboxSize = 5,
-    espColor = Color3.new(1,1,1),
-    InstantKillAmount = 20,
-    InstantKillDelay = 0.02
+    espColor = Color3.new(1,1,1)
 }
 local hue, rainbowSpeedIndex = 0, 1
 local rainbowSpeeds = {1, 3, 6}
@@ -110,7 +102,7 @@ local backtrackColor = Color3.fromRGB(255, 0, 255)
 local backtrackMaterial = "ForceField"
 local backtrackParts = {}
 local originalHeads = {}
-local hitboxVisuals = {}
+local hitboxConns = {}
 local originalValues = {
     FireRate = {},
     ReloadTime = {},
@@ -119,89 +111,13 @@ local originalValues = {
     Spread = {},
     Recoil = {}
 }
-local hitboxOriginalProperties = {}
 
--- Create secure folder for hitbox extension
-local function getSecureFolder()
-    if not SecureFolder.Parent then
-        SecureFolder.Parent = workspace
+-- Backtrack system
+local function ClearBacktrack()
+    for _, part in ipairs(backtrackParts) do
+        part:Destroy()
     end
-    return SecureFolder
-end
-
--- Store original character properties
-local function saveOriginalProperties(player)
-    if not hitboxOriginalProperties[player] then
-        hitboxOriginalProperties[player] = {}
-    end
-    
-    if player.Character then
-        for _, part in ipairs(player.Character:GetChildren()) do
-            if part:IsA("BasePart") then
-                hitboxOriginalProperties[player][part] = {
-                    Size = part.Size,
-                    Transparency = part.Transparency,
-                    CanCollide = part.CanCollide
-                }
-            end
-        end
-    end
-end
-
--- Restore original character properties
-local function restoreOriginalProperties(player)
-    if hitboxOriginalProperties[player] then
-        for part, original in pairs(hitboxOriginalProperties[player]) do
-            if part and part.Parent then
-                part.Size = original.Size
-                part.Transparency = original.Transparency
-                part.CanCollide = original.CanCollide
-            end
-        end
-        hitboxOriginalProperties[player] = nil
-    end
-end
-
--- Create secure character copy for hitbox extension
-local function createSecureCharacter(player)
-    if not player.Character or player == localPlayer then return end
-    
-    -- Clear existing secure character
-    for _, child in ipairs(getSecureFolder():GetChildren()) do
-        if child.Name == player.Name then
-            child:Destroy()
-        end
-    end
-    
-    -- Create new secure character
-    local secureCharacter = player.Character:Clone()
-    secureCharacter.Parent = getSecureFolder()
-    secureCharacter.Name = player.Name
-    
-    -- Apply hitbox extension
-    for _, part in ipairs(secureCharacter:GetChildren()) do
-        if part:IsA("BasePart") then
-            part.Size = Vector3.new(state.HitboxSize, state.HitboxSize, state.HitboxSize)
-            part.Transparency = 0.7
-            part.CanCollide = false
-        end
-    end
-    
-    return secureCharacter
-end
-
--- Check if player is visible (improved)
-local function isVisible(character)
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not root then return false end
-    
-    local origin = camera.CFrame.Position
-    local params = RaycastParams.new()
-    params.FilterDescendantsInstances = {localPlayer.Character}
-    params.FilterType = Enum.RaycastFilterType.Blacklist
-    local result = Workspace:Raycast(origin, root.Position - origin, params)
-    
-    return not result or result.Instance:IsDescendantOf(character)
+    backtrackParts = {}
 end
 
 -- Enhanced ESP features
@@ -209,13 +125,11 @@ local function GetNearestTarget()
     local players = {}
     local PLAYER_HOLD = {}
     local DISTANCES = {}
-    
     for i, v in ipairs(Players:GetPlayers()) do
         if v ~= localPlayer then
             table.insert(players, v)
         end
     end
-    
     for i, v in ipairs(players) do
         if v.Character ~= nil then
             local AIM = v.Character:FindFirstChild("Head")
@@ -242,16 +156,13 @@ local function GetNearestTarget()
             end
         end
     end
-    
     if #DISTANCES == 0 then
         return nil
     end
-    
     local L_DISTANCE = math.floor(math.min(unpack(DISTANCES)))
     if L_DISTANCE > fovAngle then
         return nil
     end
-    
     for i, v in pairs(PLAYER_HOLD) do
         if v.diff == L_DISTANCE then
             return v.plr
@@ -275,25 +186,32 @@ local ESP_Section = ESP_Tab:DrawSection({
 })
 
 if ESP_Section and type(ESP_Section.AddToggle) == "function" then
-    ESP_Section:AddToggle({
+    -- Add toggle and safely add helper if exists
+    local espToggle = ESP_Section:AddToggle({
         Name = "ESP",
         Flag = "espToggle",
         Callback = function(v) 
             state.ESP = v 
         end
-    }).Link:AddHelper({
-        Text = "Enables/disables ESP for players"
     })
+    if espToggle then
+        espToggle:AddHelper({
+            Text = "Enables/disables ESP for players"
+        })
+    end
     
-    ESP_Section:AddToggle({
+    local rainbowToggle = ESP_Section:AddToggle({
         Name = "Rainbow ESP",
         Flag = "rainbowToggle",
         Callback = function(v) 
             state.Rainbow = v 
         end
-    }).Link:AddHelper({
-        Text = "Enables rainbow color cycling for ESP"
     })
+    if rainbowToggle then
+        rainbowToggle:AddHelper({
+            Text = "Enables rainbow color cycling for ESP"
+        })
+    end
     
     local espColorPicker = ESP_Section:AddColorPicker({
         Name = "ESP Color",
@@ -308,39 +226,50 @@ if ESP_Section and type(ESP_Section.AddToggle) == "function" then
             end
         end
     })
-    espColorPicker.Link:AddHelper({
-        Text = "Sets the color for ESP when rainbow is disabled"
-    })
+    if espColorPicker then
+        espColorPicker:AddHelper({
+            Text = "Sets the color for ESP when rainbow is disabled"
+        })
+    end
     
-    ESP_Section:AddToggle({
+    local healthBarToggle = ESP_Section:AddToggle({
         Name = "Health Bars",
         Flag = "healthBarToggle",
         Callback = function(v) 
             state.HealthBar = v 
         end
-    }).Link:AddHelper({
-        Text = "Shows health bars for players"
     })
+    if healthBarToggle then
+        healthBarToggle:AddHelper({
+            Text = "Shows health bars for players"
+        })
+    end
     
-    ESP_Section:AddToggle({
+    local offscreenToggle = ESP_Section:AddToggle({
         Name = "Offscreen Arrows",
         Flag = "offscreenToggle",
         Callback = function(v) 
             state.Offscreen = v 
         end
-    }).Link:AddHelper({
-        Text = "Shows arrows for players outside your view"
     })
+    if offscreenToggle then
+        offscreenToggle:AddHelper({
+            Text = "Shows arrows for players outside your view"
+        })
+    end
     
-    ESP_Section:AddToggle({
+    local distanceToggle = ESP_Section:AddToggle({
         Name = "Show Distance",
         Flag = "distanceToggle",
         Callback = function(v) 
             state.ShowDistance = v 
         end
-    }).Link:AddHelper({
-        Text = "Displays distance to players on ESP"
     })
+    if distanceToggle then
+        distanceToggle:AddHelper({
+            Text = "Displays distance to players on ESP"
+        })
+    end
 end
 
 ----------------------------------------------------
@@ -363,28 +292,37 @@ local Aimbot_Settings = Aimbot_Tab:DrawSection({
 })
 
 if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
-    Aimbot_General:AddToggle({
+    -- Main Aimbot toggle
+    local aimbotToggle = Aimbot_General:AddToggle({
         Name = "Aimbot",
         Flag = "aimbotToggle",
         Callback = function(v) 
             state.Aimbot = v 
             state.AimbotEnabled = v
         end
-    }).Link:AddHelper({
-        Text = "Enables the main aimbot feature"
     })
+    if aimbotToggle then
+        aimbotToggle:AddHelper({
+            Text = "Enables the main aimbot feature"
+        })
+    end
     
-    Aimbot_General:AddToggle({
+    -- Simplified team selection
+    local teamCheckToggle = Aimbot_General:AddToggle({
         Name = "Team Check",
         Flag = "teamToggle",
         Callback = function(v) 
             state.TeamCheck = v 
         end
-    }).Link:AddHelper({
-        Text = "Only targets enemies from other teams"
     })
+    if teamCheckToggle then
+        teamCheckToggle:AddHelper({
+            Text = "Only targets enemies from other teams"
+        })
+    end
     
-    Aimbot_General:AddDropdown({
+    -- Simplified aim mode
+    local aimModeDropdown = Aimbot_General:AddDropdown({
         Name = "Aim Mode",
         Values = {"All","Players"},
         Default = "All",
@@ -393,11 +331,15 @@ if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
         Callback = function(v) 
             aimbotMode = v 
         end
-    }).Link:AddHelper({
-        Text = "Determines what targets the aimbot can lock on"
     })
+    if aimModeDropdown then
+        aimModeDropdown:AddHelper({
+            Text = "Determines what targets the aimbot can lock on"
+        })
+    end
     
-    Aimbot_General:AddDropdown({
+    -- Simplified aim part
+    local aimPartDropdown = Aimbot_General:AddDropdown({
         Name = "Aim Part",
         Values = {"Head","UpperTorso"},
         Default = "Head",
@@ -406,23 +348,31 @@ if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
         Callback = function(v) 
             aimPart = v 
         end
-    }).Link:AddHelper({
-        Text = "Which body part the aimbot will target"
     })
+    if aimPartDropdown then
+        aimPartDropdown:AddHelper({
+            Text = "Which body part the aimbot will target"
+        })
+    end
     
-    Aimbot_General:AddToggle({
+    -- Backtrack toggle
+    local backtrackToggle = Aimbot_General:AddToggle({
         Name = "Backtrack",
         Flag = "backtrackToggle",
         Callback = function(v) 
             state.Backtrack = v 
         end
-    }).Link:AddHelper({
-        Text = "Visualizes past player positions"
     })
+    if backtrackToggle then
+        backtrackToggle:AddHelper({
+            Text = "Visualizes past player positions"
+        })
+    end
 end
 
 if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
-    Aimbot_Settings:AddSlider({
+    -- Main aimbot settings
+    local fovSlider = Aimbot_Settings:AddSlider({
         Name = "FOV",
         Min = 50,
         Max = 150,
@@ -432,11 +382,14 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
         Callback = function(v) 
             fovAngle = v 
         end
-    }).Link:AddHelper({
-        Text = "Field of view for aimbot target detection"
     })
+    if fovSlider then
+        fovSlider:AddHelper({
+            Text = "Field of view for aimbot target detection"
+        })
+    end
     
-    Aimbot_Settings:AddSlider({
+    local smoothnessSlider = Aimbot_Settings:AddSlider({
         Name = "Smoothness",
         Min = 0.01,
         Max = 0.5,
@@ -446,11 +399,15 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
         Callback = function(v) 
             smoothnessAmount = v 
         end
-    }).Link:AddHelper({
-        Text = "How smooth the aimbot moves (lower = smoother)"
     })
+    if smoothnessSlider then
+        smoothnessSlider:AddHelper({
+            Text = "How smooth the aimbot moves (lower = smoother)"
+        })
+    end
     
-    Aimbot_Settings:AddSlider({
+    -- Prediction slider with better explanation
+    local predictionSlider = Aimbot_Settings:AddSlider({
         Name = "Prediction",
         Min = 0,
         Max = 10,
@@ -460,11 +417,15 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
         Callback = function(v) 
             state.PredictionAmount = v 
         end
-    }).Link:AddHelper({
-        Text = "Adjust prediction to match bullet speed\nHigher = faster bullets"
     })
+    if predictionSlider then
+        predictionSlider:AddHelper({
+            Text = "Adjust to match bullet speed\nHigher = faster bullets"
+        })
+    end
     
-    Aimbot_Settings:AddSlider({
+    -- Backtrack settings
+    local backtrackDelaySlider = Aimbot_Settings:AddSlider({
         Name = "Backtrack Delay",
         Min = 50,
         Max = 500,
@@ -474,11 +435,15 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
         Callback = function(v) 
             backtrackDelay = v 
         end
-    }).Link:AddHelper({
-        Text = "How long backtrack positions stay visible\nLower = more responsive"
     })
+    if backtrackDelaySlider then
+        backtrackDelaySlider:AddHelper({
+            Text = "How long backtrack positions stay visible\nLower = more responsive"
+        })
+    end
     
-    Aimbot_Settings:AddDropdown({
+    -- Backtrack color with improved interface
+    local backtrackColorDropdown = Aimbot_Settings:AddDropdown({
         Name = "Backtrack Color",
         Values = {"Red","Blue","Green","Yellow","Purple","Custom"},
         Default = "Red",
@@ -492,9 +457,12 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
             elseif v == "Purple" then backtrackColor = Color3.fromRGB(128,0,128)
             end
         end
-    }).Link:AddHelper({
-        Text = "Color for backtrack visualization"
     })
+    if backtrackColorDropdown then
+        backtrackColorDropdown:AddHelper({
+            Text = "Color for backtrack visualization"
+        })
+    end
 end
 
 ----------------------------------------------------
@@ -506,402 +474,170 @@ local Combat_Tab = Window:DrawTab({
     Type = "Single"
 })
 
-local Combat_Features = Combat_Tab:DrawSection({
-    Name = "Combat Features",
+local Combat_Settings = Combat_Tab:DrawSection({
+    Name = "Settings",
     Position = "LEFT"
 })
 
-local Combat_Utilities = Combat_Tab:DrawSection({
-    Name = "Utilities",
-    Position = "RIGHT"
-})
-
-if Combat_Features and type(Combat_Features.AddToggle) == "function" then
-    Combat_Features:AddToggle({
-        Name = "Silent Aim",
-        Flag = "silentAimToggle",
-        Callback = function(v)
-            state.SilentAim = v
-            if v and not OldNameCall then
-                if hookmetamethod and newcclosure then
-                    OldNameCall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-                        local method = getnamecallmethod()
-                        local args = {...}
-                        
-                        if state.SilentAim and BodyPart then
-                            if method == "FireServer" and self.Name == "HitPart" then
-                                args[1] = BodyPart
-                                return OldNameCall(self, unpack(args))
-                            elseif method == "FireServer" and self.Name == "Trail" then
-                                if type(args[1][5]) == "string" then
-                                    args[1][6] = BodyPart
-                                    args[1][2] = BodyPart.Position
-                                end
-                                return OldNameCall(self, unpack(args))
-                            elseif method == "FireServer" and self.Name == "CreateProjectile" then
-                                args[18] = BodyPart
-                                args[19] = BodyPart.Position
-                                args[17] = BodyPart.Position
-                                args[4] = BodyPart.CFrame
-                                args[10] = BodyPart.Position
-                                args[3] = BodyPart.Position
-                                return OldNameCall(self, unpack(args))
-                            elseif method == "FireServer" and self.Name == "Flames" then
-                                args[1] = BodyPart.CFrame
-                                args[2] = BodyPart.Position
-                                args[5] = BodyPart.Position
-                                return OldNameCall(self, unpack(args))
-                            end
-                        end
-                        return OldNameCall(self, ...)
-                    end))
-                else
-                    warn("Silent Aim requires hookmetamethod and newcclosure which are not available in your exploit.")
-                end
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Aims at your cursor without moving your view"
-    })
-    
-    Combat_Features:AddToggle({
-        Name = "Instant Kill",
-        Flag = "instantKillToggle",
-        Callback = function(v)
-            state.InstantKill = v
-            if v then
-                local fire = hookfunction(Instance.new("RemoteEvent").FireServer, newcclosure(function(self, ...)
-                    if not checkcaller() and self.Name == "HitPart" then
-                        local args = {...}
-                        if args[1] and args[1].Parent and args[1].Parent:FindFirstChild("HumanoidRootPart") then
-                            for i = 1, state.InstantKillAmount do
-                                fire(self, unpack(args))
-                                task.wait(state.InstantKillDelay)
-                            end
-                            return
-                        end
-                    end
-                    return fire(self, ...)
-                end))
-            else
-                -- Restore original FireServer method
-                if fire then
-                    hookfunction(Instance.new("RemoteEvent").FireServer, fire)
-                end
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Fires multiple shots instantly for instant kills"
-    })
-    
-    Combat_Features:AddToggle({
-        Name = "TriggerBot",
-        Flag = "triggerBotToggle",
-        Callback = function(v)
-            state.TriggerBot = v
-        end
-    }).Link:AddHelper({
-        Text = "Automatically shoots when you see an enemy"
-    })
-    
-    Combat_Features:AddToggle({
-        Name = "Auto Shoot",
-        Flag = "autoShootToggle",
-        Callback = function(v)
-            state.AutoShoot = v
-        end
-    }).Link:AddHelper({
-        Text = "Automatically shoots enemies in view"
-    })
-    
-    -- Hitbox extender with slider
-    local hitboxSection = Combat_Features:AddToggle({
-        Name = "Hitbox Extender",
-        Flag = "hitboxToggle",
-        Callback = function(v)
-            state.Hitbox = v
-            if v then
-                for _, p in ipairs(Players:GetPlayers()) do
-                    if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) then
-                        saveOriginalProperties(p)
-                        createSecureCharacter(p)
-                    end
-                end
-            else
-                for _, p in ipairs(Players:GetPlayers()) do
-                    if p ~= localPlayer then
-                        restoreOriginalProperties(p)
-                    end
-                end
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Extends player hitboxes for easier targeting"
-    })
-    
-    -- Add slider to hitbox section
-    hitboxSection.Link:AddOption():AddSlider({
-        Name = "Size",
-        Min = 1,
-        Max = 20,
-        Default = 5,
-        Round = 0,
-        Flag = "hitboxSize",
-        Callback = function(v) 
-            state.HitboxSize = v 
-            if state.Hitbox then
-                for _, p in ipairs(Players:GetPlayers()) do
-                    if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) then
-                        createSecureCharacter(p)
-                    end
-                end
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Adjust the size of the expanded hitboxes"
-    })
-end
-
-if Combat_Utilities and type(Combat_Utilities.AddButton) == "function" then
-    -- Teleport to Nearest Enemy
-    local tp_func = function()
-        local nearest, dist = nil, math.huge
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= localPlayer and p.Team ~= localPlayer.Team and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-                local d = (p.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).Magnitude
-                if d < dist then dist, nearest = d, p end
-            end
-        end
-        if nearest and localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
-        end
-    end
-    
-    Combat_Utilities:AddButton({
-        Name = "Teleport to Nearest Enemy",
-        Callback = tp_func
-    }).Link:AddHelper({
-        Text = "Teleports you to the nearest enemy"
-    })
-    
-    Combat_Utilities:AddKeybind({
-        Name = "TP Nearest Key",
-        Default = Enum.KeyCode.T,
-        Callback = tp_func
-    }).Link:AddHelper({
-        Text = "Key to teleport to nearest enemy"
-    })
-    
-    -- Kill All
-    local kill_all_func = function()
-        local oldCFrame = localPlayer.Character.HumanoidRootPart.CFrame
-        local safeDo = function(fn)
-            local ok, _ = pcall(fn)
-            return ok
-        end
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.Humanoid.Health > 0 then
-                localPlayer.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
-                task.wait(0.2)
-                for i = 1, 20 do
-                    safeDo(function()
-                        local gui = localPlayer.PlayerGui:FindFirstChild("GUI")
-                        if gui and gui.Client and gui.Client.Functions and gui.Client.Functions:FindFirstChild("Weapons") then
-                            local mod = require(gui.Client.Functions.Weapons)
-                            if mod and type(mod.firebullet) == "function" then
-                                mod.firebullet()
-                            end
-                        end
-                    end)
-                    task.wait(0.05)
-                end
-                task.wait(0.3)
-            end
-        end
-        localPlayer.Character.HumanoidRootPart.CFrame = oldCFrame
-    end
-    
-    Combat_Utilities:AddButton({
-        Name = "Kill All",
-        Callback = kill_all_func
-    }).Link:AddHelper({
-        Text = "Kills all enemies by teleporting to them"
-    })
-    
-    Combat_Utilities:AddKeybind({
-        Name = "Kill All Key",
-        Default = Enum.KeyCode.K,
-        Callback = kill_all_func
-    }).Link:AddHelper({
-        Text = "Key to kill all enemies"
-    })
-end
-
-----------------------------------------------------
--- Gun Mods Tab
-----------------------------------------------------
-local GunMods_Tab = Window:DrawTab({
-    Icon = "wrench",
-    Name = "Gun Mods",
-    Type = "Single"
-})
-
-local GunMods_Settings = GunMods_Tab:DrawSection({
-    Name = "Gun Modifications",
-    Position = "LEFT"
-})
-
-if GunMods_Settings and type(GunMods_Settings.AddToggle) == "function" then
-    GunMods_Settings:AddToggle({
-        Name = "Infinite Ammo",
+if Combat_Settings and type(Combat_Settings.AddToggle) == "function" then
+    local infAmmoToggle = Combat_Settings:AddToggle({
+        Name = "Inf Ammo",
         Flag = "infAmmoToggle",
-        Callback = function(enabled)
-            state.InfAmmo = enabled
-            ReplicatedStorage.wkspc.CurrentCurse.Value = enabled and "Infinite Ammo" or ""
+        Callback = function(v) 
+            state.InfAmmo = v 
         end
-    }).Link:AddHelper({
-        Text = "Makes you never run out of ammo"
     })
+    if infAmmoToggle then
+        infAmmoToggle:AddHelper({
+            Text = "Gives infinite ammo for weapons"
+        })
+    end
     
-    GunMods_Settings:AddToggle({
+    local noRecoilToggle = Combat_Settings:AddToggle({
         Name = "No Recoil",
         Flag = "noRecoilToggle",
-        Callback = function(v)
-            state.NoRecoil = v
-            if v then
-                if getsenv and getsenv(localPlayer.PlayerGui.GUI.Client) then
-                    getsenv(localPlayer.PlayerGui.GUI.Client).recoil = 0
-                else
-                    warn("No Recoil requires getsenv which is not available in your exploit.")
-                end
-            end
+        Callback = function(v) 
+            state.NoRecoil = v 
         end
-    }).Link:AddHelper({
-        Text = "Removes weapon recoil"
     })
+    if noRecoilToggle then
+        noRecoilToggle:AddHelper({
+            Text = "Disables weapon recoil"
+        })
+    end
     
-    GunMods_Settings:AddToggle({
+    local noSpreadToggle = Combat_Settings:AddToggle({
         Name = "No Spread",
         Flag = "noSpreadToggle",
-        Callback = function(v)
-            state.NoSpread = v
-            if v then
-                if getsenv and getsenv(localPlayer.PlayerGui.GUI.Client) then
-                    getsenv(localPlayer.PlayerGui.GUI.Client).spread = 0
-                else
-                    warn("No Spread requires getsenv which is not available in your exploit.")
-                end
-            end
+        Callback = function(v) 
+            state.NoSpread = v 
         end
-    }).Link:AddHelper({
-        Text = "Removes weapon spread"
     })
+    if noSpreadToggle then
+        noSpreadToggle:AddHelper({
+            Text = "Disables weapon spread"
+        })
+    end
     
-    GunMods_Settings:AddToggle({
-        Name = "Rapid Fire",
-        Flag = "rapidFireToggle",
-        Callback = function(v)
-            if v then
-                for _, weapon in ipairs(ReplicatedStorage.Weapons:GetChildren()) do
-                    if weapon:FindFirstChild("FireRate") then
-                        originalValues.FireRate[weapon] = weapon.FireRate.Value
-                        weapon.FireRate.Value = 0.02
-                    end
-                    if weapon:FindFirstChild("Auto") then
-                        originalValues.Auto[weapon] = weapon.Auto.Value
-                        weapon.Auto.Value = true
-                    end
-                end
-            else
-                for _, weapon in ipairs(ReplicatedStorage.Weapons:GetChildren()) do
-                    if weapon:FindFirstChild("FireRate") and originalValues.FireRate[weapon] then
-                        weapon.FireRate.Value = originalValues.FireRate[weapon]
-                    end
-                    if weapon:FindFirstChild("Auto") and originalValues.Auto[weapon] then
-                        weapon.Auto.Value = originalValues.Auto[weapon]
-                    end
-                end
-            end
+    local autoShootToggle = Combat_Settings:AddToggle({
+        Name = "Auto Shoot",
+        Flag = "autoShootToggle",
+        Callback = function(v) 
+            state.AutoShoot = v 
         end
-    }).Link:AddHelper({
-        Text = "Makes weapons fire much faster"
     })
+    if autoShootToggle then
+        autoShootToggle:AddHelper({
+            Text = "Automatically shoots when aiming"
+        })
+    end
     
-    GunMods_Settings:AddToggle({
-        Name = "Instant Reload",
-        Flag = "instantReloadToggle",
-        Callback = function(v)
-            if v then
-                for _, weapon in ipairs(ReplicatedStorage.Weapons:GetChildren()) do
-                    if weapon:FindFirstChild("ReloadTime") then
-                        originalValues.ReloadTime[weapon] = weapon.ReloadTime.Value
-                        weapon.ReloadTime.Value = 0.01
-                    end
-                    if weapon:FindFirstChild("EReloadTime") then
-                        originalValues.EReloadTime[weapon] = weapon.EReloadTime.Value
-                        weapon.EReloadTime.Value = 0.01
-                    end
-                end
-            else
-                for _, weapon in ipairs(ReplicatedStorage.Weapons:GetChildren()) do
-                    if weapon:FindFirstChild("ReloadTime") and originalValues.ReloadTime[weapon] then
-                        weapon.ReloadTime.Value = originalValues.ReloadTime[weapon]
-                    end
-                    if weapon:FindFirstChild("EReloadTime") and originalValues.EReloadTime[weapon] then
-                        weapon.EReloadTime.Value = originalValues.EReloadTime[weapon]
-                    end
-                end
-            end
+    local hitboxToggle = Combat_Settings:AddToggle({
+        Name = "Hitbox",
+        Flag = "hitboxToggle",
+        Callback = function(v) 
+            state.Hitbox = v 
         end
-    }).Link:AddHelper({
-        Text = "Makes weapons reload instantly"
     })
+    if hitboxToggle then
+        hitboxToggle:AddHelper({
+            Text = "Shows hitboxes for players"
+        })
+    end
+    
+    local triggerBotToggle = Combat_Settings:AddToggle({
+        Name = "Trigger Bot",
+        Flag = "triggerBotToggle",
+        Callback = function(v) 
+            state.TriggerBot = v 
+        end
+    })
+    if triggerBotToggle then
+        triggerBotToggle:AddHelper({
+            Text = "Automatically shoots when mouse is over enemy"
+        })
+    end
+    
+    local customHitboxesToggle = Combat_Settings:AddToggle({
+        Name = "Custom Hitboxes",
+        Flag = "customHitboxesToggle",
+        Callback = function(v) 
+            state.CustomHitboxes = v 
+        end
+    })
+    if customHitboxesToggle then
+        customHitboxesToggle:AddHelper({
+            Text = "Allows custom hitbox shapes"
+        })
+    end
 end
 
 ----------------------------------------------------
 -- Misc Tab
 ----------------------------------------------------
 local Misc_Tab = Window:DrawTab({
-    Icon = "settings",
+    Icon = "gear",
     Name = "Misc",
     Type = "Single"
 })
 
 local Misc_Settings = Misc_Tab:DrawSection({
-    Name = "Miscellaneous",
+    Name = "Settings",
     Position = "LEFT"
 })
 
 if Misc_Settings and type(Misc_Settings.AddToggle) == "function" then
-    Misc_Settings:AddToggle({
-        Name = "Auto Vote",
-        Flag = "autoVoteToggle",
-        Callback = function(v)
-            state.AutoVote = v
-        end
-    }).Link:AddHelper({
-        Text = "Automatically votes for maps"
-    })
-    
-    Misc_Settings:AddToggle({
+    local forceMenuToggle = Misc_Settings:AddToggle({
         Name = "Force Menu (V)",
         Flag = "forceMenuToggle",
         Callback = function(v)
             state.ForceMenu = v
         end
-    }).Link:AddHelper({
-        Text = "Forces menu open with V key"
     })
+    if forceMenuToggle then
+        forceMenuToggle:AddHelper({
+            Text = "Forces menu open with V key"
+        })
+    end
     
-    Misc_Settings:AddToggle({
+    local hitNotificationsToggle = Misc_Settings:AddToggle({
         Name = "Hit Notifications",
         Flag = "hitNotificationsToggle",
         Callback = function(v)
             state.HitNotifications = v
         end
-    }).Link:AddHelper({
-        Text = "Shows notifications when you hit enemies"
     })
+    if hitNotificationsToggle then
+        hitNotificationsToggle:AddHelper({
+            Text = "Shows notifications when you hit enemies"
+        })
+    end
+    
+    local autoVoteToggle = Misc_Settings:AddToggle({
+        Name = "Auto Vote",
+        Flag = "autoVoteToggle",
+        Callback = function(v)
+            state.AutoVote = v
+        end
+    })
+    if autoVoteToggle then
+        autoVoteToggle:AddHelper({
+            Text = "Automatically votes for map/round options"
+        })
+    end
+    
+    local gunModsToggle = Misc_Settings:AddToggle({
+        Name = "Gun Mods",
+        Flag = "gunModsToggle",
+        Callback = function(v)
+            state.GunMods = v
+        end
+    })
+    if gunModsToggle then
+        gunModsToggle:AddHelper({
+            Text = "Modifies weapon properties like damage and fire rate"
+        })
+    end
 end
 
 ----------------------------------------------------
@@ -948,6 +684,17 @@ end
 local function clearDrawings()
     for _, d in ipairs(drawings) do d:Remove() end
     table.clear(drawings)
+end
+
+local function isVisible(character)
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return false end
+    local origin = camera.CFrame.Position
+    local params = RaycastParams.new()
+    params.FilterDescendantsInstances = {localPlayer.Character}
+    params.FilterType = Enum.RaycastFilterType.Blacklist
+    local result = Workspace:Raycast(origin, root.Position-origin, params)
+    return not result or result.Instance:IsDescendantOf(character)
 end
 
 local function getTargets()
@@ -1010,7 +757,7 @@ RunService.RenderStepped:Connect(function()
     local center = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
     fovCircle.Position, fovCircle.Radius = center, fovAngle
     fovCircle.Visible = state.Aimbot
-    fovCircle.Color = state.Rainbow and Color3.fromHSV(hue, 1, 1) or Color3.new(1, 1, 1)
+    fovCircle.Color = state.Rainbow and Color3.fromHSV(hue, 1, 1) or Color3.new(1,1,1)
 
     local bestTarget, bestAngle = nil, fovAngle
     local camPos, camLook = camera.CFrame.Position, camera.CFrame.LookVector
@@ -1054,7 +801,7 @@ RunService.RenderStepped:Connect(function()
             label.Size, label.Center, label.Outline, label.Color, label.Visible = 18, false, true, espColor, true
             table.insert(drawings, label)
 
-            -- Draw health bar (improved)
+            -- Draw health bar
             if state.HealthBar and char.Humanoid.Health < char.Humanoid.MaxHealth then
                 local healthPercent = char.Humanoid.Health / char.Humanoid.MaxHealth
                 local healthBar = Drawing.new("Square")
@@ -1064,16 +811,6 @@ RunService.RenderStepped:Connect(function()
                 healthBar.Filled = true
                 healthBar.Visible = true
                 table.insert(drawings, healthBar)
-                
-                -- Draw health percentage
-                local healthText = Drawing.new("Text")
-                healthText.Text = math.floor(healthPercent * 100) .. "%"
-                healthText.Position = Vector2.new(boxCenterX - boxWidth/2 - 25, boxCenterY - boxHeight/2)
-                healthText.Size = 14
-                healthText.Color = Color3.new(1,1,1)
-                healthText.Outline = true
-                healthText.Visible = true
-                table.insert(drawings, healthText)
             end
 
             -- Draw distance
@@ -1165,10 +902,7 @@ RunService.RenderStepped:Connect(function()
                         if target and target ~= localPlayer and (not state.TeamCheck or target.Team ~= localPlayer.Team) then
                             local weapon = localPlayer.Character:FindFirstChildWhichIsA("Tool")
                             if weapon and weapon:FindFirstChild("Fire") then
-                                -- Only fire if the target is visible
-                                if isVisible(target.Character) then
-                                    weapon.Fire:FireServer()
-                                end
+                                weapon.Fire:FireServer()
                             end
                         end
                     end
@@ -1196,10 +930,7 @@ RunService.RenderStepped:Connect(function()
                         if target and target ~= localPlayer and (not state.TeamCheck or target.Team ~= localPlayer.Team) then
                             local weapon = localPlayer.Character:FindFirstChildWhichIsA("Tool")
                             if weapon and weapon:FindFirstChild("Fire") then
-                                -- Only fire if the target is visible
-                                if isVisible(target.Character) then
-                                    weapon.Fire:FireServer()
-                                end
+                                weapon.Fire:FireServer()
                             end
                         end
                     end
