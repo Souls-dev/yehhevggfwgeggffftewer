@@ -15,23 +15,23 @@ if not success or not SoulsHub then
                         end,
                         AddSlider = function(self, sliderData) 
                             print("Slider created:", sliderData.Name) 
-                            return {Callback = toggleData.Callback}
+                            return {Callback = sliderData.Callback}
                         end,
                         AddDropdown = function(self, dropdownData) 
                             print("Dropdown created:", dropdownData.Name) 
-                            return {Callback = toggleData.Callback}
+                            return {Callback = dropdownData.Callback}
                         end,
                         AddButton = function(self, buttonData) 
                             print("Button created:", buttonData.Name) 
-                            return {Callback = toggleData.Callback}
+                            return {Callback = buttonData.Callback}
                         end,
                         AddKeybind = function(self, keybindData) 
                             print("Keybind created:", keybindData.Name) 
-                            return {Callback = toggleData.Callback}
+                            return {Callback = keybindData.Callback}
                         end,
                         AddColorPicker = function(self, pickerData) 
                             print("Color picker created:", pickerData.Name) 
-                            return {Callback = toggleData.Callback}
+                            return {Callback = pickerData.Callback}
                         end
                     }
                 end
@@ -723,19 +723,27 @@ if Combat_Utilities and type(Combat_Utilities.AddButton) == "function" then
             localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
         end
     end
-    Combat_Utilities:AddButton({
+    local teleportButton = Combat_Utilities:AddButton({
         Name = "Teleport to Nearest Enemy",
         Callback = tp_func
-    }).Link:AddHelper({
-        Text = "Teleports you to the nearest enemy"
     })
-    Combat_Utilities:AddKeybind({
+    if teleportButton and teleportButton.Link then
+        teleportButton.Link:AddHelper({
+            Text = "Teleports you to the nearest enemy"
+        })
+    end
+    
+    local tpKeybind = Combat_Utilities:AddKeybind({
         Name = "TP Nearest Key",
         Default = Enum.KeyCode.T,
         Callback = tp_func
-    }).Link:AddHelper({
-        Text = "Key to teleport to nearest enemy"
     })
+    if tpKeybind and tpKeybind.Link then
+        tpKeybind.Link:AddHelper({
+            Text = "Key to teleport to nearest enemy"
+        })
+    end
+    
     -- Kill All
     local kill_all_func = function()
         local oldCFrame = localPlayer.Character.HumanoidRootPart.CFrame
@@ -764,19 +772,26 @@ if Combat_Utilities and type(Combat_Utilities.AddButton) == "function" then
         end
         localPlayer.Character.HumanoidRootPart.CFrame = oldCFrame
     end
-    Combat_Utilities:AddButton({
+    local killAllButton = Combat_Utilities:AddButton({
         Name = "Kill All",
         Callback = kill_all_func
-    }).Link:AddHelper({
-        Text = "Kills all enemies by teleporting to them"
     })
-    Combat_Utilities:AddKeybind({
+    if killAllButton and killAllButton.Link then
+        killAllButton.Link:AddHelper({
+            Text = "Kills all enemies by teleporting to them"
+        })
+    end
+    
+    local killAllKeybind = Combat_Utilities:AddKeybind({
         Name = "Kill All Key",
         Default = Enum.KeyCode.K,
         Callback = kill_all_func
-    }).Link:AddHelper({
-        Text = "Key to kill all enemies"
     })
+    if killAllKeybind and killAllKeybind.Link then
+        killAllKeybind.Link:AddHelper({
+            Text = "Key to kill all enemies"
+        })
+    end
 end
 ----------------------------------------------------
 -- Gun Mods Tab
