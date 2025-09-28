@@ -103,7 +103,9 @@ local state = {
     HitboxSize = 5,
     espColor = Color3.new(1,1,1),
     InstantKillAmount = 20,
-    InstantKillDelay = 0.02
+    InstantKillDelay = 0.02,
+    BacktrackColor = Color3.fromRGB(255, 0, 255),
+    BacktrackMaterial = "ForceField"
 }
 local hue, rainbowSpeedIndex = 0, 1
 local rainbowSpeeds = {1, 3, 6}
@@ -116,8 +118,6 @@ local BodyPart, OldNameCall
 local aimPart = "Head"
 local smoothnessAmount = 0.08
 local backtrackDelay = 100
-local backtrackColor = Color3.fromRGB(255, 0, 255)
-local backtrackMaterial = "ForceField"
 local backtrackParts = {}
 local originalHeads = {}
 local hitboxVisuals = {}
@@ -382,7 +382,7 @@ local Aimbot_Settings = Aimbot_Tab:DrawSection({
     Position = "RIGHT"
 })
 
--- Enhanced Aimbot Implementation from LEVELUP source
+-- Enhanced Aimbot Implementation
 if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
     -- Aimbot Toggle
     local aimbotToggle = Aimbot_General:AddToggle({
@@ -543,11 +543,16 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
         Multi = false,
         Flag = "backtrackColor",
         Callback = function(v)
-            if v == "Red" then backtrackColor = Color3.fromRGB(255,0,0)
-            elseif v == "Blue" then backtrackColor = Color3.fromRGB(0,0,255)
-            elseif v == "Green" then backtrackColor = Color3.fromRGB(0,255,0)
-            elseif v == "Yellow" then backtrackColor = Color3.fromRGB(255,255,0)
-            elseif v == "Purple" then backtrackColor = Color3.fromRGB(128,0,128)
+            if v == "Red" then 
+                state.BacktrackColor = Color3.fromRGB(255,0,0)
+            elseif v == "Blue" then 
+                state.BacktrackColor = Color3.fromRGB(0,0,255)
+            elseif v == "Green" then 
+                state.BacktrackColor = Color3.fromRGB(0,255,0)
+            elseif v == "Yellow" then 
+                state.BacktrackColor = Color3.fromRGB(255,255,0)
+            elseif v == "Purple" then 
+                state.BacktrackColor = Color3.fromRGB(128,0,128)
             end
         end
     })
@@ -558,46 +563,91 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
     end
 end
 
--- New Silent Aim Implementation from LEVELUP source
+-- Silent Aim Implementation with multiple fallbacks
 local silentAimToggle = Aimbot_General:AddToggle({
     Name = "Silent Aim",
     Flag = "silentAimToggle",
     Callback = function(v)
         state.SilentAim = v
-        if v and not OldNameCall then
+        if v then
+            -- Fallback 1: HookMetamethod
             if hookmetamethod and newcclosure then
-                OldNameCall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-                    local method = getnamecallmethod()
-                    local args = {...}
-                    if state.SilentAim and BodyPart then
-                        if method == "FireServer" and self.Name == "HitPart" then
-                            args[1] = BodyPart
-                            return OldNameCall(self, unpack(args))
-                        elseif method == "FireServer" and self.Name == "Trail" then
-                            if type(args[1][5]) == "string" then
-                                args[1][6] = BodyPart
-                                args[1][2] = BodyPart.Position
+                if not OldNameCall then
+                    OldNameCall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+                        local method = getnamecallmethod()
+                        local args = {...}
+                        if state.SilentAim and BodyPart then
+                            if method == "FireServer" and self.Name == "HitPart" then
+                                args[1] = BodyPart
+                                return OldNameCall(self, unpack(args))
+                            elseif method == "FireServer" and self.Name == "Trail" then
+                                if type(args[1][5]) == "string" then
+                                    args[1][6] = BodyPart
+                                    args[1][2] = BodyPart.Position
+                                end
+                                return OldNameCall(self, unpack(args))
+                            elseif method == "FireServer" and self.Name == "CreateProjectile" then
+                                args[18] = BodyPart
+                                args[19] = BodyPart.Position
+                                args[17] = BodyPart.Position
+                                args[4] = BodyPart.CFrame
+                                args[10] = BodyPart.Position
+                                args[3] = BodyPart.Position
+                                return OldNameCall(self, unpack(args))
+                            elseif method == "FireServer" and self.Name == "Flames" then
+                                args[1] = BodyPart.CFrame
+                                args[2] = BodyPart.Position
+                                args[5] = BodyPart.Position
+                                return OldNameCall(self, unpack(args))
                             end
-                            return OldNameCall(self, unpack(args))
-                        elseif method == "FireServer" and self.Name == "CreateProjectile" then
-                            args[18] = BodyPart
-                            args[19] = BodyPart.Position
-                            args[17] = BodyPart.Position
-                            args[4] = BodyPart.CFrame
-                            args[10] = BodyPart.Position
-                            args[3] = BodyPart.Position
-                            return OldNameCall(self, unpack(args))
-                        elseif method == "FireServer" and self.Name == "Flames" then
-                            args[1] = BodyPart.CFrame
-                            args[2] = BodyPart.Position
-                            args[5] = BodyPart.Position
-                            return OldNameCall(self, unpack(args))
+                        end
+                        return OldNameCall(self, ...)
+                    end))
+                end
+            else
+                -- Fallback 2: FireServer spoofing
+                if not fire then
+                    local fire = hookfunction(Instance.new("RemoteEvent").FireServer, newcclosure(function(self, ...)
+                        if not checkcaller() and self.Name == "HitPart" and state.SilentAim and BodyPart then
+                            local args = {...}
+                            if args[1] and args[1].Parent and args[1].Parent:FindFirstChild("HumanoidRootPart") then
+                                args[1] = BodyPart
+                                return fire(self, unpack(args))
+                            end
+                        end
+                        return fire(self, ...)
+                    end))
+                end
+            end
+            
+            -- Fallback 3: Mouse click spoofing
+            UserInputService.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 and state.SilentAim then
+                    local nearestTarget = GetNearestTarget()
+                    if nearestTarget and nearestTarget.Character and nearestTarget.Character:FindFirstChild("Head") then
+                        local head = nearestTarget.Character.Head
+                        if head then
+                            local originalCFrame = camera.CFrame
+                            camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
+                            local tool = localPlayer.Character:FindFirstChildOfClass("Tool")
+                            if tool and tool:FindFirstChild("Fire") then
+                                tool.Fire:FireServer()
+                            end
+                            camera.CFrame = originalCFrame
                         end
                     end
-                    return OldNameCall(self, ...)
-                end))
-            else
-                warn("Silent Aim requires hookmetamethod and newcclosure which are not available in your exploit.")
+                end
+            end)
+        else
+            -- Clean up when disabled
+            if OldNameCall then
+                hookmetamethod(game, "__namecall", OldNameCall)
+                OldNameCall = nil
+            end
+            
+            if fire then
+                hookfunction(Instance.new("RemoteEvent").FireServer, fire)
+                fire = nil
             end
         end
     end
@@ -607,6 +657,55 @@ if silentAimToggle and silentAimToggle.Link then
         Text = "Aims at your cursor without moving your view"
     })
 end
+
+-- Aimbot implementation with multiple fallbacks
+RunService.RenderStepped:Connect(function()
+    if state.AimbotEnabled then
+        local bestTarget = nil
+        local bestAngle = fovAngle
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Head") and 
+               (not state.TeamCheck or player.Team ~= localPlayer.Team) and 
+               player.Character:FindFirstChild("Humanoid") and 
+               player.Character.Humanoid.Health > 0 then
+               
+                local head = player.Character.Head
+                local root = player.Character:FindFirstChild("HumanoidRootPart")
+                if root and head then
+                    local rootPos, onScreenRoot = camera:WorldToViewportPoint(root.Position)
+                    local headPos, onScreenHead = camera:WorldToViewportPoint(head.Position)
+                    local dir, angle = (root.Position - camera.CFrame.Position).Unit, math.deg(math.acos(camera.CFrame.LookVector:Dot((root.Position - camera.CFrame.Position).Unit)))
+                    
+                    if onScreenRoot and angle <= bestAngle and (root.Position - camera.CFrame.Position).Magnitude <= maxDistance and isVisible(player.Character) then
+                        bestTarget = head
+                        bestAngle = angle
+                    end
+                end
+            end
+        end
+        
+        if bestTarget then
+            -- Apply prediction
+            local predictedPosition = bestTarget.Position
+            if state.Prediction then
+                local velocity = bestTarget.Velocity
+                predictedPosition = bestTarget.Position + velocity * state.PredictionAmount
+            end
+            
+            -- Get direction and create new CFrame
+            local direction = (predictedPosition - camera.CFrame.Position).Unit
+            local newCFrame = CFrame.lookAt(camera.CFrame.Position, predictedPosition)
+            
+            -- Apply smoothing
+            if state.SmoothAim then
+                camera.CFrame = camera.CFrame:Lerp(newCFrame, smoothnessAmount, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            else
+                camera.CFrame = newCFrame
+            end
+        end
+    end
+end)
 
 ----------------------------------------------------
 -- Combat Tab
@@ -625,7 +724,7 @@ local Combat_Utilities = Combat_Tab:DrawSection({
     Position = "RIGHT"
 })
 
--- Instant Kill Implementation from INSTA KILL source
+-- Instant Kill Implementation
 if Combat_Features and type(Combat_Features.AddToggle) == "function" then
     -- Instant Kill Toggle
     local instantKillToggle = Combat_Features:AddToggle({
@@ -689,7 +788,7 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
         })
     end
     
-    -- Hitbox Extender Toggle
+    -- Hitbox Extender Toggle with visual indicator
     local hitboxSection = Combat_Features:AddToggle({
         Name = "Hitbox Extender",
         Flag = "hitboxToggle",
@@ -713,14 +812,14 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
     })
     if hitboxSection and hitboxSection.Link then
         hitboxSection.Link:AddHelper({
-            Text = "Extends player hitboxes for easier targeting"
+            Text = "Extends player hitboxes for easier targeting\nVisual indicator shows extended area"
         })
         
         -- Add slider to hitbox section
         local hitboxSizeSlider = hitboxSection.Link:AddOption():AddSlider({
             Name = "Size",
             Min = 1,
-            Max = 20,
+            Max = 100,  -- Increased from 20 to 100
             Default = 5,
             Round = 0,
             Flag = "hitboxSize",
@@ -737,13 +836,13 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
         })
         if hitboxSizeSlider and hitboxSizeSlider.Link then
             hitboxSizeSlider.Link:AddHelper({
-                Text = "Adjust the size of the expanded hitboxes"
+                Text = "Adjust the size of the expanded hitboxes\nLarger = easier to hit"
             })
         end
     end
 end
 
--- New Utility Features from LEVELUP source
+-- New Utility Features
 if Combat_Utilities and type(Combat_Utilities.AddButton) == "function" then
     -- Teleport to Nearest Enemy
     local tp_func = function()
@@ -969,7 +1068,7 @@ if GunMods_Settings and type(GunMods_Settings.AddToggle) == "function" then
         })
     end
     
-    -- New from LEVELUP source: No Clip
+    -- No Clip Toggle
     local noClipToggle = GunMods_Settings:AddToggle({
         Name = "No Clip",
         Flag = "noClipToggle",
@@ -993,7 +1092,7 @@ if GunMods_Settings and type(GunMods_Settings.AddToggle) == "function" then
         })
     end
     
-    -- New from LEVELUP source: God Mode
+    -- God Mode Toggle
     local godModeToggle = GunMods_Settings:AddToggle({
         Name = "God Mode",
         Flag = "godModeToggle",
@@ -1073,7 +1172,7 @@ if Misc_Settings and type(Misc_Settings.AddToggle) == "function" then
         })
     end
     
-    -- New from LEVELUP source: Noclip
+    -- Noclip Toggle
     local noclipToggle = Misc_Settings:AddToggle({
         Name = "Noclip",
         Flag = "noclipToggle",
@@ -1100,7 +1199,7 @@ if Misc_Settings and type(Misc_Settings.AddToggle) == "function" then
         })
     end
     
-    -- New from LEVELUP source: Fly
+    -- Fly Toggle
     local flyToggle = Misc_Settings:AddToggle({
         Name = "Fly",
         Flag = "flyToggle",
@@ -1146,7 +1245,7 @@ fovCircle.Filled = false
 fovCircle.Color = Color3.new(1,1,1)
 fovCircle.Visible = false
 
--- Backtrack drawing function
+-- Backtrack drawing function with error handling
 local function DrawBacktrack()
     if state.Backtrack then
         for _, p in ipairs(Players:GetPlayers()) do
@@ -1154,19 +1253,32 @@ local function DrawBacktrack()
                 local head = p.Character.Head
                 local pos = camera:WorldToViewportPoint(head.Position)
                 if pos.Z > 0 and pos.X > 0 and pos.X < camera.ViewportSize.X and pos.Y > 0 and pos.Y < camera.ViewportSize.Y then
-                    local backtrackPart = Drawing.new("Part")
-                    backtrackPart.Position = head.Position
-                    backtrackPart.Size = Vector3.new(0.5, 0.5, 0.5)
-                    backtrackPart.Material = Enum.Material[backtrackMaterial]
-                    backtrackPart.Color = backtrackColor
-                    backtrackPart.Transparency = 0
-                    backtrackPart.Visible = true
-                    table.insert(backtrackParts, backtrackPart)
+                    -- Create visual indicator
+                    local size = Vector2.new(5, 5)
+                    local pos2d = Vector2.new(pos.X, pos.Y)
+                    
+                    -- Draw the backtrack point with error checking
+                    local backtrackPoint = Drawing.new("Square")
+                    backtrackPoint.Position = pos2d - size/2
+                    backtrackPoint.Size = size
+                    backtrackPoint.Color = state.BacktrackColor
+                    backtrackPoint.Transparency = 0.3
+                    backtrackPoint.Filled = true
+                    backtrackPoint.Visible = true
+                    
+                    table.insert(backtrackParts, backtrackPoint)
+                    
+                    -- Clean up after delay
                     task.delay(backtrackDelay/1000, function()
-                        if backtrackPart then
-                            backtrackPart.Visible = false
-                            backtrackPart:Destroy()
-                            table.remove(backtrackParts, table.find(backtrackParts, backtrackPart))
+                        if backtrackPoint then
+                            pcall(function()
+                                backtrackPoint.Visible = false
+                                backtrackPoint:Remove()
+                            end)
+                            local index = table.find(backtrackParts, backtrackPoint)
+                            if index then
+                                table.remove(backtrackParts, index)
+                            end
                         end
                     end)
                 end
@@ -1175,9 +1287,58 @@ local function DrawBacktrack()
     end
 end
 
+-- Hitbox visual indicator function
+local function DrawHitboxVisuals()
+    if state.Hitbox and state.HitboxSize > 5 then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) and p.Character and p.Character:FindFirstChild("Head") then
+                local head = p.Character.Head
+                local headPos = head.Position
+                local size = Vector3.new(state.HitboxSize, state.HitboxSize, state.HitboxSize)
+                local screenPos = camera:WorldToViewportPoint(headPos)
+                
+                if screenPos.Z > 0 and screenPos.X > 0 and screenPos.X < camera.ViewportSize.X and screenPos.Y > 0 and screenPos.Y < camera.ViewportSize.Y then
+                    -- Draw hitbox visualization
+                    local hitbox = Drawing.new("Square")
+                    hitbox.Position = Vector2.new(screenPos.X - size.X/2, screenPos.Y - size.Y/2)
+                    hitbox.Size = Vector2.new(size.X, size.Y)
+                    hitbox.Color = Color3.fromRGB(0, 255, 0)
+                    hitbox.Filled = false
+                    hitbox.Visible = true
+                    hitbox.Thickness = 2
+                    
+                    table.insert(hitboxVisuals, hitbox)
+                end
+            end
+        end
+    end
+end
+
 local function clearDrawings()
-    for _, d in ipairs(drawings) do d:Remove() end
+    for _, d in ipairs(drawings) do 
+        pcall(function()
+            d:Remove()
+        end)
+    end
     table.clear(drawings)
+    
+    -- Clear backtrack visuals
+    for _, bp in ipairs(backtrackParts) do
+        pcall(function()
+            bp.Visible = false
+            bp:Remove()
+        end)
+    end
+    table.clear(backtrackParts)
+    
+    -- Clear hitbox visuals
+    for _, hv in ipairs(hitboxVisuals) do
+        pcall(function()
+            hv.Visible = false
+            hv:Remove()
+        end)
+    end
+    table.clear(hitboxVisuals)
 end
 
 local function getTargets()
@@ -1349,13 +1510,15 @@ RunService.RenderStepped:Connect(function()
     end
     -- Backtrack system
     DrawBacktrack()
+    -- Hitbox visual indicator
+    DrawHitboxVisuals()
     -- Rainbow ESP color cycling
     if state.Rainbow then 
         hue = (hue + 0.001 * rainbowSpeed) % 1 
     end
 end)
 
--- TriggerBot implementation
+-- TriggerBot implementation with error handling
 RunService.RenderStepped:Connect(function()
     if state.TriggerBot then
         local character = localPlayer.Character
@@ -1374,7 +1537,9 @@ RunService.RenderStepped:Connect(function()
                             if weapon and weapon:FindFirstChild("Fire") then
                                 -- Only fire if the target is visible
                                 if isVisible(target.Character) then
-                                    weapon.Fire:FireServer()
+                                    pcall(function()
+                                        weapon.Fire:FireServer()
+                                    end)
                                 end
                             end
                         end
@@ -1385,7 +1550,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- Auto Shoot implementation
+-- Auto Shoot implementation with error handling
 RunService.RenderStepped:Connect(function()
     if state.AutoShoot then
         local character = localPlayer.Character
@@ -1404,7 +1569,9 @@ RunService.RenderStepped:Connect(function()
                             if weapon and weapon:FindFirstChild("Fire") then
                                 -- Only fire if the target is visible
                                 if isVisible(target.Character) then
-                                    weapon.Fire:FireServer()
+                                    pcall(function()
+                                        weapon.Fire:FireServer()
+                                    end)
                                 end
                             end
                         end
@@ -1413,75 +1580,4 @@ RunService.RenderStepped:Connect(function()
             end
         end
     end
-end)
-
--- New Silent Aim Implementation from LEVELUP source
-local GetNearestPlayer = function()
-    local closestPlayer, closestDistance = nil, math.huge
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local distance = (player.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).magnitude
-            if distance < closestDistance then
-                closestDistance = distance
-                closestPlayer = player
-            end
-        end
-    end
-    return closestPlayer
-end
-
-RunService.RenderStepped:Connect(function()
-    if state.SilentAim and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-        local nearestPlayer = GetNearestPlayer()
-        if nearestPlayer and nearestPlayer.Character and nearestPlayer.Character:FindFirstChild("Head") then
-            local head = nearestPlayer.Character.Head
-            if head then
-                local originalCFrame = camera.CFrame
-                camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
-                
-                -- Fire the weapon
-                local tool = localPlayer.Character:FindFirstChildOfClass("Tool")
-                if tool and tool:FindFirstChild("Fire") then
-                    tool.Fire:FireServer()
-                end
-                
-                -- Reset camera
-                camera.CFrame = originalCFrame
-            end
-        end
-    end
-end)
-
--- New from LEVELUP source: Hitbox Extender Visualization
-local function DrawHitboxExtender()
-    if state.Hitbox and state.HitboxSize > 5 then
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) and p.Character and p.Character:FindFirstChild("Head") then
-                local head = p.Character.Head
-                local headPos = head.Position
-                local size = Vector3.new(state.HitboxSize, state.HitboxSize, state.HitboxSize)
-                
-                -- Draw hitbox visualization
-                local hitbox = Drawing.new("Square")
-                hitbox.Position = Vector2.new(headPos.X, headPos.Y)
-                hitbox.Size = Vector2.new(size.X, size.Y)
-                hitbox.Color = Color3.fromRGB(0, 255, 0)
-                hitbox.Filled = false
-                hitbox.Visible = true
-                hitbox.Thickness = 2
-                
-                table.insert(hitboxVisuals, hitbox)
-            end
-        end
-    end
-end
-
-RunService.RenderStepped:Connect(function()
-    -- Clear previous visuals
-    for _, visual in ipairs(hitboxVisuals) do
-        visual:Remove()
-    end
-    hitboxVisuals = {}
-    
-    DrawHitboxExtender()
 end)
