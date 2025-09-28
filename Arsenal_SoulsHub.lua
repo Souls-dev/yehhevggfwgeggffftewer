@@ -382,7 +382,7 @@ local Aimbot_Settings = Aimbot_Tab:DrawSection({
     Position = "RIGHT"
 })
 
--- Enhanced Aimbot Implementation
+-- Focused Aimbot Implementation (fixed)
 if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
     -- Aimbot Toggle
     local aimbotToggle = Aimbot_General:AddToggle({
@@ -658,7 +658,7 @@ if silentAimToggle and silentAimToggle.Link then
     })
 end
 
--- Aimbot implementation with multiple fallbacks
+-- Fixed Aimbot Implementation (no more side-wise aiming)
 RunService.RenderStepped:Connect(function()
     if state.AimbotEnabled then
         local bestTarget = nil
@@ -693,14 +693,23 @@ RunService.RenderStepped:Connect(function()
                 predictedPosition = bestTarget.Position + velocity * state.PredictionAmount
             end
             
-            -- Get direction and create new CFrame
-            local direction = (predictedPosition - camera.CFrame.Position).Unit
-            local newCFrame = CFrame.lookAt(camera.CFrame.Position, predictedPosition)
+            -- Calculate direction to target
+            local toTarget = (predictedPosition - camera.CFrame.Position).Unit
+            
+            -- Create new CFrame looking at the target
+            local currentCFrame = camera.CFrame
+            local newCFrame = CFrame.new(
+                currentCFrame.Position, 
+                currentCFrame.Position + toTarget
+            )
             
             -- Apply smoothing
             if state.SmoothAim then
-                camera.CFrame = camera.CFrame:Lerp(newCFrame, smoothnessAmount, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                -- Fixed smoothing that won't go sideways
+                local newLookVector = currentCFrame.LookVector:Lerp(toTarget, smoothnessAmount)
+                camera.CFrame = CFrame.new(currentCFrame.Position, currentCFrame.Position + newLookVector)
             else
+                -- Snap to target instantly
                 camera.CFrame = newCFrame
             end
         end
@@ -1245,7 +1254,7 @@ fovCircle.Filled = false
 fovCircle.Color = Color3.new(1,1,1)
 fovCircle.Visible = false
 
--- Backtrack drawing function with error handling
+-- Fixed Backtrack drawing function with visual indicator
 local function DrawBacktrack()
     if state.Backtrack then
         for _, p in ipairs(Players:GetPlayers()) do
@@ -1287,24 +1296,25 @@ local function DrawBacktrack()
     end
 end
 
--- Hitbox visual indicator function
+-- Improved Hitbox visual indicator (light transparent sphere)
 local function DrawHitboxVisuals()
     if state.Hitbox and state.HitboxSize > 5 then
         for _, p in ipairs(Players:GetPlayers()) do
             if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) and p.Character and p.Character:FindFirstChild("Head") then
                 local head = p.Character.Head
                 local headPos = head.Position
-                local size = Vector3.new(state.HitboxSize, state.HitboxSize, state.HitboxSize)
+                local size = state.HitboxSize * 0.5
                 local screenPos = camera:WorldToViewportPoint(headPos)
                 
                 if screenPos.Z > 0 and screenPos.X > 0 and screenPos.X < camera.ViewportSize.X and screenPos.Y > 0 and screenPos.Y < camera.ViewportSize.Y then
-                    -- Draw hitbox visualization
-                    local hitbox = Drawing.new("Square")
-                    hitbox.Position = Vector2.new(screenPos.X - size.X/2, screenPos.Y - size.Y/2)
-                    hitbox.Size = Vector2.new(size.X, size.Y)
+                    -- Draw a light transparent sphere around the head
+                    local hitbox = Drawing.new("Circle")
+                    hitbox.Position = Vector2.new(screenPos.X, screenPos.Y)
+                    hitbox.Radius = size
                     hitbox.Color = Color3.fromRGB(0, 255, 0)
                     hitbox.Filled = false
                     hitbox.Visible = true
+                    hitbox.Transparency = 0.7
                     hitbox.Thickness = 2
                     
                     table.insert(hitboxVisuals, hitbox)
