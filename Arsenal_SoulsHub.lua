@@ -758,19 +758,27 @@ if Combat_Utilities and type(Combat_Utilities.AddButton) == "function" then
             localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
         end
     end
-    Combat_Utilities:AddButton({
+    local teleportButton = Combat_Utilities:AddButton({
         Name = "Teleport to Nearest Enemy",
         Callback = tp_func
-    }).Link:AddHelper({
-        Text = "Teleports you to the nearest enemy"
     })
-    Combat_Utilities:AddKeybind({
+    if teleportButton and teleportButton.Link then
+        teleportButton.Link:AddHelper({
+            Text = "Teleports you to the nearest enemy"
+        })
+    end
+    
+    -- Teleport Keybind
+    local tpKeybind = Combat_Utilities:AddKeybind({
         Name = "TP Nearest Key",
         Default = Enum.KeyCode.T,
         Callback = tp_func
-    }).Link:AddHelper({
-        Text = "Key to teleport to nearest enemy"
     })
+    if tpKeybind and tpKeybind.Link then
+        tpKeybind.Link:AddHelper({
+            Text = "Key to teleport to nearest enemy"
+        })
+    end
     
     -- Kill All
     local kill_all_func = function()
@@ -800,19 +808,27 @@ if Combat_Utilities and type(Combat_Utilities.AddButton) == "function" then
         end
         localPlayer.Character.HumanoidRootPart.CFrame = oldCFrame
     end
-    Combat_Utilities:AddButton({
+    local killAllButton = Combat_Utilities:AddButton({
         Name = "Kill All",
         Callback = kill_all_func
-    }).Link:AddHelper({
-        Text = "Kills all enemies by teleporting to them"
     })
-    Combat_Utilities:AddKeybind({
+    if killAllButton and killAllButton.Link then
+        killAllButton.Link:AddHelper({
+            Text = "Kills all enemies by teleporting to them"
+        })
+    end
+    
+    -- Kill All Keybind
+    local killAllKeybind = Combat_Utilities:AddKeybind({
         Name = "Kill All Key",
         Default = Enum.KeyCode.K,
         Callback = kill_all_func
-    }).Link:AddHelper({
-        Text = "Key to kill all enemies"
     })
+    if killAllKeybind and killAllKeybind.Link then
+        killAllKeybind.Link:AddHelper({
+            Text = "Key to kill all enemies"
+        })
+    end
 end
 
 ----------------------------------------------------
