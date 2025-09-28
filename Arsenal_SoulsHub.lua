@@ -32,6 +32,18 @@ if not success or not SoulsHub then
                         AddColorPicker = function(self, pickerData) 
                             print("Color picker created:", pickerData.Name) 
                             return {Callback = pickerData.Callback}
+                        end,
+                        AddOption = function(self)
+                            return {
+                                AddToggle = function(self, data)
+                                    print("Nested toggle created:", data.Name)
+                                    return {Callback = data.Callback}
+                                end,
+                                AddSlider = function(self, data)
+                                    print("Nested slider created:", data.Name)
+                                    return {Callback = data.Callback}
+                                end
+                            }
                         end
                     }
                 end
@@ -44,6 +56,7 @@ if not success or not SoulsHub then
         end
     }
 end
+
 -- Create window with safety check
 local Window
 if SoulsHub and type(SoulsHub.new) == "function" then
@@ -51,10 +64,12 @@ if SoulsHub and type(SoulsHub.new) == "function" then
 else
     Window = SoulsHub:new({ Keybind = "LeftAlt" }) or SoulsHub({ Keybind = "LeftAlt" })
 end
+
 -- Create secure folder for safe hitbox extension
 local SecureFolder = Instance.new("Folder", workspace)
 SecureFolder.Name = "4564694893204234890234802948293482094820934820985092757873687984376893476893476983476983454"..math.random(1,1000)
 SecureFolder.Archivable = false
+
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -64,6 +79,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local localPlayer = Players.LocalPlayer
 local camera = Workspace.CurrentCamera
 local Mouse = localPlayer:GetMouse()
+
 -- State
 local state = { 
     ESP = false, 
@@ -114,6 +130,7 @@ local originalValues = {
     Recoil = {}
 }
 local hitboxOriginalProperties = {}
+
 -- Create secure folder for hitbox extension
 local function getSecureFolder()
     if not SecureFolder.Parent then
@@ -121,6 +138,7 @@ local function getSecureFolder()
     end
     return SecureFolder
 end
+
 -- Store original character properties
 local function saveOriginalProperties(player)
     if not hitboxOriginalProperties[player] then
@@ -138,6 +156,7 @@ local function saveOriginalProperties(player)
         end
     end
 end
+
 -- Restore original character properties
 local function restoreOriginalProperties(player)
     if hitboxOriginalProperties[player] then
@@ -151,19 +170,23 @@ local function restoreOriginalProperties(player)
         hitboxOriginalProperties[player] = nil
     end
 end
+
 -- Create secure character copy for hitbox extension
 local function createSecureCharacter(player)
     if not player.Character or player == localPlayer then return end
+    
     -- Clear existing secure character
     for _, child in ipairs(getSecureFolder():GetChildren()) do
         if child.Name == player.Name then
             child:Destroy()
         end
     end
+    
     -- Create new secure character
     local secureCharacter = player.Character:Clone()
     secureCharacter.Parent = getSecureFolder()
     secureCharacter.Name = player.Name
+    
     -- Apply hitbox extension
     for _, part in ipairs(secureCharacter:GetChildren()) do
         if part:IsA("BasePart") then
@@ -174,6 +197,7 @@ local function createSecureCharacter(player)
     end
     return secureCharacter
 end
+
 -- Check if player is visible (improved)
 local function isVisible(character)
     local root = character:FindFirstChild("HumanoidRootPart")
@@ -185,6 +209,7 @@ local function isVisible(character)
     local result = Workspace:Raycast(origin, root.Position - origin, params)
     return not result or result.Instance:IsDescendantOf(character)
 end
+
 -- Enhanced ESP features
 local function GetNearestTarget()
     local players = {}
@@ -235,6 +260,7 @@ local function GetNearestTarget()
     end
     return nil
 end
+
 ----------------------------------------------------
 -- ESP Tab
 ----------------------------------------------------
@@ -338,6 +364,7 @@ if ESP_Section and type(ESP_Section.AddToggle) == "function" then
         })
     end
 end
+
 ----------------------------------------------------
 -- Aimbot Tab
 ----------------------------------------------------
@@ -354,6 +381,8 @@ local Aimbot_Settings = Aimbot_Tab:DrawSection({
     Name = "Settings",
     Position = "RIGHT"
 })
+
+-- Enhanced Aimbot Implementation from LEVELUP source
 if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
     -- Aimbot Toggle
     local aimbotToggle = Aimbot_General:AddToggle({
@@ -432,6 +461,7 @@ if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
         })
     end
 end
+
 if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
     -- FOV Slider
     local fovSlider = Aimbot_Settings:AddSlider({
@@ -527,6 +557,57 @@ if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
         })
     end
 end
+
+-- New Silent Aim Implementation from LEVELUP source
+local silentAimToggle = Aimbot_General:AddToggle({
+    Name = "Silent Aim",
+    Flag = "silentAimToggle",
+    Callback = function(v)
+        state.SilentAim = v
+        if v and not OldNameCall then
+            if hookmetamethod and newcclosure then
+                OldNameCall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+                    local method = getnamecallmethod()
+                    local args = {...}
+                    if state.SilentAim and BodyPart then
+                        if method == "FireServer" and self.Name == "HitPart" then
+                            args[1] = BodyPart
+                            return OldNameCall(self, unpack(args))
+                        elseif method == "FireServer" and self.Name == "Trail" then
+                            if type(args[1][5]) == "string" then
+                                args[1][6] = BodyPart
+                                args[1][2] = BodyPart.Position
+                            end
+                            return OldNameCall(self, unpack(args))
+                        elseif method == "FireServer" and self.Name == "CreateProjectile" then
+                            args[18] = BodyPart
+                            args[19] = BodyPart.Position
+                            args[17] = BodyPart.Position
+                            args[4] = BodyPart.CFrame
+                            args[10] = BodyPart.Position
+                            args[3] = BodyPart.Position
+                            return OldNameCall(self, unpack(args))
+                        elseif method == "FireServer" and self.Name == "Flames" then
+                            args[1] = BodyPart.CFrame
+                            args[2] = BodyPart.Position
+                            args[5] = BodyPart.Position
+                            return OldNameCall(self, unpack(args))
+                        end
+                    end
+                    return OldNameCall(self, ...)
+                end))
+            else
+                warn("Silent Aim requires hookmetamethod and newcclosure which are not available in your exploit.")
+            end
+        end
+    end
+})
+if silentAimToggle and silentAimToggle.Link then
+    silentAimToggle.Link:AddHelper({
+        Text = "Aims at your cursor without moving your view"
+    })
+end
+
 ----------------------------------------------------
 -- Combat Tab
 ----------------------------------------------------
@@ -543,57 +624,9 @@ local Combat_Utilities = Combat_Tab:DrawSection({
     Name = "Utilities",
     Position = "RIGHT"
 })
+
+-- Instant Kill Implementation from INSTA KILL source
 if Combat_Features and type(Combat_Features.AddToggle) == "function" then
-    -- Silent Aim Toggle
-    local silentAimToggle = Combat_Features:AddToggle({
-        Name = "Silent Aim",
-        Flag = "silentAimToggle",
-        Callback = function(v)
-            state.SilentAim = v
-            if v and not OldNameCall then
-                if hookmetamethod and newcclosure then
-                    OldNameCall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
-                        local method = getnamecallmethod()
-                        local args = {...}
-                        if state.SilentAim and BodyPart then
-                            if method == "FireServer" and self.Name == "HitPart" then
-                                args[1] = BodyPart
-                                return OldNameCall(self, unpack(args))
-                            elseif method == "FireServer" and self.Name == "Trail" then
-                                if type(args[1][5]) == "string" then
-                                    args[1][6] = BodyPart
-                                    args[1][2] = BodyPart.Position
-                                end
-                                return OldNameCall(self, unpack(args))
-                            elseif method == "FireServer" and self.Name == "CreateProjectile" then
-                                args[18] = BodyPart
-                                args[19] = BodyPart.Position
-                                args[17] = BodyPart.Position
-                                args[4] = BodyPart.CFrame
-                                args[10] = BodyPart.Position
-                                args[3] = BodyPart.Position
-                                return OldNameCall(self, unpack(args))
-                            elseif method == "FireServer" and self.Name == "Flames" then
-                                args[1] = BodyPart.CFrame
-                                args[2] = BodyPart.Position
-                                args[5] = BodyPart.Position
-                                return OldNameCall(self, unpack(args))
-                            end
-                        end
-                        return OldNameCall(self, ...)
-                    end))
-                else
-                    warn("Silent Aim requires hookmetamethod and newcclosure which are not available in your exploit.")
-                end
-            end
-        end
-    })
-    if silentAimToggle and silentAimToggle.Link then
-        silentAimToggle.Link:AddHelper({
-            Text = "Aims at your cursor without moving your view"
-        })
-    end
-    
     -- Instant Kill Toggle
     local instantKillToggle = Combat_Features:AddToggle({
         Name = "Instant Kill",
@@ -709,6 +742,8 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
         end
     end
 end
+
+-- New Utility Features from LEVELUP source
 if Combat_Utilities and type(Combat_Utilities.AddButton) == "function" then
     -- Teleport to Nearest Enemy
     local tp_func = function()
@@ -723,26 +758,19 @@ if Combat_Utilities and type(Combat_Utilities.AddButton) == "function" then
             localPlayer.Character.HumanoidRootPart.CFrame = nearest.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -3)
         end
     end
-    local teleportButton = Combat_Utilities:AddButton({
+    Combat_Utilities:AddButton({
         Name = "Teleport to Nearest Enemy",
         Callback = tp_func
+    }).Link:AddHelper({
+        Text = "Teleports you to the nearest enemy"
     })
-    if teleportButton and teleportButton.Link then
-        teleportButton.Link:AddHelper({
-            Text = "Teleports you to the nearest enemy"
-        })
-    end
-    
-    local tpKeybind = Combat_Utilities:AddKeybind({
+    Combat_Utilities:AddKeybind({
         Name = "TP Nearest Key",
         Default = Enum.KeyCode.T,
         Callback = tp_func
+    }).Link:AddHelper({
+        Text = "Key to teleport to nearest enemy"
     })
-    if tpKeybind and tpKeybind.Link then
-        tpKeybind.Link:AddHelper({
-            Text = "Key to teleport to nearest enemy"
-        })
-    end
     
     -- Kill All
     local kill_all_func = function()
@@ -772,27 +800,21 @@ if Combat_Utilities and type(Combat_Utilities.AddButton) == "function" then
         end
         localPlayer.Character.HumanoidRootPart.CFrame = oldCFrame
     end
-    local killAllButton = Combat_Utilities:AddButton({
+    Combat_Utilities:AddButton({
         Name = "Kill All",
         Callback = kill_all_func
+    }).Link:AddHelper({
+        Text = "Kills all enemies by teleporting to them"
     })
-    if killAllButton and killAllButton.Link then
-        killAllButton.Link:AddHelper({
-            Text = "Kills all enemies by teleporting to them"
-        })
-    end
-    
-    local killAllKeybind = Combat_Utilities:AddKeybind({
+    Combat_Utilities:AddKeybind({
         Name = "Kill All Key",
         Default = Enum.KeyCode.K,
         Callback = kill_all_func
+    }).Link:AddHelper({
+        Text = "Key to kill all enemies"
     })
-    if killAllKeybind and killAllKeybind.Link then
-        killAllKeybind.Link:AddHelper({
-            Text = "Key to kill all enemies"
-        })
-    end
 end
+
 ----------------------------------------------------
 -- Gun Mods Tab
 ----------------------------------------------------
@@ -930,7 +952,56 @@ if GunMods_Settings and type(GunMods_Settings.AddToggle) == "function" then
             Text = "Makes weapons reload instantly"
         })
     end
+    
+    -- New from LEVELUP source: No Clip
+    local noClipToggle = GunMods_Settings:AddToggle({
+        Name = "No Clip",
+        Flag = "noClipToggle",
+        Callback = function(v)
+            state.NoClip = v
+            if v then
+                local character = localPlayer.Character
+                if character then
+                    for _, part in ipairs(character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+            end
+        end
+    })
+    if noClipToggle and noClipToggle.Link then
+        noClipToggle.Link:AddHelper({
+            Text = "Allows you to walk through walls"
+        })
+    end
+    
+    -- New from LEVELUP source: God Mode
+    local godModeToggle = GunMods_Settings:AddToggle({
+        Name = "God Mode",
+        Flag = "godModeToggle",
+        Callback = function(v)
+            state.GodMode = v
+            if v then
+                local character = localPlayer.Character
+                if character then
+                    for _, part in ipairs(character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+            end
+        end
+    })
+    if godModeToggle and godModeToggle.Link then
+        godModeToggle.Link:AddHelper({
+            Text = "Makes you invincible"
+        })
+    end
 end
+
 ----------------------------------------------------
 -- Misc Tab
 ----------------------------------------------------
@@ -985,15 +1056,80 @@ if Misc_Settings and type(Misc_Settings.AddToggle) == "function" then
             Text = "Shows notifications when you hit enemies"
         })
     end
+    
+    -- New from LEVELUP source: Noclip
+    local noclipToggle = Misc_Settings:AddToggle({
+        Name = "Noclip",
+        Flag = "noclipToggle",
+        Callback = function(v)
+            state.Noclip = v
+            if v then
+                if not game:GetService("Players").LocalPlayer.Character then return end
+                local character = game:GetService("Players").LocalPlayer.Character
+                local function setNoClip()
+                    for _, v in ipairs(character:GetDescendants()) do
+                        if v:IsA("BasePart") then
+                            v.CanCollide = false
+                        end
+                    end
+                end
+                setNoClip()
+                game:GetService("RunService").Stepped:Connect(setNoClip)
+            end
+        end
+    })
+    if noclipToggle and noclipToggle.Link then
+        noclipToggle.Link:AddHelper({
+            Text = "Walk through walls"
+        })
+    end
+    
+    -- New from LEVELUP source: Fly
+    local flyToggle = Misc_Settings:AddToggle({
+        Name = "Fly",
+        Flag = "flyToggle",
+        Callback = function(v)
+            state.Fly = v
+            if v then
+                local character = game:GetService("Players").LocalPlayer.Character
+                if character then
+                    local BodyVelocity = Instance.new("BodyVelocity")
+                    BodyVelocity.MaxForce = Vector3.new(math.huge, 0, math.huge)
+                    BodyVelocity.Parent = character:FindFirstChild("HumanoidRootPart") or character:FindFirstChildWhichIsA("BasePart")
+                    game:GetService("RunService").Stepped:Connect(function()
+                        if state.Fly and game:GetService("Players").LocalPlayer.Character then
+                            local c = game:GetService("Players").LocalPlayer.Character
+                            if c and c:FindFirstChild("HumanoidRootPart") then
+                                BodyVelocity.Velocity = Vector3.new(
+                                    UserInputService:IsKeyDown(Enum.KeyCode.D) and 50 or UserInputService:IsKeyDown(Enum.KeyCode.A) and -50 or 0,
+                                    UserInputService:IsKeyDown(Enum.KeyCode.Space) and 50 or UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) and -50 or 0,
+                                    UserInputService:IsKeyDown(Enum.KeyCode.S) and -50 or UserInputService:IsKeyDown(Enum.KeyCode.W) and 50 or 0
+                                )
+                            end
+                        else
+                            BodyVelocity:Destroy()
+                        end
+                    end)
+                end
+            end
+        end
+    })
+    if flyToggle and flyToggle.Link then
+        flyToggle.Link:AddHelper({
+            Text = "Enables flying (WASD to move)"
+        })
+    end
 end
+
 ----------------------------------------------------
--- ESP + Aimbot + Silent Aim Core (FIXED)
+-- ESP + Aimbot + Silent Aim Core (IMPROVED)
 ----------------------------------------------------
 local fovCircle = Drawing.new("Circle")
 fovCircle.Thickness = 1
 fovCircle.Filled = false
 fovCircle.Color = Color3.new(1,1,1)
 fovCircle.Visible = false
+
 -- Backtrack drawing function
 local function DrawBacktrack()
     if state.Backtrack then
@@ -1022,10 +1158,12 @@ local function DrawBacktrack()
         end
     end
 end
+
 local function clearDrawings()
     for _, d in ipairs(drawings) do d:Remove() end
     table.clear(drawings)
 end
+
 local function getTargets()
     local t = {}
     if aimbotMode ~= "Players" then
@@ -1040,6 +1178,7 @@ local function getTargets()
     end
     return t
 end
+
 local function GetClosestBodyPartFromCursor()
     local ClosestDistance = math.huge
     BodyPart = nil
@@ -1059,7 +1198,9 @@ local function GetClosestBodyPartFromCursor()
         end
     end
 end
+
 RunService:BindToRenderStep("Dynamic Silent Aim", 120, GetClosestBodyPartFromCursor)
+
 RunService.RenderStepped:Connect(function()
     -- Auto Vote
     if state.AutoVote and ReplicatedStorage.wkspc.Status.RoundOver.Value then
@@ -1068,6 +1209,7 @@ RunService.RenderStepped:Connect(function()
         ReplicatedStorage.Events.Vote:FireServer({"GameType", "Legacy Competitive"})
         localPlayer.PlayerGui.MapVoting.MapVote.Visible = false
     end
+    
     -- Force Menu
     if state.ForceMenu then
         UserInputService.InputBegan:Connect(function(key)
@@ -1076,6 +1218,7 @@ RunService.RenderStepped:Connect(function()
             end
         end)
     end
+    
     clearDrawings()
     local center = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y/2)
     fovCircle.Position, fovCircle.Radius = center, fovAngle
@@ -1195,6 +1338,7 @@ RunService.RenderStepped:Connect(function()
         hue = (hue + 0.001 * rainbowSpeed) % 1 
     end
 end)
+
 -- TriggerBot implementation
 RunService.RenderStepped:Connect(function()
     if state.TriggerBot then
@@ -1224,6 +1368,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
 -- Auto Shoot implementation
 RunService.RenderStepped:Connect(function()
     if state.AutoShoot then
@@ -1252,4 +1397,75 @@ RunService.RenderStepped:Connect(function()
             end
         end
     end
+end)
+
+-- New Silent Aim Implementation from LEVELUP source
+local GetNearestPlayer = function()
+    local closestPlayer, closestDistance = nil, math.huge
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= localPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (player.Character.HumanoidRootPart.Position - localPlayer.Character.HumanoidRootPart.Position).magnitude
+            if distance < closestDistance then
+                closestDistance = distance
+                closestPlayer = player
+            end
+        end
+    end
+    return closestPlayer
+end
+
+RunService.RenderStepped:Connect(function()
+    if state.SilentAim and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+        local nearestPlayer = GetNearestPlayer()
+        if nearestPlayer and nearestPlayer.Character and nearestPlayer.Character:FindFirstChild("Head") then
+            local head = nearestPlayer.Character.Head
+            if head then
+                local originalCFrame = camera.CFrame
+                camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
+                
+                -- Fire the weapon
+                local tool = localPlayer.Character:FindFirstChildOfClass("Tool")
+                if tool and tool:FindFirstChild("Fire") then
+                    tool.Fire:FireServer()
+                end
+                
+                -- Reset camera
+                camera.CFrame = originalCFrame
+            end
+        end
+    end
+end)
+
+-- New from LEVELUP source: Hitbox Extender Visualization
+local function DrawHitboxExtender()
+    if state.Hitbox and state.HitboxSize > 5 then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= localPlayer and (not state.TeamCheck or p.Team ~= localPlayer.Team) and p.Character and p.Character:FindFirstChild("Head") then
+                local head = p.Character.Head
+                local headPos = head.Position
+                local size = Vector3.new(state.HitboxSize, state.HitboxSize, state.HitboxSize)
+                
+                -- Draw hitbox visualization
+                local hitbox = Drawing.new("Square")
+                hitbox.Position = Vector2.new(headPos.X, headPos.Y)
+                hitbox.Size = Vector2.new(size.X, size.Y)
+                hitbox.Color = Color3.fromRGB(0, 255, 0)
+                hitbox.Filled = false
+                hitbox.Visible = true
+                hitbox.Thickness = 2
+                
+                table.insert(hitboxVisuals, hitbox)
+            end
+        end
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    -- Clear previous visuals
+    for _, visual in ipairs(hitboxVisuals) do
+        visual:Remove()
+    end
+    hitboxVisuals = {}
+    
+    DrawHitboxExtender()
 end)
