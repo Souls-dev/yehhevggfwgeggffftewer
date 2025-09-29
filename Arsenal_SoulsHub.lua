@@ -382,7 +382,7 @@ local Aimbot_Settings = Aimbot_Tab:DrawSection({
     Position = "RIGHT"
 })
 
--- Focused Aimbot Implementation (fixed)
+-- Fixed Aimbot Implementation (no more glitches)
 if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
     -- Aimbot Toggle
     local aimbotToggle = Aimbot_General:AddToggle({
@@ -658,7 +658,7 @@ if silentAimToggle and silentAimToggle.Link then
     })
 end
 
--- Fixed Aimbot Implementation (no more side-wise aiming)
+-- FIXED Aimbot Implementation (no more side-wise aiming)
 RunService.RenderStepped:Connect(function()
     if state.AimbotEnabled then
         local bestTarget = nil
@@ -698,19 +698,15 @@ RunService.RenderStepped:Connect(function()
             
             -- Create new CFrame looking at the target
             local currentCFrame = camera.CFrame
-            local newCFrame = CFrame.new(
-                currentCFrame.Position, 
-                currentCFrame.Position + toTarget
-            )
+            local newLookVector = currentCFrame.LookVector:Lerp(toTarget, smoothnessAmount)
             
             -- Apply smoothing
             if state.SmoothAim then
                 -- Fixed smoothing that won't go sideways
-                local newLookVector = currentCFrame.LookVector:Lerp(toTarget, smoothnessAmount)
                 camera.CFrame = CFrame.new(currentCFrame.Position, currentCFrame.Position + newLookVector)
             else
                 -- Snap to target instantly
-                camera.CFrame = newCFrame
+                camera.CFrame = CFrame.new(currentCFrame.Position, predictedPosition)
             end
         end
     end
@@ -1254,7 +1250,7 @@ fovCircle.Filled = false
 fovCircle.Color = Color3.new(1,1,1)
 fovCircle.Visible = false
 
--- Fixed Backtrack drawing function with visual indicator
+-- Backtrack drawing function with error handling
 local function DrawBacktrack()
     if state.Backtrack then
         for _, p in ipairs(Players:GetPlayers()) do
@@ -1506,10 +1502,13 @@ RunService.RenderStepped:Connect(function()
         local direction = (predictedPosition - camera.CFrame.Position).Unit
         -- Create a new CFrame looking at the target
         local newCFrame = CFrame.lookAt(camera.CFrame.Position, predictedPosition)
-        -- Apply smoothing if enabled
+        -- Apply smoothing
         if state.SmoothAim then
             -- Apply smooth aiming with a fixed speed
-            camera.CFrame = camera.CFrame:Lerp(newCFrame, smoothnessAmount, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            local currentLookVector = camera.CFrame.LookVector
+            local targetLookVector = direction
+            local newLookVector = currentLookVector:Lerp(targetLookVector, smoothnessAmount)
+            camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + newLookVector)
         else
             -- Snap to target instantly
             camera.CFrame = newCFrame
