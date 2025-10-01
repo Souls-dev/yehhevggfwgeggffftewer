@@ -302,7 +302,7 @@ if ESP_Section and type(ESP_Section.AddToggle) == "function" then
         })
     end
     
-    -- ESP Color Picker
+    -- ESP Color Picker (fixed)
     local espColorPicker = ESP_Section:AddColorPicker({
         Name = "ESP Color",
         Default = Color3.new(1,1,1),
@@ -382,7 +382,7 @@ local Aimbot_Settings = Aimbot_Tab:DrawSection({
     Position = "RIGHT"
 })
 
--- Fixed Aimbot Implementation (no more glitches)
+-- Fixed Aimbot Implementation (working version from Updated(3).txt)
 if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
     -- Aimbot Toggle
     local aimbotToggle = Aimbot_General:AddToggle({
@@ -658,11 +658,10 @@ if silentAimToggle and silentAimToggle.Link then
     })
 end
 
--- FIXED Aimbot Implementation (no more side-wise aiming)
+-- Working Aimbot Implementation from Updated(3).txt (no more side-wise aiming)
 RunService.RenderStepped:Connect(function()
     if state.AimbotEnabled then
-        local bestTarget = nil
-        local bestAngle = fovAngle
+        local bestTarget, bestAngle = nil, fovAngle
         
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Head") and 
@@ -686,7 +685,6 @@ RunService.RenderStepped:Connect(function()
         end
         
         if bestTarget then
-            -- Apply prediction
             local predictedPosition = bestTarget.Position
             if state.Prediction then
                 local velocity = bestTarget.Velocity
@@ -1490,28 +1488,28 @@ RunService.RenderStepped:Connect(function()
         arrow.Visible = true
         table.insert(drawings, arrow)
     end
-    -- FIXED AND IMPROVED AIMBOT LOGIC
+    -- Working Aimbot Implementation
     if state.AimbotEnabled and bestTarget then
         local predictedPosition = bestTarget.Position
-        -- Only apply prediction if enabled
         if state.Prediction then
             local velocity = bestTarget.Velocity
             predictedPosition = bestTarget.Position + velocity * state.PredictionAmount
         end
-        -- Get the direction to the target
-        local direction = (predictedPosition - camera.CFrame.Position).Unit
-        -- Create a new CFrame looking at the target
-        local newCFrame = CFrame.lookAt(camera.CFrame.Position, predictedPosition)
+        
+        -- Calculate direction to target
+        local toTarget = (predictedPosition - camera.CFrame.Position).Unit
+        
+        -- Create new CFrame looking at the target
+        local currentCFrame = camera.CFrame
+        local newLookVector = currentCFrame.LookVector:Lerp(toTarget, smoothnessAmount)
+        
         -- Apply smoothing
         if state.SmoothAim then
-            -- Apply smooth aiming with a fixed speed
-            local currentLookVector = camera.CFrame.LookVector
-            local targetLookVector = direction
-            local newLookVector = currentLookVector:Lerp(targetLookVector, smoothnessAmount)
-            camera.CFrame = CFrame.new(camera.CFrame.Position, camera.CFrame.Position + newLookVector)
+            -- Fixed smoothing that won't go sideways
+            camera.CFrame = CFrame.new(currentCFrame.Position, currentCFrame.Position + newLookVector)
         else
             -- Snap to target instantly
-            camera.CFrame = newCFrame
+            camera.CFrame = CFrame.new(currentCFrame.Position, predictedPosition)
         end
     else
         -- Reset camera type to default
