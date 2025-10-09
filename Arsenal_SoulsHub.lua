@@ -741,7 +741,7 @@ if Combat_Features and type(Combat_Features.AddToggle) == "function" then
     
     -- Hitbox Extender Toggle with visual indicator
     local hitboxSection = Combat_Features:AddToggle({
-        Name = "Hitbox Extender",
+        Name = "Hitbox Extender (Balant)",
         Flag = "hitboxToggle",
         Callback = function(v)
             state.Hitbox = v
@@ -1125,7 +1125,7 @@ if Misc_Settings and type(Misc_Settings.AddToggle) == "function" then
     
     -- Noclip Toggle
     local noclipToggle = Misc_Settings:AddToggle({
-        Name = "Noclip",
+        Name = "Noclip V2 (Balant)",
         Flag = "noclipToggle",
         Callback = function(v)
             state.Noclip = v
