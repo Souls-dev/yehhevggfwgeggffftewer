@@ -886,7 +886,7 @@ end
 ----------------------------------------------------
 local GunMods_Tab = Window:DrawTab({
     Icon = "wrench",
-    Name = "Gun Mods",
+    Name = "Gun Mods (Balant)",
     Type = "Single"
 })
 local GunMods_Settings = GunMods_Tab:DrawSection({
@@ -1021,7 +1021,7 @@ if GunMods_Settings and type(GunMods_Settings.AddToggle) == "function" then
     
     -- No Clip Toggle
     local noClipToggle = GunMods_Settings:AddToggle({
-        Name = "No Clip",
+        Name = "No Clip (Balant)",
         Flag = "noClipToggle",
         Callback = function(v)
             state.NoClip = v
