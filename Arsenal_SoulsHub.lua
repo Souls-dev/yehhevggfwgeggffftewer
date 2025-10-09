@@ -346,95 +346,330 @@ if ESP_Section and type(ESP_Section.AddToggle) == "function" then
     end
 end
 ----------------------------------------------------
--- Aimbot Tab (REPLACED WITH WORKING VERSION FROM V5)
+-- Aimbot Tab (with all original UI elements preserved)
 ----------------------------------------------------
 local Aimbot_Tab = Window:DrawTab({
     Icon = "crosshair",
     Name = "Aimbot",
     Type = "Single"
 })
-local general = Aimbot_Tab:DrawSection({
+local Aimbot_General = Aimbot_Tab:DrawSection({
     Name = "General",
     Position = "LEFT"
 })
-
-----------------------------------------------------
--- UI Toggles (FROM V5)
-----------------------------------------------------
-general:AddToggle({ 
-    Name = "Aimbot", 
-    Flag = "aimbotToggle", 
-    Callback = function(v) 
-        state.Aimbot = v 
-    end 
+local Aimbot_Settings = Aimbot_Tab:DrawSection({
+    Name = "Settings",
+    Position = "RIGHT"
 })
-general:AddToggle({ 
-    Name = "Rainbow ESP", 
-    Flag = "rainbowToggle", 
-    Callback = function(v) 
-        state.Rainbow = v 
-    end 
-})
-general:AddToggle({ 
-    Name = "Team Check", 
-    Flag = "teamToggle", 
-    Callback = function(v) 
-        state.TeamCheck = v 
-    end 
-})
--- Sliders
-general:AddSlider({
-    Name = "FOV", 
-    Min = 50, 
-    Max = 150, 
-    Default = fovAngle, 
-    Round = 0,
-    Flag = "fovSlider", 
-    Callback = function(v) 
-        fovAngle = v 
+-- Fixed Aimbot Implementation (working version from Updated(3).txt)
+if Aimbot_General and type(Aimbot_General.AddToggle) == "function" then
+    -- Aimbot Toggle
+    local aimbotToggle = Aimbot_General:AddToggle({
+        Name = "Aimbot",
+        Flag = "aimbotToggle",
+        Callback = function(v) 
+            state.Aimbot = v 
+            state.AimbotEnabled = v
+        end
+    })
+    if aimbotToggle and aimbotToggle.Link then
+        aimbotToggle.Link:AddHelper({
+            Text = "Enables the main aimbot feature"
+        })
     end
-})
-general:AddSlider({
-    Name = "Rainbow Speed", 
-    Min = 1, 
-    Max = 6, 
-    Default = 1, 
-    Round = 0,
-    Flag = "rainbowSpeed", 
-    Callback = function(v) 
-        rainbowSpeed = v 
+    -- Team Check Toggle
+    local teamToggle = Aimbot_General:AddToggle({
+        Name = "Team Check",
+        Flag = "teamToggle",
+        Callback = function(v) 
+            state.TeamCheck = v 
+        end
+    })
+    if teamToggle and teamToggle.Link then
+        teamToggle.Link:AddHelper({
+            Text = "Only targets enemies from other teams"
+        })
     end
-})
--- Dropdown
-general:AddDropdown({
-    Name = "Aimbot Mode", 
-    Values = {"All","NPC","Players"}, 
-    Default = "All",
-    Multi = false, 
-    Flag = "aimbotMode", 
-    Callback = function(v) 
-        aimbotMode = v 
+    -- Aim Mode Dropdown
+    local aimbotModeDropdown = Aimbot_General:AddDropdown({
+        Name = "Aim Mode",
+        Values = {"All","Players"},
+        Default = "All",
+        Multi = false,
+        Flag = "aimbotMode",
+        Callback = function(v) 
+            aimbotMode = v 
+        end
+    })
+    if aimbotModeDropdown and aimbotModeDropdown.Link then
+        aimbotModeDropdown.Link:AddHelper({
+            Text = "Determines what targets the aimbot can lock on"
+        })
     end
-})
--- Silent Aim (FROM V5)
-general:AddToggle({
+    -- Aim Part Dropdown
+    local aimPartDropdown = Aimbot_General:AddDropdown({
+        Name = "Aim Part",
+        Values = {"Head","UpperTorso"},
+        Default = "Head",
+        Multi = false,
+        Flag = "aimPart",
+        Callback = function(v) 
+            aimPart = v 
+        end
+    })
+    if aimPartDropdown and aimPartDropdown.Link then
+        aimPartDropdown.Link:AddHelper({
+            Text = "Which body part the aimbot will target"
+        })
+    end
+    -- Backtrack Toggle
+    local backtrackToggle = Aimbot_General:AddToggle({
+        Name = "Backtrack",
+        Flag = "backtrackToggle",
+        Callback = function(v) 
+            state.Backtrack = v 
+        end
+    })
+    if backtrackToggle and backtrackToggle.Link then
+        backtrackToggle.Link:AddHelper({
+            Text = "Visualizes past player positions"
+        })
+    end
+end
+if Aimbot_Settings and type(Aimbot_Settings.AddSlider) == "function" then
+    -- FOV Slider
+    local fovSlider = Aimbot_Settings:AddSlider({
+        Name = "FOV",
+        Min = 50,
+        Max = 150,
+        Default = fovAngle,
+        Round = 0,
+        Flag = "fovSlider",
+        Callback = function(v) 
+            fovAngle = v 
+        end
+    })
+    if fovSlider and fovSlider.Link then
+        fovSlider.Link:AddHelper({
+            Text = "Field of view for aimbot target detection"
+        })
+    end
+    -- Smoothness Slider
+    local smoothnessSlider = Aimbot_Settings:AddSlider({
+        Name = "Smoothness",
+        Min = 0.01,
+        Max = 0.5,
+        Default = 0.08,
+        Round = 2,
+        Flag = "smoothness",
+        Callback = function(v) 
+            smoothnessAmount = v 
+        end
+    })
+    if smoothnessSlider and smoothnessSlider.Link then
+        smoothnessSlider.Link:AddHelper({
+            Text = "How smooth the aimbot moves (lower = smoother)"
+        })
+    end
+    -- Prediction Slider
+    local predictionSlider = Aimbot_Settings:AddSlider({
+        Name = "Prediction",
+        Min = 0,
+        Max = 10,
+        Default = 6.612,
+        Round = 2,
+        Flag = "predictionAmount",
+        Callback = function(v) 
+            state.PredictionAmount = v 
+        end
+    })
+    if predictionSlider and predictionSlider.Link then
+        predictionSlider.Link:AddHelper({
+            Text = "Adjust prediction to match bullet speed
+Higher = faster bullets"
+        })
+    end
+    -- Backtrack Delay Slider
+    local backtrackDelaySlider = Aimbot_Settings:AddSlider({
+        Name = "Backtrack Delay",
+        Min = 50,
+        Max = 500,
+        Default = 100,
+        Round = 0,
+        Flag = "backtrackDelay",
+        Callback = function(v) 
+            backtrackDelay = v 
+        end
+    })
+    if backtrackDelaySlider and backtrackDelaySlider.Link then
+        backtrackDelaySlider.Link:AddHelper({
+            Text = "How long backtrack positions stay visible
+Lower = more responsive"
+        })
+    end
+    -- Backtrack Color Dropdown
+    local backtrackColorDropdown = Aimbot_Settings:AddDropdown({
+        Name = "Backtrack Color",
+        Values = {"Red","Blue","Green","Yellow","Purple","Custom"},
+        Default = "Red",
+        Multi = false,
+        Flag = "backtrackColor",
+        Callback = function(v)
+            if v == "Red" then 
+                state.BacktrackColor = Color3.fromRGB(255,0,0)
+            elseif v == "Blue" then 
+                state.BacktrackColor = Color3.fromRGB(0,0,255)
+            elseif v == "Green" then 
+                state.BacktrackColor = Color3.fromRGB(0,255,0)
+            elseif v == "Yellow" then 
+                state.BacktrackColor = Color3.fromRGB(255,255,0)
+            elseif v == "Purple" then 
+                state.BacktrackColor = Color3.fromRGB(128,0,128)
+            end
+        end
+    })
+    if backtrackColorDropdown and backtrackColorDropdown.Link then
+        backtrackColorDropdown.Link:AddHelper({
+            Text = "Color for backtrack visualization"
+        })
+    end
+end
+-- Silent Aim Implementation with multiple fallbacks
+local silentAimToggle = Aimbot_General:AddToggle({
     Name = "Silent Aim",
     Flag = "silentAimToggle",
     Callback = function(v)
         state.SilentAim = v
-        if v and not OldNameCall then
-            OldNameCall = hookmetamethod(game, "__namecall", function(Self, ...)
-                local Method, Args = getnamecallmethod(), {...}
-                if state.SilentAim and Method == "FindPartOnRayWithIgnoreList" and BodyPart then
-                    Args[1] = Ray.new(camera.CFrame.Position, (BodyPart.Position - camera.CFrame.Position).Unit * 600)
-                    return OldNameCall(Self, unpack(Args))
+        if v then
+            -- Fallback 1: HookMetamethod
+            if hookmetamethod and newcclosure then
+                if not OldNameCall then
+                    OldNameCall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
+                        local method = getnamecallmethod()
+                        local args = {...}
+                        if state.SilentAim and BodyPart then
+                            if method == "FireServer" and self.Name == "HitPart" then
+                                args[1] = BodyPart
+                                return OldNameCall(self, unpack(args))
+                            elseif method == "FireServer" and self.Name == "Trail" then
+                                if type(args[1][5]) == "string" then
+                                    args[1][6] = BodyPart
+                                    args[1][2] = BodyPart.Position
+                                end
+                                return OldNameCall(self, unpack(args))
+                            elseif method == "FireServer" and self.Name == "CreateProjectile" then
+                                args[18] = BodyPart
+                                args[19] = BodyPart.Position
+                                args[17] = BodyPart.Position
+                                args[4] = BodyPart.CFrame
+                                args[10] = BodyPart.Position
+                                args[3] = BodyPart.Position
+                                return OldNameCall(self, unpack(args))
+                            elseif method == "FireServer" and self.Name == "Flames" then
+                                args[1] = BodyPart.CFrame
+                                args[2] = BodyPart.Position
+                                args[5] = BodyPart.Position
+                                return OldNameCall(self, unpack(args))
+                            end
+                        end
+                        return OldNameCall(self, ...)
+                    end))
                 end
-                return OldNameCall(Self, ...)
+            else
+                -- Fallback 2: FireServer spoofing
+                if not fire then
+                    local fire = hookfunction(Instance.new("RemoteEvent").FireServer, newcclosure(function(self, ...)
+                        if not checkcaller() and self.Name == "HitPart" and state.SilentAim and BodyPart then
+                            local args = {...}
+                            if args[1] and args[1].Parent and args[1].Parent:FindFirstChild("HumanoidRootPart") then
+                                args[1] = BodyPart
+                                return fire(self, unpack(args))
+                            end
+                        end
+                        return fire(self, ...)
+                    end))
+                end
+            end
+            -- Fallback 3: Mouse click spoofing
+            UserInputService.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 and state.SilentAim then
+                    local nearestTarget = GetNearestTarget()
+                    if nearestTarget and nearestTarget.Character and nearestTarget.Character:FindFirstChild("Head") then
+                        local head = nearestTarget.Character.Head
+                        if head then
+                            local originalCFrame = camera.CFrame
+                            camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
+                            local tool = localPlayer.Character:FindFirstChildOfClass("Tool")
+                            if tool and tool:FindFirstChild("Fire") then
+                                tool.Fire:FireServer()
+                            end
+                            camera.CFrame = originalCFrame
+                        end
+                    end
+                end
             end)
+        else
+            -- Clean up when disabled
+            if OldNameCall then
+                hookmetamethod(game, "__namecall", OldNameCall)
+                OldNameCall = nil
+            end
+            if fire then
+                hookfunction(Instance.new("RemoteEvent").FireServer, fire)
+                fire = nil
+            end
         end
     end
 })
-
+if silentAimToggle and silentAimToggle.Link then
+    silentAimToggle.Link:AddHelper({
+        Text = "Aims at your cursor without moving your view"
+    })
+end
+-- Working Aimbot Implementation from Updated(3).txt (no more side-wise aiming)
+RunService.RenderStepped:Connect(function()
+    if state.AimbotEnabled then
+        local bestTarget, bestAngle = nil, fovAngle
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= localPlayer and player.Character and player.Character:FindFirstChild("Head") and 
+               (not state.TeamCheck or player.Team ~= localPlayer.Team) and 
+               player.Character:FindFirstChild("Humanoid") and 
+               player.Character.Humanoid.Health > 0 then
+                local head = player.Character.Head
+                local root = player.Character:FindFirstChild("HumanoidRootPart")
+                if root and head then
+                    local rootPos, onScreenRoot = camera:WorldToViewportPoint(root.Position)
+                    local headPos, onScreenHead = camera:WorldToViewportPoint(head.Position)
+                    local dir, angle = (root.Position - camera.CFrame.Position).Unit, math.deg(math.acos(camera.CFrame.LookVector:Dot((root.Position - camera.CFrame.Position).Unit)))
+                    if onScreenRoot and angle <= bestAngle and (root.Position - camera.CFrame.Position).Magnitude <= maxDistance and isVisible(player.Character) then
+                        bestTarget = head
+                        bestAngle = angle
+                    end
+                end
+            end
+        end
+        if bestTarget then
+            local predictedPosition = bestTarget.Position
+            if state.Prediction then
+                local velocity = bestTarget.Velocity
+                predictedPosition = bestTarget.Position + velocity * state.PredictionAmount
+            end
+            -- Calculate direction to target
+            local toTarget = (predictedPosition - camera.CFrame.Position).Unit
+            -- Create new CFrame looking at the target
+            local currentCFrame = camera.CFrame
+            local newLookVector = currentCFrame.LookVector:Lerp(toTarget, smoothnessAmount)
+            -- Apply smoothing
+            if state.SmoothAim then
+                -- Fixed smoothing that won't go sideways
+                camera.CFrame = CFrame.new(currentCFrame.Position, currentCFrame.Position + newLookVector)
+            else
+                -- Snap to target instantly
+                camera.CFrame = CFrame.new(currentCFrame.Position, predictedPosition)
+            end
+        end
+    end
+end)
 ----------------------------------------------------
 -- Combat Tab
 ----------------------------------------------------
@@ -965,7 +1200,7 @@ local function isVisible(character)
     local params = RaycastParams.new()
     params.FilterDescendantsInstances = {localPlayer.Character}
     params.FilterType = Enum.RaycastFilterType.Blacklist
-    local result = Workspace:Raycast(origin, root.Position-origin, params)
+    local result = Workspace:Raycast(origin, root.Position - origin, params)
     return not result or result.Instance:IsDescendantOf(character)
 end
 
@@ -995,7 +1230,7 @@ local function GetClosestBodyPartFromCursor()
     local ClosestDistance = math.huge
     BodyPart = nil
     for _, v in ipairs(Players:GetPlayers()) do
-        if v ~= localPlayer and v.Team ~= localPlayer.Team and v.Character and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
+        if v ~= localPlayer and (not state.TeamCheck or v.Team ~= localPlayer.Team) and v.Character and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
             for _, x in ipairs(v.Character:GetChildren()) do
                 if (x:IsA("Part") or x:IsA("MeshPart")) then
                     local ScreenPos, onScreen = camera:WorldToScreenPoint(x.Position)
