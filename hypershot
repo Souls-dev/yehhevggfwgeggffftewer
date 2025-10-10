@@ -1,0 +1,1105 @@
+-- SOULS HUB - Advanced Hypershot Script
+-- Copyright (c) 2023, SOULS HUB Development Team
+
+local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
+
+task.wait(1)
+
+SoulsHub:Loader(nil, 1).yield()
+
+local FileWatcher = SoulsHub:ConfigManager({
+	Directory = "SoulsHub",
+	Config = "Hypershot-Configs"
+})
+
+local Window = SoulsHub.new({
+	Keybind = "LeftAlt",
+})
+
+local watermark = Window:Watermark()
+
+watermark:AddText({
+	Icon = "user",
+	Text = "SOULS HUB"
+})
+
+local timeText = watermark:AddText({
+	Icon = "clock",
+	Text = SoulsHub:GetTimeNow()
+})
+
+task.spawn(function()
+	while true do
+		task.wait()
+		timeText:SetText(SoulsHub:GetTimeNow())
+	end
+end)
+
+Window:Update({
+	ExpireDate = SoulsHub:GetDate(tick() + 31536000) -- 1 year expiration
+})
+
+watermark:AddText({
+	Icon = "server",
+	Text = "Hypershot"
+})
+
+-- Configuration System
+local Configs = Window:DrawConfig({
+	Name = "Configurations",
+	Icon = "folder",
+	Config = FileWatcher
+})
+
+Configs:Init()
+
+-- Core Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+local Camera = Workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+
+-- Settings
+local Settings = {
+	Aimbot = {
+		Enabled = false,
+		FOV = 120,
+		Smoothness = 4,
+		TargetPart = "Head",
+		WallCheck = true,
+		TeamCheck = true,
+		VisibleCheck = true,
+		ShowFOV = true,
+		AutoShoot = false,
+		Prediction = 0.1,
+		Hitboxes = {"Head"},
+		Multipoint = false,
+		MultipointScale = 0.75,
+		MinDamage = 15,
+		EnableHitchance = false,
+		Hitchance = 75
+	},
+	ESP = {
+		Enabled = false,
+		Boxes = true,
+		Names = true,
+		Health = true,
+		Distance = true,
+		Tracers = true,
+		MaxDistance = 1000,
+		TeamColor = Color3.fromRGB(0, 255, 0),
+		EnemyColor = Color3.fromRGB(255, 0, 0),
+		VisibleOnly = true,
+		Chams = false,
+		ChamsVisibleColor = Color3.fromRGB(0, 255, 255),
+		ChamsInvisibleColor = Color3.fromRGB(255, 165, 0),
+		ChamsTransparency = 0.7,
+		Outline = false
+	},
+	Player = {
+		Speed = 16,
+		JumpPower = 50,
+		Fly = false,
+		NoClip = false,
+		AutoBunnyHop = false,
+		BunnyHopChance = 85
+	},
+	Misc = {
+		FullBright = false,
+		Radar = false,
+		TriggerBot = false,
+		AntiAim = false,
+		AntiAimAngle = 180,
+		AutoReload = false,
+		AutoPistol = false,
+		AutoShoot = false,
+		AutoWallbang = false,
+		NoRecoil = false,
+		NoSpread = false
+	}
+}
+
+-- FOV Circle
+local fovCircle = Drawing.new("Circle")
+fovCircle.Visible = false
+fovCircle.Thickness = 2
+fovCircle.Color = Color3.fromRGB(255, 255, 255)
+fovCircle.Filled = false
+fovCircle.Transparency = 0.7
+fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+-- ESP Objects
+local ESPObjects = {}
+local ESPData = {}
+
+-- Aimbot Functions
+local function getClosestTarget()
+	local closestTarget = nil
+	local shortestDistance = Settings.Aimbot.FOV
+	local mousePosition = Vector2.new(Mouse.X, Mouse.Y)
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(Settings.Aimbot.TargetPart) then
+			if Settings.Aimbot.TeamCheck and player.Team == LocalPlayer.Team then
+				continue
+			end
+			
+			local targetPart = player.Character:FindFirstChild(Settings.Aimbot.TargetPart)
+			local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+			
+			if onScreen then
+				local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePosition).Magnitude
+				
+				if distance < shortestDistance then
+					if Settings.Aimbot.VisibleCheck then
+						local ray = Workspace:Raycast(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position).Unit * 1000)
+						if ray and ray.Instance:IsDescendantOf(player.Character) then
+							shortestDistance = distance
+							closestTarget = targetPart
+						end
+					else
+						shortestDistance = distance
+						closestTarget = targetPart
+					end
+				end
+			end
+		end
+	end
+	
+	return closestTarget
+end
+
+-- ESP Functions
+local function createESP(player)
+	if ESPObjects[player] then return end
+	
+	local esp = {
+		Box = Drawing.new("Square"),
+		Name = Drawing.new("Text"),
+		Health = Drawing.new("Square"),
+		HealthBar = Drawing.new("Square"),
+		Distance = Drawing.new("Text"),
+		Tracer = Drawing.new("Line"),
+		Chams = {}
+	}
+	
+	-- Box
+	esp.Box.Visible = false
+	esp.Box.Color = Color3.fromRGB(255, 255, 255)
+	esp.Box.Thickness = 1.5
+	esp.Box.Transparency = 0.9
+	esp.Box.Filled = false
+	
+	-- Name
+	esp.Name.Visible = false
+	esp.Name.Color = Color3.fromRGB(255, 255, 255)
+	esp.Name.Size = 14
+	esp.Name.Center = true
+	esp.Name.Outline = true
+	
+	-- Health
+	esp.Health.Visible = false
+	esp.Health.Color = Color3.fromRGB(0, 0, 0)
+	esp.Health.Filled = true
+	esp.Health.Transparency = 0.5
+	
+	esp.HealthBar.Visible = false
+	esp.HealthBar.Color = Color3.fromRGB(0, 255, 0)
+	esp.HealthBar.Filled = true
+	
+	-- Distance
+	esp.Distance.Visible = false
+	esp.Distance.Color = Color3.fromRGB(255, 255, 255)
+	esp.Distance.Size = 12
+	esp.Distance.Center = true
+	esp.Distance.Outline = true
+	
+	-- Tracer
+	esp.Tracer.Visible = false
+	esp.Tracer.Color = Color3.fromRGB(255, 255, 255)
+	esp.Tracer.Thickness = 1.5
+	
+	-- Chams
+	for i = 1, 5 do
+		esp.Chams[i] = {
+			Box = Drawing.new("Square"),
+			Visible = false
+		}
+		
+		esp.Chams[i].Box.Visible = false
+		esp.Chams[i].Box.Color = Color3.fromRGB(0, 255, 255)
+		esp.Chams[i].Box.Thickness = 1
+		esp.Chams[i].Box.Filled = false
+		esp.Chams[i].Box.Transparency = 0.7
+	end
+	
+	ESPObjects[player] = esp
+	ESPData[player] = {Color = Settings.ESP.EnemyColor}
+end
+
+local function updateESP()
+	for player, esp in pairs(ESPObjects) do
+		if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+			esp.Box.Visible = false
+			esp.Name.Visible = false
+			esp.Health.Visible = false
+			esp.HealthBar.Visible = false
+			esp.Distance.Visible = false
+			esp.Tracer.Visible = false
+			for _, chams in ipairs(esp.Chams) do
+				chams.Box.Visible = false
+			end
+			continue
+		end
+		
+		local character = player.Character
+		local rootPart = character:FindFirstChild("HumanoidRootPart")
+		local humanoid = character:FindFirstChild("Humanoid")
+		local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+		
+		if onScreen and Settings.ESP.Enabled then
+			local distance = (rootPart.Position - Camera.CFrame.Position).Magnitude
+			if distance <= Settings.ESP.MaxDistance then
+				local scale = 1000 / distance
+				local size = Vector2.new(scale * 4, scale * 6)
+				local teamColor = player.Team == LocalPlayer.Team and Settings.ESP.TeamColor or Settings.ESP.EnemyColor
+				
+				-- Update ESP color based on team
+				ESPData[player].Color = teamColor
+				
+				-- Box
+				if Settings.ESP.Boxes then
+					esp.Box.Visible = true
+					esp.Box.Size = size
+					esp.Box.Position = Vector2.new(screenPos.X - size.X / 2, screenPos.Y - size.Y / 2)
+					esp.Box.Color = teamColor
+				else
+					esp.Box.Visible = false
+				end
+				
+				-- Name
+				if Settings.ESP.Names then
+					esp.Name.Visible = true
+					esp.Name.Position = Vector2.new(screenPos.X, screenPos.Y - size.Y / 2 - 20)
+					esp.Name.Text = player.Name
+					esp.Name.Color = teamColor
+				else
+					esp.Name.Visible = false
+				end
+				
+				-- Health
+				if Settings.ESP.Health and humanoid then
+					local healthPercent = humanoid.Health / humanoid.MaxHealth
+					local healthColor = Color3.fromRGB(255 * (1 - healthPercent), 255 * healthPercent, 0)
+					
+					esp.Health.Visible = true
+					esp.Health.Size = Vector2.new(4, size.Y)
+					esp.Health.Position = Vector2.new(screenPos.X - size.X / 2 - 8, screenPos.Y - size.Y / 2)
+					
+					esp.HealthBar.Visible = true
+					esp.HealthBar.Size = Vector2.new(2, size.Y * healthPercent)
+					esp.HealthBar.Position = Vector2.new(screenPos.X - size.X / 2 - 7, screenPos.Y + size.Y / 2 - (size.Y * healthPercent))
+					esp.HealthBar.Color = healthColor
+				else
+					esp.Health.Visible = false
+					esp.HealthBar.Visible = false
+				end
+				
+				-- Distance
+				if Settings.ESP.Distance then
+					esp.Distance.Visible = true
+					esp.Distance.Position = Vector2.new(screenPos.X, screenPos.Y + size.Y / 2 + 20)
+					esp.Distance.Text = tostring(math.floor(distance)) .. " studs"
+					esp.Distance.Color = teamColor
+				else
+					esp.Distance.Visible = false
+				end
+				
+				-- Tracer
+				if Settings.ESP.Tracers then
+					esp.Tracer.Visible = true
+					esp.Tracer.From = Vector2.new(Mouse.X, Mouse.Y)
+					esp.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+					esp.Tracer.Color = teamColor
+				else
+					esp.Tracer.Visible = false
+				end
+				
+				-- Chams
+				if Settings.ESP.Chams and character then
+					local parts = {"Head", "UpperTorso", "LowerTorso", "LeftArm", "RightArm", "LeftLeg", "RightLeg"}
+					for i, partName in ipairs(parts) do
+						local part = character:FindFirstChild(partName)
+						if part and i <= 5 then
+							local pos, visible = Camera:WorldToViewportPoint(part.Position)
+							if visible then
+								esp.Chams[i].Box.Visible = true
+								esp.Chams[i].Box.Position = Vector2.new(pos.X - 10, pos.Y - 10)
+								esp.Chams[i].Box.Size = Vector2.new(20, 20)
+								esp.Chams[i].Box.Color = visible and Settings.ESP.ChamsVisibleColor or Settings.ESP.ChamsInvisibleColor
+								esp.Chams[i].Box.Transparency = Settings.ESP.ChamsTransparency
+							end
+						end
+					end
+				else
+					for _, chams in ipairs(esp.Chams) do
+						chams.Box.Visible = false
+					end
+				end
+			else
+				esp.Box.Visible = false
+				esp.Name.Visible = false
+				esp.Health.Visible = false
+				esp.HealthBar.Visible = false
+				esp.Distance.Visible = false
+				esp.Tracer.Visible = false
+				for _, chams in ipairs(esp.Chams) do
+					chams.Box.Visible = false
+				end
+			end
+		else
+			esp.Box.Visible = false
+			esp.Name.Visible = false
+			esp.Health.Visible = false
+			esp.HealthBar.Visible = false
+			esp.Distance.Visible = false
+			esp.Tracer.Visible = false
+			for _, chams in ipairs(esp.Chams) do
+				chams.Box.Visible = false
+			end
+		end
+	end
+end
+
+-- Player Functions
+local function setWalkSpeed(speed)
+	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+		LocalPlayer.Character.Humanoid.WalkSpeed = speed
+	end
+end
+
+local function setJumpPower(power)
+	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+		LocalPlayer.Character.Humanoid.JumpPower = power
+	end
+end
+
+local flyConnection
+local function toggleFly(enabled)
+	if flyConnection then
+		flyConnection:Disconnect()
+		flyConnection = nil
+	end
+	
+	if enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local bodyVelocity = Instance.new("BodyVelocity")
+		bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+		bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+		bodyVelocity.Parent = LocalPlayer.Character.HumanoidRootPart
+		
+		flyConnection = RunService.Heartbeat:Connect(function()
+			if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				return
+			end
+			
+			local velocity = Vector3.new(0, 0, 0)
+			if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+				velocity = velocity + (Camera.CFrame.LookVector * 50)
+			end
+			if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+				velocity = velocity - (Camera.CFrame.LookVector * 50)
+			end
+			if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+				velocity = velocity - (Camera.CFrame.RightVector * 50)
+			end
+			if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+				velocity = velocity + (Camera.CFrame.RightVector * 50)
+			end
+			if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+				velocity = velocity + Vector3.new(0, 50, 0)
+			end
+			if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+				velocity = velocity - Vector3.new(0, 50, 0)
+			end
+			
+			bodyVelocity.Velocity = velocity
+		end)
+	end
+end
+
+-- Anti-Aim Function
+local antiAimConnection
+local function toggleAntiAim(enabled)
+	if antiAimConnection then
+		antiAimConnection:Disconnect()
+		antiAimConnection = nil
+	end
+	
+	if enabled then
+		antiAimConnection = RunService.Heartbeat:Connect(function()
+			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				local rootPart = LocalPlayer.Character.HumanoidRootPart
+				local angle = math.rad(Settings.Misc.AntiAimAngle)
+				local rotation = CFrame.Angles(0, angle, 0)
+				rootPart.CFrame = rootPart.CFrame * rotation
+			end
+		end)
+	end
+end
+
+-- Auto-BunnyHop
+local function autoBunnyHop()
+	if Settings.Player.AutoBunnyHop and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+		local humanoid = LocalPlayer.Character.Humanoid
+		if humanoid.FloorMaterial ~= Enum.Material.Air and math.random(1, 100) <= Settings.Player.BunnyHopChance then
+			humanoid.Jump = true
+		end
+	end
+end
+
+-- Hook metamethod for silent aim
+local oldNamecall
+oldNamecall = hookmetamethod(game, "__namecall", function(...)
+	local method = getnamecallmethod()
+	local args = {...}
+	
+	if args[1] == workspace and method == "Raycast" then
+		if typeof(args[#args]) ~= "RaycastParams" then
+			return oldNamecall(...)
+		end
+		
+		if Settings.Aimbot.Enabled then
+			local closest = getClosestTarget()
+			if closest then
+				local origin = args[2]
+				local direction = (closest.Position - origin).Unit
+				local distance = (closest.Position - origin).Magnitude
+				
+				args[3] = direction * distance
+				return oldNamecall(unpack(args))
+			end
+		end
+	end
+	
+	return oldNamecall(...)
+end)
+
+-- Main UI
+local Combat = Window:DrawTab({
+	Icon = "crosshair",
+	Name = "Combat",
+	Type = "Double"
+})
+
+local Visuals = Window:DrawTab({
+	Icon = "eye",
+	Name = "Visuals"
+})
+
+local Movement = Window:DrawTab({
+	Icon = "run",
+	Name = "Movement"
+})
+
+local Misc = Window:DrawTab({
+	Icon = "settings-3",
+	Name = "Miscellaneous"
+})
+
+-- Combat Tab
+do
+	local general = Combat:DrawSection({
+		Name = "General",
+		Position = "LEFT"
+	})
+	
+	local advanced = Combat:DrawSection({
+		Name = "Advanced",
+		Position = "RIGHT"
+	})
+	
+	-- General Settings
+	general:AddToggle({
+		Name = "Aimbot Enabled",
+		Flag = "aimbot_enabled",
+		Default = Settings.Aimbot.Enabled,
+		Callback = function(state)
+			Settings.Aimbot.Enabled = state
+			fovCircle.Visible = state and Settings.Aimbot.ShowFOV
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Auto Shoot",
+		Flag = "auto_shoot",
+		Default = Settings.Aimbot.AutoShoot,
+		Callback = function(state)
+			Settings.Aimbot.AutoShoot = state
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Visible Check",
+		Flag = "visible_check",
+		Default = Settings.Aimbot.VisibleCheck,
+		Callback = function(state)
+			Settings.Aimbot.VisibleCheck = state
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Team Check",
+		Flag = "team_check",
+		Default = Settings.Aimbot.TeamCheck,
+		Callback = function(state)
+			Settings.Aimbot.TeamCheck = state
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Wall Check",
+		Flag = "wall_check",
+		Default = Settings.Aimbot.WallCheck,
+		Callback = function(state)
+			Settings.Aimbot.WallCheck = state
+		end
+	})
+	
+	general:AddSlider({
+		Name = "FOV Size",
+		Min = 10,
+		Max = 500,
+		Default = Settings.Aimbot.FOV,
+		Flag = "fov_size",
+		Callback = function(value)
+			Settings.Aimbot.FOV = value
+			fovCircle.Radius = value
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Show FOV",
+		Flag = "show_fov",
+		Default = Settings.Aimbot.ShowFOV,
+		Callback = function(state)
+			Settings.Aimbot.ShowFOV = state
+			fovCircle.Visible = state and Settings.Aimbot.Enabled
+		end
+	})
+	
+	-- Advanced Settings
+	advanced:AddDropdown({
+		Name = "Target Part",
+		Values = {"Head", "UpperTorso", "HumanoidRootPart"},
+		Default = Settings.Aimbot.TargetPart,
+		Flag = "target_part",
+		Callback = function(option)
+			Settings.Aimbot.TargetPart = option
+		end
+	})
+	
+	advanced:AddSlider({
+		Name = "Smoothness",
+		Min = 1,
+		Max = 10,
+		Default = Settings.Aimbot.Smoothness,
+		Flag = "smoothness",
+		Callback = function(value)
+			Settings.Aimbot.Smoothness = value
+		end
+	})
+	
+	advanced:AddSlider({
+		Name = "Prediction",
+		Min = 0,
+		Max = 0.5,
+		Default = Settings.Aimbot.Prediction,
+		Flag = "prediction",
+		Callback = function(value)
+			Settings.Aimbot.Prediction = value
+		end
+	})
+	
+	advanced:AddDropdown({
+		Name = "Hitboxes",
+		Values = {"Head", "UpperTorso", "LowerTorso", "Arms", "Legs"},
+		Default = Settings.Aimbot.Hitboxes,
+		Flag = "hitboxes",
+		Multi = true,
+		Callback = function(value)
+			Settings.Aimbot.Hitboxes = value
+		end
+	})
+	
+	advanced:AddToggle({
+		Name = "Multipoint",
+		Flag = "multipoint",
+		Default = Settings.Aimbot.Multipoint,
+		Callback = function(state)
+			Settings.Aimbot.Multipoint = state
+		end
+	}):Link:AddSlider({
+		Name = "Scale",
+		Min = 0.1,
+		Max = 1,
+		Default = Settings.Aimbot.MultipointScale,
+		Flag = "multipoint_scale",
+		Callback = function(value)
+			Settings.Aimbot.MultipointScale = value
+		end
+	})
+	
+	advanced:AddToggle({
+		Name = "Enable Hitchance",
+		Flag = "hitchance_enabled",
+		Default = Settings.Aimbot.EnableHitchance,
+		Callback = function(state)
+			Settings.Aimbot.EnableHitchance = state
+		end
+	}):Link:AddSlider({
+		Name = "Hitchance",
+		Min = 0,
+		Max = 100,
+		Default = Settings.Aimbot.Hitchance,
+		Flag = "hitchance",
+		Callback = function(value)
+			Settings.Aimbot.Hitchance = value
+		end
+	})
+	
+	advanced:AddSlider({
+		Name = "Min Damage",
+		Min = 0,
+		Max = 100,
+		Default = Settings.Aimbot.MinDamage,
+		Flag = "min_damage",
+		Callback = function(value)
+			Settings.Aimbot.MinDamage = value
+		end
+	})
+	
+	general:AddParagraph({
+		Title = "Aimbot Information",
+		Content = "The aimbot uses a silent aim approach that\noverrides raycasts to ensure precision.\nAdjust settings to match your playstyle."
+	})
+end
+
+-- Visuals Tab
+do
+	local general = Visuals:DrawSection({
+		Name = "General",
+		Position = "LEFT"
+	})
+	
+	local colors = Visuals:DrawSection({
+		Name = "Colors",
+		Position = "RIGHT"
+	})
+	
+	-- General Settings
+	general:AddToggle({
+		Name = "ESP Enabled",
+		Flag = "esp_enabled",
+		Default = Settings.ESP.Enabled,
+		Callback = function(state)
+			Settings.ESP.Enabled = state
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Player Boxes",
+		Flag = "esp_boxes",
+		Default = Settings.ESP.Boxes,
+		Callback = function(state)
+			Settings.ESP.Boxes = state
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Player Names",
+		Flag = "esp_names",
+		Default = Settings.ESP.Names,
+		Callback = function(state)
+			Settings.ESP.Names = state
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Health Bars",
+		Flag = "esp_health",
+		Default = Settings.ESP.Health,
+		Callback = function(state)
+			Settings.ESP.Health = state
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Distance",
+		Flag = "esp_distance",
+		Default = Settings.ESP.Distance,
+		Callback = function(state)
+			Settings.ESP.Distance = state
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Tracers",
+		Flag = "esp_tracers",
+		Default = Settings.ESP.Tracers,
+		Callback = function(state)
+			Settings.ESP.Tracers = state
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Chams",
+		Flag = "esp_chams",
+		Default = Settings.ESP.Chams,
+		Callback = function(state)
+			Settings.ESP.Chams = state
+		end
+	})
+	
+	general:AddSlider({
+		Name = "Max Distance",
+		Min = 100,
+		Max = 2000,
+		Default = Settings.ESP.MaxDistance,
+		Flag = "esp_max_distance",
+		Callback = function(value)
+			Settings.ESP.MaxDistance = value
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Visible Only",
+		Flag = "esp_visible_only",
+		Default = Settings.ESP.VisibleOnly,
+		Callback = function(state)
+			Settings.ESP.VisibleOnly = state
+		end
+	})
+	
+	-- Color Settings
+	colors:AddColorPicker({
+		Name = "Team Color",
+		Default = Settings.ESP.TeamColor,
+		Flag = "team_color",
+		Callback = function(color)
+			Settings.ESP.TeamColor = color
+		end
+	})
+	
+	colors:AddColorPicker({
+		Name = "Enemy Color",
+		Default = Settings.ESP.EnemyColor,
+		Flag = "enemy_color",
+		Callback = function(color)
+			Settings.ESP.EnemyColor = color
+		end
+	})
+	
+	colors:AddColorPicker({
+		Name = "Visible Chams",
+		Default = Settings.ESP.ChamsVisibleColor,
+		Flag = "chams_visible_color",
+		Callback = function(color)
+			Settings.ESP.ChamsVisibleColor = color
+		end
+	})
+	
+	colors:AddColorPicker({
+		Name = "Invisible Chams",
+		Default = Settings.ESP.ChamsInvisibleColor,
+		Flag = "chams_invisible_color",
+		Callback = function(color)
+			Settings.ESP.ChamsInvisibleColor = color
+		end
+	})
+	
+	colors:AddSlider({
+		Name = "Chams Transparency",
+		Min = 0,
+		Max = 1,
+		Default = Settings.ESP.ChamsTransparency,
+		Flag = "chams_transparency",
+		Callback = function(value)
+			Settings.ESP.ChamsTransparency = value
+		end
+	})
+	
+	general:AddParagraph({
+		Title = "ESP Information",
+		Content = "The ESP system provides visual information\nabout players in the game world.\nAdjust colors to match your preference."
+	})
+end
+
+-- Movement Tab
+do
+	local player = Movement:DrawSection({
+		Name = "Player",
+		Position = "LEFT"
+	})
+	
+	local advanced = Movement:DrawSection({
+		Name = "Advanced",
+		Position = "RIGHT"
+	})
+	
+	-- Player Settings
+	player:AddSlider({
+		Name = "Walk Speed",
+		Min = 16,
+		Max = 100,
+		Default = Settings.Player.Speed,
+		Flag = "walk_speed",
+		Callback = function(value)
+			Settings.Player.Speed = value
+			setWalkSpeed(value)
+		end
+	})
+	
+	player:AddSlider({
+		Name = "Jump Power",
+		Min = 50,
+		Max = 200,
+		Default = Settings.Player.JumpPower,
+		Flag = "jump_power",
+		Callback = function(value)
+			Settings.Player.JumpPower = value
+			setJumpPower(value)
+		end
+	})
+	
+	player:AddToggle({
+		Name = "Fly Mode",
+		Flag = "fly_mode",
+		Default = Settings.Player.Fly,
+		Callback = function(state)
+			Settings.Player.Fly = state
+			toggleFly(state)
+		end
+	})
+	
+	player:AddToggle({
+		Name = "NoClip",
+		Flag = "noclip",
+		Default = Settings.Player.NoClip,
+		Callback = function(state)
+			Settings.Player.NoClip = state
+			if LocalPlayer.Character then
+				for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+					if part:IsA("BasePart") then
+						part.CanCollide = not state
+						part.Transparency = state and 0.5 or 0
+					end
+				end
+			end
+		end
+	})
+	
+	-- Advanced Settings
+	advanced:AddToggle({
+		Name = "Auto BunnyHop",
+		Flag = "bunny_hop",
+		Default = Settings.Player.AutoBunnyHop,
+		Callback = function(state)
+			Settings.Player.AutoBunnyHop = state
+		end
+	})
+	
+	advanced:AddSlider({
+		Name = "BunnyHop Chance",
+		Min = 0,
+		Max = 100,
+		Default = Settings.Player.BunnyHopChance,
+		Flag = "bunny_hop_chance",
+		Callback = function(value)
+			Settings.Player.BunnyHopChance = value
+		end
+	})
+	
+	player:AddParagraph({
+		Title = "Movement Information",
+		Content = "Adjust your movement settings to improve\nyour mobility in the game.\nNoClip and Fly allow you to bypass\nstandard physics limitations."
+	})
+end
+
+-- Misc Tab
+do
+	local general = Misc:DrawSection({
+		Name = "General",
+		Position = "LEFT"
+	})
+	
+	local advanced = Misc:DrawSection({
+		Name = "Advanced",
+		Position = "RIGHT"
+	})
+	
+	-- General Settings
+	general:AddToggle({
+		Name = "Full Bright",
+		Flag = "full_bright",
+		Default = Settings.Misc.FullBright,
+		Callback = function(state)
+			Settings.Misc.FullBright = state
+			if state then
+				Lighting.Brightness = 2
+				Lighting.ClockTime = 14
+				Lighting.FogEnd = 100000
+				Lighting.GlobalShadows = false
+			else
+				Lighting.Brightness = 1
+				Lighting.ClockTime = 12
+				Lighting.FogEnd = 500
+				Lighting.GlobalShadows = true
+			end
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Radar",
+		Flag = "radar",
+		Default = Settings.Misc.Radar,
+		Callback = function(state)
+			Settings.Misc.Radar = state
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Trigger Bot",
+		Flag = "trigger_bot",
+		Default = Settings.Misc.TriggerBot,
+		Callback = function(state)
+			Settings.Misc.TriggerBot = state
+		end
+	})
+	
+	general:AddToggle({
+		Name = "Anti-Aim",
+		Flag = "anti_aim",
+		Default = Settings.Misc.AntiAim,
+		Callback = function(state)
+			Settings.Misc.AntiAim = state
+			toggleAntiAim(state)
+		end
+	})
+	
+	-- Advanced Settings
+	advanced:AddSlider({
+		Name = "Anti-Aim Angle",
+		Min = 0,
+		Max = 360,
+		Default = Settings.Misc.AntiAimAngle,
+		Flag = "anti_aim_angle",
+		Callback = function(value)
+			Settings.Misc.AntiAimAngle = value
+		end
+	})
+	
+	advanced:AddToggle({
+		Name = "Auto Reload",
+		Flag = "auto_reload",
+		Default = Settings.Misc.AutoReload,
+		Callback = function(state)
+			Settings.Misc.AutoReload = state
+		end
+	})
+	
+	advanced:AddToggle({
+		Name = "Auto Pistol",
+		Flag = "auto_pistol",
+		Default = Settings.Misc.AutoPistol,
+		Callback = function(state)
+			Settings.Misc.AutoPistol = state
+		end
+	})
+	
+	advanced:AddToggle({
+		Name = "No Recoil",
+		Flag = "no_recoil",
+		Default = Settings.Misc.NoRecoil,
+		Callback = function(state)
+			Settings.Misc.NoRecoil = state
+		end
+	})
+	
+	advanced:AddToggle({
+		Name = "No Spread",
+		Flag = "no_spread",
+		Default = Settings.Misc.NoSpread,
+		Callback = function(state)
+			Settings.Misc.NoSpread = state
+		end
+	})
+	
+	general:AddParagraph({
+		Title = "Misc Information",
+		Content = "Various utility features to enhance\nyour gameplay experience.\nUse responsibly to avoid detection."
+	})
+end
+
+-- Main Loop
+RunService.Heartbeat:Connect(function()
+	-- Update FOV circle
+	if Settings.Aimbot.Enabled and Settings.Aimbot.ShowFOV then
+		fovCircle.Visible = true
+		fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+		fovCircle.Radius = Settings.Aimbot.FOV
+	else
+		fovCircle.Visible = false
+	end
+	
+	-- Update ESP
+	updateESP()
+	
+	-- Auto-BunnyHop
+	if Settings.Player.AutoBunnyHop then
+		autoBunnyHop()
+	end
+	
+	-- Trigger Bot
+	if Settings.Misc.TriggerBot and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+		local closest = getClosestTarget()
+		if closest then
+			-- Simulate shooting at target
+		end
+	end
+end)
+
+-- Player Events
+Players.PlayerAdded:Connect(function(player)
+	if player ~= LocalPlayer then
+		createESP(player)
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	if ESPObjects[player] then
+		for _, drawing in pairs(ESPObjects[player]) do
+			if typeof(drawing) == "table" then
+				for _, d in ipairs(drawing) do
+					d:Remove()
+				end
+			else
+				drawing:Remove()
+			end
+		end
+		ESPObjects[player] = nil
+	end
+end)
+
+-- Initialize ESP for existing players
+for _, player in ipairs(Players:GetPlayers()) do
+	if player ~= LocalPlayer then
+		createESP(player)
+	end
+end
+
+-- Final Step - Draw the UI
+Window:Draw()
