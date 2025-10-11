@@ -1,175 +1,28 @@
--- SOULS HUB - Ultimate Hypershot Script (Fixed Version)
+-- SOULS HUB - Hypershot Script (Fixed Version)
 -- Copyright (c) 2023, SOULS HUB Development Team
 
--- Fallback system for UI libraries
-local function tryLoadLibrary(loaderFunction)
-    local success, result = pcall(loaderFunction)
-    if success and result then
-        return result
-    end
-    return nil
-end
+-- Load Souls Hub UI Library
+local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
 
--- Try to load the primary UI library first (Souls Hub)
-local SoulsHub = tryLoadLibrary(function()
-    return loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a", true))()
-end)
-
--- Fallback to WindUI if SoulsHub fails
 if not SoulsHub then
-    SoulsHub = tryLoadLibrary(function()
-        local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua", true))()
-        if WindUI then
-            return {
-                new = function(config)
-                    config = config or {}
-                    local theme = config.Theme or "Dark"
-                    local window = WindUI:CreateWindow({
-                        Title = "SOULS HUB",
-                        Icon = "target",
-                        Author = "Hypershot Script",
-                        Folder = "SoulsHub_Hypershot",
-                        Size = UDim2.fromOffset(700, 600),
-                        Theme = theme,
-                        User = {
-                            Enabled = true,
-                            Anonymous = true
-                        },
-                        SideBarWidth = 220
-                    })
-                    
-                    -- Create a mock Watermark implementation
-                    local watermark = {
-                        AddText = function(self, options)
-                            local title = options.Title or options.Text or "Watermark"
-                            window:Tag({Title = title, Color = Color3.fromRGB(50, 205, 50)})
-                            return {
-                                SetText = function(text)
-                                    -- This is a mock implementation
-                                end
-                            }
-                        end
-                    }
-                    
-                    -- Create a mock ConfigManager
-                    local configManager = {
-                        Init = function() end
-                    }
-                    
-                    return {
-                        Window = window,
-                        Watermark = function() return watermark end,
-                        ConfigManager = function() return configManager end,
-                        Loader = function() return {yield = function() end} end,
-                        GetTimeNow = function() return os.date("%H:%M") end,
-                        GetDate = function(timestamp) return os.date("%m/%d/%Y", timestamp) end,
-                        Colors = {Highlight = Color3.fromRGB(255, 0, 0)},
-                        ChangeHighlightColor = function() end,
-                        Draw = function() end
-                    }
-                end
-            }
-        end
-        return nil
-    end)
-end)
-
--- Final fallback to a minimal implementation if all libraries fail
-if not SoulsHub then
-    SoulsHub = {
-        new = function()
-            return {
-                Window = {
-                    Draw = function() end
-                },
-                Watermark = function() 
-                    return {
-                        AddText = function() end,
-                        AddText = function() end
-                    }
-                end,
-                ConfigManager = function() return {Init = function() end} end,
-                Loader = function() return {yield = function() end} end,
-                GetTimeNow = function() return "00:00" end,
-                GetDate = function() return "01/01/2023" end,
-                Colors = {Highlight = Color3.fromRGB(255, 0, 0)},
-                ChangeHighlightColor = function() end
-            }
-        end
-    }
+    error("Failed to load Souls Hub UI library. Please check your internet connection.")
 end
 
--- Core Initialization
-local success, loaderResult = pcall(function()
-    return SoulsHub:Loader(nil, 1)
-end)
-
-if success and loaderResult then
-    loaderResult:yield()
-else
-    warn("Loader failed, continuing with fallback implementation")
-end
-
--- Configuration System
-local FileWatcher = SoulsHub:ConfigManager({
-    Directory = "SoulsHub",
-    Config = "Hypershot-Configs"
-})
-
--- Main Window
+-- Create the main window
 local Window = SoulsHub.new({
     Keybind = "LeftAlt",
 })
-
--- Watermark
-local watermark = Window:Watermark()
-
-watermark:AddText({
-    Icon = "user",
-    Text = "SOULS HUB"
-})
-
-local timeText = watermark:AddText({
-    Icon = "clock",
-    Text = SoulsHub:GetTimeNow()
-})
-
-task.spawn(function()
-    while true do
-        task.wait()
-        timeText:SetText(SoulsHub:GetTimeNow())
-    end
-end)
-
-Window:Update({
-    ExpireDate = SoulsHub:GetDate(tick() + 31536000) -- 1 year expiration
-})
-
-watermark:AddText({
-    Icon = "server",
-    Text = "Hypershot"
-})
-
--- Config Tab
-local Configs = Window:DrawConfig({
-    Name = "Configurations",
-    Icon = "folder",
-    Config = FileWatcher
-})
-
-Configs:Init()
 
 -- Core Services
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
--- Settings with default values
+-- Settings
 local Settings = {
     Aimbot = {
         Enabled = false,
@@ -401,7 +254,7 @@ local function updateTargetCache()
         end
     end
     
-    -- Cache NPCs if any exist
+    -- Cache NPCs (if any)
     local mobsFolder = Workspace:FindFirstChild("Mobs")
     if mobsFolder then
         for _, npc in ipairs(mobsFolder:GetChildren()) do
@@ -1108,46 +961,6 @@ oldNamecall = hookmetamethod(game, "__namecall", function(...)
     
     return oldNamecall(...)
 end)
-
--- Auto-Farm Implementation
-local lastTarget = nil
-local function getFarmTarget()
-    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return end
-    
-    local closest, dist = nil, Settings.Auto.FarmRange
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-            local d = (plr.Character.HumanoidRootPart.Position - root.Position).Magnitude
-            if d < dist then
-                closest, dist = plr, d
-            end
-        end
-    end
-    return closest
-end
-
--- God-Mode (invisible + undamageable)
-local function setGodMode(state)
-    if not LocalPlayer.Character then return end
-    
-    for _, v in ipairs(LocalPlayer.Character:GetDescendants()) do
-        if v:IsA("BasePart") then
-            pcall(function()
-                v.CanCollide = not state
-                v.LocalTransparencyModifier = state and 1 or 0
-                if state then v.Transparency = 1 end
-            end)
-        end
-    end
-    
-    local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-    if hum then
-        pcall(function()
-            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, not state)
-        end)
-    end
-end
 
 -- Main UI
 local Combat = Window:DrawTab({
@@ -2263,13 +2076,7 @@ end)
 Players.PlayerRemoving:Connect(function(player)
     if ESPObjects[player] then
         for _, drawing in pairs(ESPObjects[player]) do
-            if typeof(drawing) == "table" then
-                for _, d in ipairs(drawing) do
-                    pcall(function() d:Remove() end)
-                end
-            else
-                pcall(function() drawing:Remove() end)
-            end
+            drawing:Remove()
         end
         ESPObjects[player] = nil
     end
@@ -2282,7 +2089,5 @@ for _, player in ipairs(Players:GetPlayers()) do
     end
 end
 
--- Final Step - Draw the UI
-pcall(function()
-    Window:Draw()
-end)
+-- Draw the UI
+Window:Draw()
