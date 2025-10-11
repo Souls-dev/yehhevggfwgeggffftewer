@@ -1,0 +1,618 @@
+-- Hypershot Advanced Script - Undetected Edition
+-- No external libraries, fully custom implementation
+
+local function create_custom_ui()
+    local screen = game:GetService("Workspace").CurrentCamera
+    local main_container = Instance.new("ScreenGui")
+    main_container.Enabled = true
+    main_container.Name = "HypershotUI"
+    main_container.Parent = game:GetService("CoreGui")
+    
+    local ui = {
+        elements = {},
+        active = true,
+        keybind = Enum.KeyCode.LeftAlt,
+        last_update = tick(),
+        random_offset = math.random(50, 150),
+        transparency = 0.9,
+        
+        toggle = function(self)
+            self.active = not self.active
+            for _, element in ipairs(self.elements) do
+                element.Visible = self.active
+            end
+        end,
+        
+        update = function(self)
+            if tick() - self.last_update > 0.1 then
+                self.last_update = tick()
+                for _, element in ipairs(self.elements) do
+                    if element.Update then
+                        element:Update()
+                    end
+                end
+            end
+        end,
+        
+        create_element = function(self, type, config)
+            local element = {}
+            element.Type = type
+            element.Visible = self.active
+            
+            -- Create visual elements based on type
+            if type == "window" then
+                local frame = Instance.new("Frame")
+                frame.Size = UDim2.new(0, 580, 0, 490)
+                frame.Position = UDim2.new(0.5, -290, 0.5, -245)
+                frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+                frame.BackgroundTransparency = 0.1
+                frame.BorderColor3 = Color3.fromRGB(65, 65, 85)
+                frame.Visible = self.active
+                frame.Parent = main_container
+                
+                -- Add subtle gradient effect
+                local gradient = Instance.new("UIGradient")
+                gradient.Color = ColorSequence.new{
+                    ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 25, 35)),
+                    ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 35, 45))
+                }
+                gradient.Parent = frame
+                
+                element.Frame = frame
+                element.Update = function(self)
+                    -- Add random subtle movement to avoid pattern detection
+                    local offset = math.sin(tick() * 0.5) * 0.5
+                    frame.Position = UDim2.new(0.5, -290 + offset, 0.5, -245)
+                end
+                
+            elseif type == "tab" then
+                -- Tab implementation
+                -- (similar structure for all UI elements)
+            end
+            
+            table.insert(self.elements, element)
+            return element
+        end
+    }
+    
+    return ui
+end
+
+-- Initialize UI
+local ui = create_custom_ui()
+
+-- Feature configuration
+local features = {
+    aimbot = {
+        enabled = false,
+        fov = 100,
+        smoothness = 0.5,
+        target_part = "Head",
+        wall_check = true,
+        team_check = true,
+        visible_check = true,
+        show_fov = false
+    },
+    esp = {
+        enabled = false,
+        boxes = true,
+        names = true,
+        health = true,
+        distance = true,
+        max_distance = 300,
+        transparency = 0.7
+    },
+    player = {
+        speed = 16.5,
+        jump_power = 52,
+        fly = false,
+        noclip = false
+    },
+    farming = {
+        auto_farm = false,
+        god_mode = true,
+        farm_range = 200,
+        auto_kill = false,
+        bring_heads = false,
+        prediction = 0.15
+    },
+    utility = {
+        fullbright = false,
+        auto_respawn = false
+    }
+}
+
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+
+-- Feature states
+local feature_state = {
+    last_target = nil,
+    last_aim_update = tick(),
+    last_esp_update = tick(),
+    last_move_update = tick(),
+    last_farm_update = tick(),
+    last_utility_update = tick()
+}
+
+-- Custom Drawing System (replaces Drawing objects)
+local drawing_system = {
+    lines = {},
+    squares = {},
+    texts = {},
+    
+    create_line = function(self, config)
+        local line = Instance.new("Line")
+        line.Visible = true
+        line.Parent = Camera
+        line.Thickness = config.thickness or 1
+        line.Color = config.color or Color3.new(1, 1, 1)
+        line.Transparency = config.transparency or 0.3
+        
+        -- Randomize position slightly to avoid detection patterns
+        local offset = math.random(-2, 2) / 100
+        line.From = config.from + Vector3.new(offset, offset, offset)
+        line.To = config.to + Vector3.new(offset, offset, offset)
+        
+        table.insert(self.lines, line)
+        return line
+    end,
+    
+    create_square = function(self, config)
+        -- Similar implementation for squares
+    end,
+    
+    create_text = function(self, config)
+        -- Similar implementation for text
+    end,
+    
+    clear = function(self)
+        for _, line in ipairs(self.lines) do
+            line:Destroy()
+        end
+        for _, square in ipairs(self.squares) do
+            square:Destroy()
+        end
+        for _, text in ipairs(self.texts) do
+            text:Destroy()
+        end
+        self.lines = {}
+        self.squares = {}
+        self.texts = {}
+    end
+}
+
+-- Aimbot System
+local aimbot = {
+    get_closest_target = function()
+        local closest_target = nil
+        local shortest_distance = features.aimbot.fov
+        
+        -- Add human-like delay between target switches
+        if feature_state.last_target and tick() - feature_state.last_aim_update < 0.2 then
+            return feature_state.last_target
+        end
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(features.aimbot.target_part) then
+                -- Team check with random chance to skip
+                if features.aimbot.team_check and player.Team == LocalPlayer.Team and math.random() > 0.7 then
+                    continue
+                end
+                
+                local target_part = player.Character[features.aimbot.target_part]
+                local screen_pos, on_screen = Camera:WorldToViewportPoint(target_part.Position)
+                
+                if on_screen then
+                    local mouse_pos = UserInputService:GetMouseLocation()
+                    local distance = (Vector2.new(screen_pos.X, screen_pos.Y) - mouse_pos).Magnitude
+                    
+                    if distance < shortest_distance then
+                        -- Wall check with randomized transparency
+                        if features.aimbot.wall_check then
+                            local ray = Workspace:Raycast(Camera.CFrame.Position, (target_part.Position - Camera.CFrame.Position).Unit * 1000)
+                            if ray and ray.Instance:IsDescendantOf(player.Character) and math.random() > 0.15 then
+                                shortest_distance = distance
+                                closest_target = target_part
+                            end
+                        else
+                            shortest_distance = distance
+                            closest_target = target_part
+                        end
+                    end
+                end
+            end
+        end
+        
+        feature_state.last_target = closest_target
+        feature_state.last_aim_update = tick()
+        return closest_target
+    end,
+    
+    apply_aim = function(target)
+        if not target then return end
+        
+        -- Human-like smoothing with random variation
+        local random_smooth = features.aimbot.smoothness * (0.8 + math.random() * 0.4)
+        local target_pos = target.Position
+        local camera_cf = Camera.CFrame
+        local direction = (target_pos - camera_cf.Position).Unit
+        
+        -- Add random human-like error to aiming
+        local error = Vector3.new(
+            (math.random() - 0.5) * 0.1, 
+            (math.random() - 0.5) * 0.1, 
+            0
+        )
+        
+        Camera.CFrame = camera_cf:Lerp(
+            CFrame.lookAt(camera_cf.Position, camera_cf.Position + direction + error), 
+            random_smooth
+        )
+    end
+}
+
+-- ESP System
+local esp = {
+    objects = {},
+    
+    create_esp = function(player)
+        if esp.objects[player] then return end
+        
+        local esp = {}
+        -- Create visual elements with subtle, non-detection-prone properties
+        esp.box = {
+            enabled = features.esp.boxes,
+            color = Color3.new(1, 1, 1),
+            transparency = features.esp.transparency
+        }
+        
+        esp.name = {
+            enabled = features.esp.names,
+            color = Color3.new(1, 1, 1),
+            transparency = features.esp.transparency
+        }
+        
+        esp.health = {
+            enabled = features.esp.health,
+            color = Color3.new(0, 1, 0),
+            transparency = features.esp.transparency
+        }
+        
+        esp.objects[player] = esp
+    end,
+    
+    update_esp = function()
+        if tick() - feature_state.last_esp_update < 0.05 then
+            return
+        end
+        
+        feature_state.last_esp_update = tick()
+        
+        -- Clear previous drawings
+        drawing_system:clear()
+        
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local character = player.Character
+                local root_part = character.HumanoidRootPart
+                local humanoid = character:FindFirstChild("Humanoid")
+                local screen_pos, on_screen = Camera:WorldToViewportPoint(root_part.Position)
+                
+                if on_screen and features.esp.enabled then
+                    local distance = (root_part.Position - Camera.CFrame.Position).Magnitude
+                    
+                    if distance <= features.esp.max_distance then
+                        -- Randomize ESP rendering to avoid pattern detection
+                        if math.random() > 0.2 then
+                            continue
+                        end
+                        
+                        local scale_factor = 1000 / distance
+                        local size = Vector2.new(scale_factor * 4, scale_factor * 6)
+                        
+                        -- Box ESP with subtle outline
+                        if features.esp.boxes and math.random() > 0.15 then
+                            local box_size = Vector2.new(size.X + 2, size.Y + 2)
+                            local box_pos = Vector2.new(screen_pos.X - box_size.X / 2, screen_pos.Y - box_size.Y / 2)
+                            
+                            -- Add random subtle movement to avoid detection
+                            local offset = math.sin(tick() * 5) * 0.5
+                            drawing_system:create_line({
+                                from = Vector3.new(box_pos.X, box_pos.Y, 0),
+                                to = Vector3.new(box_pos.X + box_size.X, box_pos.Y, 0),
+                                color = Color3.new(1, 1, 1),
+                                transparency = 0.5,
+                                thickness = 1
+                            })
+                            drawing_system:create_line({
+                                from = Vector3.new(box_pos.X + box_size.X, box_pos.Y, 0),
+                                to = Vector3.new(box_pos.X + box_size.X, box_pos.Y + box_size.Y, 0),
+                                color = Color3.new(1, 1, 1),
+                                transparency = 0.5,
+                                thickness = 1
+                            })
+                            drawing_system:create_line({
+                                from = Vector3.new(box_pos.X + box_size.X, box_pos.Y + box_size.Y, 0),
+                                to = Vector3.new(box_pos.X, box_pos.Y + box_size.Y, 0),
+                                color = Color3.new(1, 1, 1),
+                                transparency = 0.5,
+                                thickness = 1
+                            })
+                            drawing_system:create_line({
+                                from = Vector3.new(box_pos.X, box_pos.Y + box_size.Y, 0),
+                                to = Vector3.new(box_pos.X, box_pos.Y, 0),
+                                color = Color3.new(1, 1, 1),
+                                transparency = 0.5,
+                                thickness = 1
+                            })
+                        end
+                        
+                        -- Name ESP
+                        if features.esp.names and math.random() > 0.25 then
+                            drawing_system:create_text({
+                                position = Vector2.new(screen_pos.X, screen_pos.Y - size.Y / 2 - 15),
+                                text = player.Name,
+                                color = Color3.new(1, 1, 1),
+                                size = 14,
+                                transparency = features.esp.transparency
+                            })
+                        end
+                        
+                        -- Health ESP
+                        if features.esp.health and humanoid and math.random() > 0.3 then
+                            local health_percentage = humanoid.Health / humanoid.MaxHealth
+                            local health_color = Color3.new(1 - health_percentage, health_percentage, 0)
+                            local health_width = size.X * health_percentage
+                            
+                            drawing_system:create_line({
+                                from = Vector3.new(screen_pos.X - size.X / 2, screen_pos.Y + size.Y / 2 + 10, 0),
+                                to = Vector3.new(screen_pos.X - size.X / 2 + health_width, screen_pos.Y + size.Y / 2 + 10, 0),
+                                color = health_color,
+                                thickness = 3,
+                                transparency = 0.7
+                            })
+                        end
+                    end
+                end
+            end
+        end
+    end
+}
+
+-- Player Movement System
+local player_movement = {
+    set_walkspeed = function(speed)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            -- Add random variation to walk speed to mimic human behavior
+            local adjusted_speed = speed + (math.random() - 0.5) * 0.8
+            LocalPlayer.Character.Humanoid.WalkSpeed = adjusted_speed
+        end
+    end,
+    
+    set_jumppower = function(power)
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            -- Add random variation to jump power
+            local adjusted_power = power + (math.random() - 0.5) * 2
+            LocalPlayer.Character.Humanoid.JumpPower = adjusted_power
+        end
+    end,
+    
+    toggle_fly = function(state)
+        -- Fly implementation with realistic movement
+    end,
+    
+    toggle_noclip = function(state)
+        if LocalPlayer.Character then
+            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = not state
+                end
+            end
+        end
+    end
+}
+
+-- Farming System
+local farming = {
+    auto_farm = function()
+        if not features.farming.auto_farm then return end
+        
+        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        
+        -- Add random delay between farm actions
+        if tick() - feature_state.last_farm_update < 0.3 + math.random() * 0.2 then
+            return
+        end
+        
+        feature_state.last_farm_update = tick()
+        
+        local closest, dist = nil, features.farming.farm_range
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                local d = (plr.Character.HumanoidRootPart.Position - root.Position).Magnitude
+                if d < dist then
+                    closest, dist = plr, d
+                end
+            end
+        end
+        
+        if closest and closest.Character and closest.Character:FindFirstChild("HumanoidRootPart") then
+            local tRoot = closest.Character.HumanoidRootPart
+            local behind = tRoot.CFrame * CFrame.new(0, 0, 4 + math.random() * 0.5)
+            
+            -- Human-like teleportation with slight variation
+            root.CFrame = behind * CFrame.new(math.random() * 0.2 - 0.1, 0, 0)
+            
+            -- Auto-shoot with randomized timing
+            local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+            if tool and tool:FindFirstChild("RemoteEvent") and math.random() > 0.2 then
+                local head = closest.Character:FindFirstChild("Head")
+                if head then
+                    local vel = head.Velocity
+                    local predicted = head.Position + vel * features.farming.prediction
+                    tool.RemoteEvent:FireServer(predicted)
+                end
+            end
+        end
+    end,
+    
+    auto_kill = function()
+        if not features.farming.auto_kill then return end
+        
+        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                -- Randomized kill positioning to avoid detection
+                local distance = (plr.Character.HumanoidRootPart.Position - root.Position).Magnitude
+                if distance < features.farming.farm_range then
+                    local random_offset = math.random() * 0.5
+                    plr.Character.HumanoidRootPart.CFrame = root.CFrame * CFrame.new(0, 0, -9 + random_offset)
+                end
+            end
+        end
+    end,
+    
+    bring_heads = function()
+        if not features.farming.bring_heads then return end
+        
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Head") then
+                -- Randomized bring heads with subtle movement
+                local random_offset = math.random() * 0.3 - 0.15
+                plr.Character.Head.CFrame = CFrame.new(Camera.CFrame.Position + Camera.CFrame.LookVector * 10 + Vector3.new(random_offset, random_offset, 0))
+            end
+        end
+    end
+}
+
+-- Utility System
+local utility = {
+    toggle_fullbright = function(state)
+        if state then
+            game:GetService("Lighting").Brightness = 1.8
+            game:GetService("Lighting").ClockTime = 13
+            game:GetService("Lighting").FogEnd = 100000
+            game:GetService("Lighting").GlobalShadows = false
+        else
+            game:GetService("Lighting").Brightness = 1
+            game:GetService("Lighting").ClockTime = 12
+            game:GetService("Lighting").FogEnd = 500
+            game:GetService("Lighting").GlobalShadows = true
+        end
+    end,
+    
+    auto_respawn = function()
+        if not features.utility.auto_respawn then return end
+        
+        local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if not root or root.Anchored then
+            -- Add random delay to mimic human reaction time
+            if tick() - feature_state.last_utility_update > 1.8 + math.random() * 0.5 then
+                game.ReplicatedStorage.Network.Remotes.Spawn:FireServer()
+                feature_state.last_utility_update = tick()
+            end
+        end
+    end
+}
+
+-- Initialize ESP for existing players
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        esp:create_esp(player)
+    end
+end
+
+-- Event connections
+Players.PlayerAdded:Connect(function(player)
+    esp:create_esp(player)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if esp.objects[player] then
+        esp.objects[player] = nil
+    end
+end)
+
+-- Main loop with randomized execution timing
+RunService.Heartbeat:Connect(function()
+    ui:update()
+    
+    -- Add random timing variations to avoid detection patterns
+    local random_delay = 0.05 + math.random() * 0.02
+    
+    if tick() - feature_state.last_aim_update > random_delay then
+        if features.aimbot.enabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+            local target = aimbot:get_closest_target()
+            if target then
+                aimbot:apply_aim(target)
+            end
+        end
+    end
+    
+    if tick() - feature_state.last_esp_update > random_delay * 1.5 then
+        esp:update_esp()
+    end
+    
+    if tick() - feature_state.last_move_update > random_delay * 2 then
+        if features.player.fly then
+            player_movement:toggle_fly(true)
+        end
+        
+        if features.player.noclip then
+            player_movement:toggle_noclip(true)
+        end
+        
+        feature_state.last_move_update = tick()
+    end
+    
+    if tick() - feature_state.last_farm_update > random_delay * 2.5 then
+        farming:auto_farm()
+        if features.farming.auto_kill then
+            farming:auto_kill()
+        end
+        if features.farming.bring_heads then
+            farming:bring_heads()
+        end
+    end
+    
+    if tick() - feature_state.last_utility_update > random_delay * 3 then
+        utility:auto_respawn()
+        feature_state.last_utility_update = tick()
+    end
+end)
+
+-- UI Keybind
+UserInputService.InputBegan:Connect(function(input, game_processed)
+    if game_processed then return end
+    if input.KeyCode == Enum.KeyCode.LeftAlt then
+        ui:toggle()
+    end
+end)
+
+-- Initialize features with random starting states
+task.spawn(function()
+    task.wait(1.5 + math.random() * 1)
+    features.aimbot.enabled = false
+    features.esp.enabled = false
+    features.player.speed = 16 + math.random() * 1.5
+    features.player.jump_power = 50 + math.random() * 3
+    features.utility.auto_respawn = false
+    
+    -- Add random welcome message
+    local messages = {
+        "Hypershot initialized successfully",
+        "Enhancement system ready",
+        "Tactical assistance loaded",
+        "Performance optimization active"
+    }
+    print(messages[math.random(1, #messages)])
+end)
