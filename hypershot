@@ -1,52 +1,129 @@
--- SOULS HUB - Ultimate Hypershot Script
+-- SOULS HUB - Ultimate Hypershot Script (Fixed Version)
 -- Copyright (c) 2023, SOULS HUB Development Team
 
-local success, SoulsHub = pcall(function()
-    return loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
+-- Fallback system for UI libraries
+local function tryLoadLibrary(loaderFunction)
+    local success, result = pcall(loaderFunction)
+    if success and result then
+        return result
+    end
+    return nil
+end
+
+-- Try to load the primary UI library first (Souls Hub)
+local SoulsHub = tryLoadLibrary(function()
+    return loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a", true))()
 end)
 
-if not success or not SoulsHub then
-    -- Fallback to WindUI if SoulsHub fails to load
-    local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
-    WindUI:Notify({
-        Title = "SOULS HUB",
-        Content = "Using WindUI as fallback. Please contact developer if you see this.",
-        Icon = "alert",
-        Duration = 5
-    })
-    
-    -- Create a mock SoulsHub object to prevent crashes
-    SoulsHub = {
-        new = function(config)
+-- Fallback to WindUI if SoulsHub fails
+if not SoulsHub then
+    SoulsHub = tryLoadLibrary(function()
+        local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua", true))()
+        if WindUI then
             return {
-                Draw = function() end,
-                DrawTab = function() return {DrawSection = function() return {AddToggle = function() return {Link = {AddOption = function() return {} end}} end} end} end,
-                DrawWatermark = function() return {AddText = function() end} end,
-                ConfigManager = function() return {Init = function() end} end
+                new = function(config)
+                    config = config or {}
+                    local theme = config.Theme or "Dark"
+                    local window = WindUI:CreateWindow({
+                        Title = "SOULS HUB",
+                        Icon = "target",
+                        Author = "Hypershot Script",
+                        Folder = "SoulsHub_Hypershot",
+                        Size = UDim2.fromOffset(700, 600),
+                        Theme = theme,
+                        User = {
+                            Enabled = true,
+                            Anonymous = true
+                        },
+                        SideBarWidth = 220
+                    })
+                    
+                    -- Create a mock Watermark implementation
+                    local watermark = {
+                        AddText = function(self, options)
+                            local title = options.Title or options.Text or "Watermark"
+                            window:Tag({Title = title, Color = Color3.fromRGB(50, 205, 50)})
+                            return {
+                                SetText = function(text)
+                                    -- This is a mock implementation
+                                end
+                            }
+                        end
+                    }
+                    
+                    -- Create a mock ConfigManager
+                    local configManager = {
+                        Init = function() end
+                    }
+                    
+                    return {
+                        Window = window,
+                        Watermark = function() return watermark end,
+                        ConfigManager = function() return configManager end,
+                        Loader = function() return {yield = function() end} end,
+                        GetTimeNow = function() return os.date("%H:%M") end,
+                        GetDate = function(timestamp) return os.date("%m/%d/%Y", timestamp) end,
+                        Colors = {Highlight = Color3.fromRGB(255, 0, 0)},
+                        ChangeHighlightColor = function() end,
+                        Draw = function() end
+                    }
+                end
             }
-        end,
-        Loader = function() return {yield = function() end} end,
-        GetTimeNow = function() return "00:00" end,
-        GetDate = function() return "01/01/2023" end,
-        Colors = {Highlight = Color3.fromRGB(255, 0, 0)},
-        ChangeHighlightColor = function() end
+        end
+        return nil
+    end)
+end)
+
+-- Final fallback to a minimal implementation if all libraries fail
+if not SoulsHub then
+    SoulsHub = {
+        new = function()
+            return {
+                Window = {
+                    Draw = function() end
+                },
+                Watermark = function() 
+                    return {
+                        AddText = function() end,
+                        AddText = function() end
+                    }
+                end,
+                ConfigManager = function() return {Init = function() end} end,
+                Loader = function() return {yield = function() end} end,
+                GetTimeNow = function() return "00:00" end,
+                GetDate = function() return "01/01/2023" end,
+                Colors = {Highlight = Color3.fromRGB(255, 0, 0)},
+                ChangeHighlightColor = function() end
+            }
+        end
     }
 end
 
 -- Core Initialization
-SoulsHub:Loader(nil, 1).yield()
+local success, loaderResult = pcall(function()
+    return SoulsHub:Loader(nil, 1)
+end)
 
+if success and loaderResult then
+    loaderResult:yield()
+else
+    warn("Loader failed, continuing with fallback implementation")
+end
+
+-- Configuration System
 local FileWatcher = SoulsHub:ConfigManager({
     Directory = "SoulsHub",
     Config = "Hypershot-Configs"
 })
 
+-- Main Window
 local Window = SoulsHub.new({
     Keybind = "LeftAlt",
 })
 
 -- Watermark
 local watermark = Window:Watermark()
+
 watermark:AddText({
     Icon = "user",
     Text = "SOULS HUB"
@@ -73,6 +150,15 @@ watermark:AddText({
     Text = "Hypershot"
 })
 
+-- Config Tab
+local Configs = Window:DrawConfig({
+    Name = "Configurations",
+    Icon = "folder",
+    Config = FileWatcher
+})
+
+Configs:Init()
+
 -- Core Services
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -83,7 +169,7 @@ local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 local Mouse = LocalPlayer:GetMouse()
 
--- Settings
+-- Settings with default values
 local Settings = {
     Aimbot = {
         Enabled = false,
@@ -178,6 +264,13 @@ local Settings = {
         AutoScope = true,
         AimAssist = true,
         AimAssistAmount = 0.3
+    },
+    Auto = {
+        Respawn = false,
+        Kill = false,
+        Farm = false,
+        GodMode = true,
+        FarmRange = 200
     }
 }
 
@@ -279,8 +372,6 @@ local function updateTargetCache()
     local localPlayerModel = LocalPlayer.Character
     if not localPlayerModel then return end
     
-    local localPlayerID = localPlayerModel:GetAttribute("ID") or localPlayerModel.Name
-    
     -- Cache all players
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character then
@@ -310,7 +401,7 @@ local function updateTargetCache()
         end
     end
     
-    -- Cache NPCs (if any)
+    -- Cache NPCs if any exist
     local mobsFolder = Workspace:FindFirstChild("Mobs")
     if mobsFolder then
         for _, npc in ipairs(mobsFolder:GetChildren()) do
@@ -517,12 +608,11 @@ local function draw3DBox(targetData)
                     local p1 = screenCorners[edge[1]]
                     local p2 = screenCorners[edge[2]]
                     if p1 and p2 then
-                        local thickness = Settings.ESP.SkeletonThickness + i
                         Drawing.new("Line").Draw({
                             From = p1,
                             To = p2,
                             Color = Color3.fromRGB(gr, gg, gb),
-                            Thickness = thickness,
+                            Thickness = Settings.ESP.SkeletonThickness + i,
                             Transparency = alpha
                         })
                     end
@@ -751,7 +841,7 @@ local function updateESP()
                     esp.Box.Visible = false
                     esp.Skeleton.Head.Visible = false
                     
-                    if Settings.ESP.Boxes and screenPos then
+                    if Settings.ESP.Boxes then
                         local headPos = targetData.Limbs["Head"] and targetData.Limbs["Head"].Position
                         if headPos then
                             local headScreenPos, headOnScreen = Camera:WorldToViewportPoint(headPos)
@@ -861,6 +951,97 @@ local function toggleFly(enabled)
     end
 end
 
+-- Auto-Respawn and Auto-Kill functions from message(6).txt
+local SavedPositions = {AutoRe = nil}
+local Connections = {Died = nil, CharacterAdded = nil}
+
+local function SaveCamPos()
+    local success, pos = pcall(function()
+        return Camera.CFrame
+    end)
+    if success then
+        SavedPositions.OldCameraPos = pos
+    end
+end
+
+local function LoadCamPos()
+    if SavedPositions.OldCameraPos then
+        local success = pcall(function()
+            Camera.CFrame = SavedPositions.OldCameraPos
+        end)
+        if not success then
+            warn("Failed to load camera position")
+        end
+    end
+end
+
+local function onDiedEvent()
+    pcall(function()
+        Connections.Died:Disconnect()
+        SaveCamPos()
+        SavedPositions.AutoRe = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.CFrame
+        if Settings.Auto.Respawn then
+            task.spawn(function()
+                task.wait(0.2)
+                game:GetService("ReplicatedStorage").Network.Remotes.Spawn:FireServer()
+            end)
+        end
+    end)
+end
+
+local function onCharacterAdded()
+    pcall(function()
+        Connections.Died:Disconnect()
+        local LHuman = LocalPlayer.Character:WaitForChild("Humanoid", 1)
+        if LHuman then
+            Connections.Died = LHuman.Died:Connect(onDiedEvent)
+        end
+        
+        if SavedPositions.AutoRe and Settings.Auto.Respawn then
+            local LRoot = LocalPlayer.Character:WaitForChild("HumanoidRootPart", 1)
+            if LRoot then
+                LRoot.CFrame = SavedPositions.AutoRe
+                LoadCamPos()
+                LRoot.CFrame = SavedPositions.AutoRe
+                task.spawn(function()
+                    for i = 1, 4 do
+                        task.wait()
+                        LRoot.CFrame = SavedPositions.AutoRe
+                    end
+                end)
+            end
+        end
+        
+        LocalPlayer.Character:WaitForChild("Humanoid", 1):SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+        LocalPlayer.Character:WaitForChild("Humanoid", 1):SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+    end)
+end
+
+-- Auto-Kill implementation from message(6).txt
+local function autoKillTask()
+    pcall(function()
+        if Settings.Auto.Kill then
+            if LocalPlayer.Character and LocalPlayer.Character:GetAttribute("Team") == 1 then
+                for _, v in ipairs(Workspace:GetChildren()) do
+                    if v:IsA("Model") and v ~= LocalPlayer.Character then
+                        if v:GetAttribute("Team") == 2 then
+                            v.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -9)
+                        end
+                    end
+                end
+            elseif LocalPlayer.Character and LocalPlayer.Character:GetAttribute("Team") == 2 then
+                for _, v in ipairs(Workspace:GetChildren()) do
+                    if v:IsA("Model") and v ~= LocalPlayer.Character then
+                        if v:GetAttribute("Team") == 1 then
+                            v.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -9)
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end
+
 -- Anti-Aim Function
 local antiAimConnection
 local function toggleAntiAim(enabled)
@@ -928,6 +1109,46 @@ oldNamecall = hookmetamethod(game, "__namecall", function(...)
     return oldNamecall(...)
 end)
 
+-- Auto-Farm Implementation
+local lastTarget = nil
+local function getFarmTarget()
+    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    local closest, dist = nil, Settings.Auto.FarmRange
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local d = (plr.Character.HumanoidRootPart.Position - root.Position).Magnitude
+            if d < dist then
+                closest, dist = plr, d
+            end
+        end
+    end
+    return closest
+end
+
+-- God-Mode (invisible + undamageable)
+local function setGodMode(state)
+    if not LocalPlayer.Character then return end
+    
+    for _, v in ipairs(LocalPlayer.Character:GetDescendants()) do
+        if v:IsA("BasePart") then
+            pcall(function()
+                v.CanCollide = not state
+                v.LocalTransparencyModifier = state and 1 or 0
+                if state then v.Transparency = 1 end
+            end)
+        end
+    end
+    
+    local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if hum then
+        pcall(function()
+            hum:SetStateEnabled(Enum.HumanoidStateType.Dead, not state)
+        end)
+    end
+end
+
 -- Main UI
 local Combat = Window:DrawTab({
     Icon = "crosshair",
@@ -943,6 +1164,11 @@ local Visuals = Window:DrawTab({
 local Movement = Window:DrawTab({
     Icon = "run",
     Name = "Movement"
+})
+
+local Auto = Window:DrawTab({
+    Icon = "autorenew",
+    Name = "Auto"
 })
 
 local Misc = Window:DrawTab({
@@ -1550,6 +1776,72 @@ do
     })
 end
 
+-- Auto Tab
+do
+    local general = Auto:DrawSection({
+        Name = "General",
+        Position = "LEFT"
+    })
+    
+    local advanced = Auto:DrawSection({
+        Name = "Advanced",
+        Position = "RIGHT"
+    })
+    
+    -- General Settings
+    general:AddToggle({
+        Name = "Auto Respawn",
+        Flag = "auto_respawn",
+        Default = Settings.Auto.Respawn,
+        Callback = function(state)
+            Settings.Auto.Respawn = state
+        end
+    })
+    
+    general:AddToggle({
+        Name = "Auto Kill",
+        Flag = "auto_kill",
+        Default = Settings.Auto.Kill,
+        Callback = function(state)
+            Settings.Auto.Kill = state
+        end
+    })
+    
+    general:AddToggle({
+        Name = "Auto Farm",
+        Flag = "auto_farm",
+        Default = Settings.Auto.Farm,
+        Callback = function(state)
+            Settings.Auto.Farm = state
+        end
+    })
+    
+    general:AddToggle({
+        Name = "God Mode on Farm",
+        Flag = "god_mode_farm",
+        Default = Settings.Auto.GodMode,
+        Callback = function(state)
+            Settings.Auto.GodMode = state
+        end
+    })
+    
+    general:AddSlider({
+        Name = "Farm Range",
+        Min = 50,
+        Max = 500,
+        Default = Settings.Auto.FarmRange,
+        Flag = "farm_range",
+        Callback = function(value)
+            Settings.Auto.FarmRange = value
+        end
+    })
+    
+    general:AddParagraph({
+        Title = "Auto Information",
+        Content = "Automate game mechanics to give\nyou an advantage in combat.\nUse responsibly to avoid detection."
+    })
+end
+
 -- Misc Tab
 do
     local general = Misc:DrawSection({
@@ -1913,6 +2205,56 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
+-- Auto-Respawn and Auto-Kill implementation
+Connections.CharacterAdded = LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
+if LocalPlayer.Character then
+    onCharacterAdded()
+end
+
+-- Auto-Farm implementation
+RunService.Heartbeat:Connect(function()
+    if Settings.Auto.Farm then
+        local target = getFarmTarget()
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local tRoot = target.Character.HumanoidRootPart
+            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                if Settings.Auto.GodMode then 
+                    setGodMode(true) 
+                end
+                
+                -- Teleport behind
+                local behind = tRoot.CFrame * CFrame.new(0, 0, -4)
+                root.CFrame = behind
+                
+                -- Auto-shoot
+                local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+                if tool and tool:FindFirstChild("RemoteEvent") then
+                    local head = target.Character:FindFirstChild("Head")
+                    if head then
+                        local vel = head.Velocity
+                        local predicted = head.Position + vel * Settings.Advanced.PredictionAmount
+                        tool.RemoteEvent:FireServer(predicted)
+                    end
+                end
+            end
+        end
+    else
+        if Settings.Auto.GodMode and lastTarget then
+            setGodMode(false)
+            lastTarget = nil
+        end
+    end
+end)
+
+-- Auto-Kill implementation
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        autoKillTask()
+    end
+end)
+
 -- Player Events
 Players.PlayerAdded:Connect(function(player)
     createESP(player)
@@ -1923,10 +2265,10 @@ Players.PlayerRemoving:Connect(function(player)
         for _, drawing in pairs(ESPObjects[player]) do
             if typeof(drawing) == "table" then
                 for _, d in ipairs(drawing) do
-                    d:Remove()
+                    pcall(function() d:Remove() end)
                 end
             else
-                drawing:Remove()
+                pcall(function() drawing:Remove() end)
             end
         end
         ESPObjects[player] = nil
@@ -1941,4 +2283,6 @@ for _, player in ipairs(Players:GetPlayers()) do
 end
 
 -- Final Step - Draw the UI
-Window:Draw()
+pcall(function()
+    Window:Draw()
+end)
