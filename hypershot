@@ -1,131 +1,624 @@
--- SOULS HUB - Hypershot Script (Fixed Version)
--- Copyright (c) 2023, SOULS HUB Development Team
+-- SOULS HUB - Hypershot Advanced Script
+-- Comprehensive automation suite with optimized UI and features
+local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))();
 
--- Load Souls Hub UI Library
-local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
+task.wait(1)
 
-if not SoulsHub then
-    error("Failed to load Souls Hub UI library. Please check your internet connection.")
-end
+SoulsHub:Loader(nil, 1).yield()
 
--- Create the main window
+local FileWatcher = SoulsHub:ConfigManager({
+    Directory = "SoulsHub",
+    Config = "HypershotConfigs"
+});
+
 local Window = SoulsHub.new({
     Keybind = "LeftAlt",
+});
+
+local watermark = Window:Watermark();
+
+watermark:AddText({
+    Icon = "user",
+    Text = "SOULS HUB"
 })
 
--- Core Services
+local vim = watermark:AddText({
+    Icon = "clock",
+    Text = SoulsHub:GetTimeNow()
+})
+
+task.spawn(function()
+    while true do
+        task.wait()
+        vim:SetText(SoulsHub:GetTimeNow())
+        Window.Username = "SOULS HUB"
+    end
+end)
+
+Window:Update({
+    ExpireDate = SoulsHub:GetDate(tick() + 2592000) -- 30 days expiration
+})
+
+watermark:AddText({
+    Icon = "server",
+    Text = "v2.1.0"
+})
+
+-- Global state manager
+local FeatureState = {
+    AimbotEnabled = false,
+    SilentAim = true,
+    TargetTeam = true,
+    TargetNPCs = true,
+    WallCheck = true,
+    VisibleCheck = true,
+    FOVSize = 100,
+    FOVVisible = true,
+    TargetPart = "Head",
+    Smoothness = 3,
+    
+    ESPEnabled = false,
+    ESPMode = "3D Box",
+    BoxEnabled = true,
+    NameEnabled = true,
+    HealthEnabled = true,
+    DistanceEnabled = true,
+    MaxDistance = 1000,
+    ESPColor = Color3.fromRGB(255, 255, 255),
+    ESPThickness = 2,
+    GlowEnabled = false,
+    GlowColor = Color3.fromRGB(0, 150, 255),
+    GlowSize = 5,
+    BoxWidth = 2.8,
+    BoxHeight = 6,
+    
+    WalkSpeed = 16,
+    JumpPower = 50,
+    FlyEnabled = false,
+    NoclipEnabled = false,
+    
+    FullBright = false,
+    AutoFarm = false,
+    FarmRange = 200,
+    GodMode = true,
+    AutoKill = false,
+    AutoRespawn = false,
+    BringHeads = false,
+    Prediction = 0.15,
+    RapidFire = false
+}
+
+-- Initialize global states
+_G.FeatureState = FeatureState
+
+-- Services
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
 
--- Settings
-local Settings = {
-    Aimbot = {
-        Enabled = false,
-        FOV = 120,
-        Smoothness = 4,
-        TargetPart = "Head",
-        WallCheck = true,
-        TeamCheck = true,
-        VisibleCheck = true,
-        ShowFOV = true,
-        AutoShoot = false,
-        StickyAim = false,
-        Prediction = 0.15,
-        Hitboxes = {"Head"},
-        Multipoint = true,
-        MultipointScale = 0.75,
-        MinDamage = 25,
-        EnableHitchance = true,
-        Hitchance = 85,
-        AutoPistol = false,
-        AutoWallbang = false,
-        NoRecoil = false,
-        NoSpread = false
-    },
-    ESP = {
-        Enabled = false,
-        Boxes = true,
-        Names = true,
-        Health = true,
-        Distance = true,
-        Tracers = true,
-        MaxDistance = 1000,
-        TeamColor = Color3.fromRGB(0, 255, 0),
-        EnemyColor = Color3.fromRGB(255, 0, 0),
-        VisibleOnly = true,
-        Chams = true,
-        ChamsVisibleColor = Color3.fromRGB(0, 255, 255),
-        ChamsInvisibleColor = Color3.fromRGB(255, 165, 0),
-        ChamsTransparency = 0.7,
-        Outline = true,
-        Glow = true,
-        GlowColor = Color3.fromRGB(255, 255, 0),
-        GlowSize = 5,
-        BoxWidth = 2.8,
-        BoxHeight = 6.0,
-        Mode = "3D Box",
-        SkeletonThickness = 2.0,
-        HealthBarPosition = "Left"
-    },
-    Player = {
-        Speed = 16,
-        JumpPower = 50,
-        Fly = false,
-        NoClip = false,
-        AutoBunnyHop = true,
-        BunnyHopChance = 95,
-        AutoSprint = false,
-        SprintSpeed = 35,
-        AutoCrouch = false,
-        CrouchSpeed = 8
-    },
-    Misc = {
-        FullBright = false,
-        AntiAim = true,
-        AntiAimAngle = 180,
-        Radar = true,
-        TriggerBot = false,
-        AutoReload = true,
-        AutoAimAssist = true,
-        AimAssistStrength = 0.2,
-        NoFlash = true,
-        ThirdPerson = false,
-        FOVChanger = false,
-        FOVAmount = 90,
-        BhopKey = Enum.KeyCode.Space,
-        AutoStrafe = false,
-        CircleStrafe = false,
-        CircleRadius = 100
-    },
-    Advanced = {
-        PredictionEnabled = true,
-        PredictionAmount = 0.15,
-        VelocityCompensation = true,
-        BulletDropCompensation = true,
-        AdvancedWallCheck = true,
-        VisibleCheckMethod = "Raycast",
-        TargetPriority = "Closest",
-        TargetFilter = "Visible",
-        MaxTargets = 5,
-        SmartAim = true,
-        AimWhenShooting = true,
-        AutoScope = true,
-        AimAssist = true,
-        AimAssistAmount = 0.3
-    },
-    Auto = {
-        Respawn = false,
-        Kill = false,
-        Farm = false,
-        GodMode = true,
-        FarmRange = 200
-    }
-}
+-- Create UI structure
+local Combat = Window:DrawTab({
+    Icon = "crosshair",
+    Name = "Combat",
+    Type = "Double"
+});
+
+local Visuals = Window:DrawTab({
+    Icon = "eye",
+    Name = "Visuals",
+    Type = "Double"
+});
+
+local Movement = Window:DrawTab({
+    Icon = "run",
+    Name = "Movement",
+    Type = "Single"
+});
+
+local Farming = Window:DrawTab({
+    Icon = "speed",
+    Name = "Farming",
+    Type = "Single"
+});
+
+local Utility = Window:DrawTab({
+    Icon = "settings",
+    Name = "Utility",
+    Type = "Single"
+});
+
+-- Combat Tab Implementation
+local combatMain = Combat:DrawSection({
+    Name = "Aimbot",
+    Position = "LEFT"
+});
+
+local combatOptions = Combat:DrawSection({
+    Name = "Options",
+    Position = "RIGHT"
+});
+
+-- Aimbot main features
+local aimbotToggle = combatMain:AddToggle({
+    Name = "Aimbot Enabled",
+    Default = FeatureState.AimbotEnabled,
+    Callback = function(state)
+        FeatureState.AimbotEnabled = state
+    end
+});
+
+aimbotToggle.Link:AddHelper({
+    Text = "Enable aim assistance for better targeting"
+});
+
+combatMain:AddToggle({
+    Name = "Silent Aim",
+    Default = FeatureState.SilentAim,
+    Callback = function(state)
+        FeatureState.SilentAim = state
+    end
+});
+
+combatMain:AddSlider({
+    Name = "FOV Size",
+    Min = 50,
+    Max = 300,
+    Default = FeatureState.FOVSize,
+    Round = 0,
+    Type = "studs",
+    Callback = function(value)
+        FeatureState.FOVSize = value
+    end
+});
+
+combatMain:AddToggle({
+    Name = "Show FOV Circle",
+    Default = FeatureState.FOVVisible,
+    Callback = function(state)
+        FeatureState.FOVVisible = state
+    end
+});
+
+combatMain:AddDropdown({
+    Name = "Target Part",
+    Values = {"Head", "HumanoidRootPart", "UpperTorso"},
+    Default = FeatureState.TargetPart,
+    Callback = function(value)
+        FeatureState.TargetPart = value
+    end
+});
+
+combatMain:AddSlider({
+    Name = "Smoothness",
+    Min = 1,
+    Max = 10,
+    Default = FeatureState.Smoothness,
+    Round = 1,
+    Type = "x",
+    Callback = function(value)
+        FeatureState.Smoothness = value
+    end
+});
+
+-- Aimbot options
+combatOptions:AddToggle({
+    Name = "Team Check",
+    Default = FeatureState.TargetTeam,
+    Callback = function(state)
+        FeatureState.TargetTeam = state
+    end
+});
+
+combatOptions:AddToggle({
+    Name = "NPC Check",
+    Default = FeatureState.TargetNPCs,
+    Callback = function(state)
+        FeatureState.TargetNPCs = state
+    end
+});
+
+combatOptions:AddToggle({
+    Name = "Wall Check",
+    Default = FeatureState.WallCheck,
+    Callback = function(state)
+        FeatureState.WallCheck = state
+    end
+});
+
+combatOptions:AddToggle({
+    Name = "Visible Check",
+    Default = FeatureState.VisibleCheck,
+    Callback = function(state)
+        FeatureState.VisibleCheck = state
+    end
+});
+
+combatOptions:AddSlider({
+    Name = "Prediction",
+    Min = 0,
+    Max = 0.5,
+    Default = FeatureState.Prediction,
+    Round = 2,
+    Type = "sec",
+    Callback = function(value)
+        FeatureState.Prediction = value
+    end
+});
+
+combatOptions:AddToggle({
+    Name = "Rapid Fire",
+    Default = FeatureState.RapidFire,
+    Callback = function(state)
+        FeatureState.RapidFire = state
+    end
+});
+
+-- Visuals Tab Implementation
+local visualsMain = Visuals:DrawSection({
+    Name = "ESP",
+    Position = "LEFT"
+});
+
+local visualsOptions = Visuals:DrawSection({
+    Name = "Settings",
+    Position = "RIGHT"
+});
+
+-- ESP main features
+local espToggle = visualsMain:AddToggle({
+    Name = "ESP Enabled",
+    Default = FeatureState.ESPEnabled,
+    Callback = function(state)
+        FeatureState.ESPEnabled = state
+    end
+});
+
+espToggle.Link:AddHelper({
+    Text = "Show player and NPC information on screen"
+});
+
+visualsMain:AddDropdown({
+    Name = "ESP Mode",
+    Values = {"Dot", "Skeleton", "3D Box"},
+    Default = FeatureState.ESPMode,
+    Callback = function(value)
+        FeatureState.ESPMode = value
+    end
+});
+
+visualsMain:AddToggle({
+    Name = "Show Boxes",
+    Default = FeatureState.BoxEnabled,
+    Callback = function(state)
+        FeatureState.BoxEnabled = state
+    end
+});
+
+visualsMain:AddToggle({
+    Name = "Show Names",
+    Default = FeatureState.NameEnabled,
+    Callback = function(state)
+        FeatureState.NameEnabled = state
+    end
+});
+
+visualsMain:AddToggle({
+    Name = "Show Health",
+    Default = FeatureState.HealthEnabled,
+    Callback = function(state)
+        FeatureState.HealthEnabled = state
+    end
+});
+
+visualsMain:AddToggle({
+    Name = "Show Distance",
+    Default = FeatureState.DistanceEnabled,
+    Callback = function(state)
+        FeatureState.DistanceEnabled = state
+    end
+});
+
+-- ESP settings
+visualsOptions:AddColorPicker({
+    Name = "ESP Color",
+    Default = FeatureState.ESPColor,
+    Callback = function(color)
+        FeatureState.ESPColor = color
+    end
+});
+
+visualsOptions:AddSlider({
+    Name = "Max Distance",
+    Min = 100,
+    Max = 2000,
+    Default = FeatureState.MaxDistance,
+    Round = 0,
+    Type = "studs",
+    Callback = function(value)
+        FeatureState.MaxDistance = value
+    end
+});
+
+visualsOptions:AddSlider({
+    Name = "Thickness",
+    Min = 1,
+    Max = 5,
+    Default = FeatureState.ESPThickness,
+    Round = 1,
+    Type = "px",
+    Callback = function(value)
+        FeatureState.ESPThickness = value
+    end
+});
+
+-- 3D Box specific settings
+local boxOptions = visualsOptions:AddToggle({
+    Name = "3D Box Settings",
+    Default = false,
+    Callback = function(state)
+        -- Just a category toggle
+    end
+}).Link:AddOption();
+
+boxOptions:AddSlider({
+    Name = "Box Width",
+    Min = 1,
+    Max = 10,
+    Default = FeatureState.BoxWidth,
+    Round = 1,
+    Type = "x",
+    Callback = function(value)
+        FeatureState.BoxWidth = value
+    end
+});
+
+boxOptions:AddSlider({
+    Name = "Box Height",
+    Min = 1,
+    Max = 15,
+    Default = FeatureState.BoxHeight,
+    Round = 1,
+    Type = "x",
+    Callback = function(value)
+        FeatureState.BoxHeight = value
+    end
+});
+
+boxOptions:AddToggle({
+    Name = "Enable Glow",
+    Default = FeatureState.GlowEnabled,
+    Callback = function(state)
+        FeatureState.GlowEnabled = state
+    end
+});
+
+boxOptions:AddColorPicker({
+    Name = "Glow Color",
+    Default = FeatureState.GlowColor,
+    Callback = function(color)
+        FeatureState.GlowColor = color
+    end
+});
+
+boxOptions:AddSlider({
+    Name = "Glow Size",
+    Min = 2,
+    Max = 15,
+    Default = FeatureState.GlowSize,
+    Round = 1,
+    Type = "px",
+    Callback = function(value)
+        FeatureState.GlowSize = value
+    end
+});
+
+-- Movement Tab Implementation
+local movementSection = Movement:DrawSection({
+    Name = "Player Movement",
+    Position = "LEFT"
+});
+
+movementSection:AddSlider({
+    Name = "Walk Speed",
+    Min = 1,
+    Max = 100,
+    Default = FeatureState.WalkSpeed,
+    Round = 0,
+    Type = "studs/s",
+    Callback = function(value)
+        FeatureState.WalkSpeed = value
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.WalkSpeed = value
+        end
+    end
+});
+
+movementSection:AddSlider({
+    Name = "Jump Power",
+    Min = 1,
+    Max = 200,
+    Default = FeatureState.JumpPower,
+    Round = 0,
+    Type = "studs",
+    Callback = function(value)
+        FeatureState.JumpPower = value
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.JumpPower = value
+        end
+    end
+});
+
+movementSection:AddToggle({
+    Name = "Fly Mode",
+    Default = FeatureState.FlyEnabled,
+    Callback = function(state)
+        FeatureState.FlyEnabled = state
+        
+        if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            return
+        end
+        
+        local flyConnection = nil
+        local bodyVelocity = nil
+        
+        if state then
+            bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            bodyVelocity.Parent = LocalPlayer.Character.HumanoidRootPart
+            
+            flyConnection = RunService.Heartbeat:Connect(function()
+                if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    return
+                end
+                
+                local velocity = Vector3.new(0, 0, 0)
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                    velocity = velocity + (Camera.CFrame.LookVector * 50)
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                    velocity = velocity - (Camera.CFrame.LookVector * 50)
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                    velocity = velocity - (Camera.CFrame.RightVector * 50)
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                    velocity = velocity + (Camera.CFrame.RightVector * 50)
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                    velocity = velocity + Vector3.new(0, 50, 0)
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                    velocity = velocity - Vector3.new(0, 50, 0)
+                end
+                
+                bodyVelocity.Velocity = velocity
+            end)
+        else
+            if bodyVelocity then
+                bodyVelocity:Destroy()
+            end
+            if flyConnection then
+                flyConnection:Disconnect()
+            end
+        end
+    end
+});
+
+movementSection:AddToggle({
+    Name = "NoClip",
+    Default = FeatureState.NoclipEnabled,
+    Callback = function(state)
+        FeatureState.NoclipEnabled = state
+        
+        if LocalPlayer.Character then
+            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = not state
+                end
+            end
+        end
+    end
+});
+
+-- Farming Tab Implementation
+local farmingSection = Farming:DrawSection({
+    Name = "Farming Features",
+    Position = "LEFT"
+});
+
+farmingSection:AddToggle({
+    Name = "Auto Farm",
+    Default = FeatureState.AutoFarm,
+    Callback = function(state)
+        FeatureState.AutoFarm = state
+    end
+});
+
+farmingSection:AddToggle({
+    Name = "God Mode",
+    Default = FeatureState.GodMode,
+    Callback = function(state)
+        FeatureState.GodMode = state
+    end
+});
+
+farmingSection:AddSlider({
+    Name = "Farm Range",
+    Min = 50,
+    Max = 500,
+    Default = FeatureState.FarmRange,
+    Round = 0,
+    Type = "studs",
+    Callback = function(value)
+        FeatureState.FarmRange = value
+    end
+});
+
+farmingSection:AddToggle({
+    Name = "Auto Kill",
+    Default = FeatureState.AutoKill,
+    Callback = function(state)
+        FeatureState.AutoKill = state
+    end
+});
+
+farmingSection:AddToggle({
+    Name = "Bring Heads",
+    Default = FeatureState.BringHeads,
+    Callback = function(state)
+        FeatureState.BringHeads = state
+    end
+});
+
+-- Utility Tab Implementation
+local utilitySection = Utility:DrawSection({
+    Name = "Game Utilities",
+    Position = "LEFT"
+});
+
+utilitySection:AddToggle({
+    Name = "Full Bright",
+    Default = FeatureState.FullBright,
+    Callback = function(state)
+        FeatureState.FullBright = state
+        
+        if state then
+            Lighting.Brightness = 2
+            Lighting.ClockTime = 14
+            Lighting.FogEnd = 100000
+            Lighting.GlobalShadows = false
+        else
+            Lighting.Brightness = 1
+            Lighting.ClockTime = 12
+            Lighting.FogEnd = 500
+            Lighting.GlobalShadows = true
+        end
+    end
+});
+
+utilitySection:AddToggle({
+    Name = "Auto Respawn",
+    Default = FeatureState.AutoRespawn,
+    Callback = function(state)
+        FeatureState.AutoRespawn = state
+    end
+});
+
+-- Config Tab
+local Configs = Window:DrawConfig({
+    Name = "Configs",
+    Icon = "folder",
+    Config = FileWatcher
+});
+
+Configs:Init();
+
+-- Core functionality
 
 -- FOV Circle
 local fovCircle = Drawing.new("Circle")
@@ -133,1846 +626,258 @@ fovCircle.Visible = false
 fovCircle.Thickness = 2
 fovCircle.Color = Color3.fromRGB(255, 255, 255)
 fovCircle.Filled = false
-fovCircle.Transparency = 0.7
-fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+fovCircle.Transparency = 1
 
 -- ESP Objects
-local ESPObjects = {}
-local ESPData = {}
-local TargetCache = {}
-local LastCacheUpdate = 0
-local CACHE_UPDATE_INTERVAL = 1.0
+local espObjects = {}
 
--- R15 Body Parts for Chams
-local R15Limbs = {
-    "Head", "UpperTorso", "LowerTorso", "LeftUpperArm", "LeftLowerArm", "LeftHand",
-    "RightUpperArm", "RightLowerArm", "RightHand", "LeftUpperLeg", "LeftLowerLeg", "LeftFoot",
-    "RightUpperLeg", "RightLowerLeg", "RightFoot", "HumanoidRootPart"
-}
-
--- Helper Functions
-local function getDistance2D(pos1, pos2)
-    local dx = pos1.X - pos2.X
-    local dy = pos1.Y - pos2.Y
-    return math.sqrt(dx * dx + dy * dy)
+local function createESP(player)
+    if espObjects[player] then return end
+    
+    local esp = {}
+    -- Box
+    esp.box = Drawing.new("Square")
+    esp.box.Visible = false
+    esp.box.Color = Color3.fromRGB(255, 255, 255)
+    esp.box.Thickness = 2
+    esp.box.Transparency = 1
+    esp.box.Filled = false
+    -- Name
+    esp.name = Drawing.new("Text")
+    esp.name.Visible = false
+    esp.name.Color = Color3.fromRGB(255, 255, 255)
+    esp.name.Size = 16
+    esp.name.Center = true
+    esp.name.Outline = true
+    esp.name.Text = player.Name
+    -- Health
+    esp.health_bg = Drawing.new("Square")
+    esp.health_bg.Visible = false
+    esp.health_bg.Color = Color3.fromRGB(0, 0, 0)
+    esp.health_bg.Filled = true
+    esp.health_bg.Transparency = 0.5
+    esp.health_bar = Drawing.new("Square")
+    esp.health_bar.Visible = false
+    esp.health_bar.Color = Color3.fromRGB(0, 255, 0)
+    esp.health_bar.Filled = true
+    esp.health_bar.Transparency = 1
+    espObjects[player] = esp
 end
 
-local function getDistance3D(pos1, pos2)
-    local dx = pos1.X - pos2.X
-    local dy = pos1.Y - pos2.Y
-    local dz = pos1.Z - pos2.Z
-    return math.floor(math.sqrt(dx * dx + dy * dy + dz * dz) / 3) -- Convert to meters
+local function updateESP()
+    for player, esp in pairs(espObjects) do
+        if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+            esp.box.Visible = false
+            esp.name.Visible = false
+            esp.health_bg.Visible = false
+            esp.health_bar.Visible = false
+            continue
+        end
+        
+        local character = player.Character
+        local root_part = character.HumanoidRootPart
+        local humanoid = character:FindFirstChild("Humanoid")
+        local screen_pos, on_screen = Camera:WorldToViewportPoint(root_part.Position)
+        
+        if on_screen and FeatureState.ESPEnabled then
+            local distance = (root_part.Position - Camera.CFrame.Position).Magnitude
+            
+            if distance <= FeatureState.MaxDistance then
+                local scale_factor = 1000 / distance
+                local size = Vector2.new(scale_factor * 4, scale_factor * 6)
+                
+                -- Box
+                if FeatureState.BoxEnabled then
+                    esp.box.Visible = true
+                    esp.box.Size = size
+                    esp.box.Position = Vector2.new(screen_pos.X - size.X / 2, screen_pos.Y - size.Y / 2)
+                else
+                    esp.box.Visible = false
+                end
+                
+                -- Name
+                if FeatureState.NameEnabled then
+                    esp.name.Visible = true
+                    esp.name.Position = Vector2.new(screen_pos.X, screen_pos.Y - size.Y / 2 - 20)
+                else
+                    esp.name.Visible = false
+                end
+                
+                -- Health
+                if FeatureState.HealthEnabled and humanoid then
+                    local health_percentage = humanoid.Health / humanoid.MaxHealth
+                    local health_color = Color3.fromRGB(255 * (1 - health_percentage), 255 * health_percentage, 0)
+                    esp.health_bg.Visible = true
+                    esp.health_bg.Size = Vector2.new(4, size.Y)
+                    esp.health_bg.Position = Vector2.new(screen_pos.X - size.X / 2 - 8, screen_pos.Y - size.Y / 2)
+                    esp.health_bar.Visible = true
+                    esp.health_bar.Size = Vector2.new(2, size.Y * health_percentage)
+                    esp.health_bar.Position = Vector2.new(screen_pos.X - size.X / 2 - 7, screen_pos.Y + size.Y / 2 - (size.Y * health_percentage))
+                    esp.health_bar.Color = health_color
+                else
+                    esp.health_bg.Visible = false
+                    esp.health_bar.Visible = false
+                end
+            else
+                esp.box.Visible = false
+                esp.name.Visible = false
+                esp.health_bg.Visible = false
+                esp.health_bar.Visible = false
+            end
+        else
+            esp.box.Visible = false
+            esp.name.Visible = false
+            esp.health_bg.Visible = false
+            esp.health_bar.Visible = false
+        end
+    end
 end
 
-local function isWithinFOV(screenPos)
-    if not screenPos then return false end
-    local mousePos = Vector2.new(Mouse.X, Mouse.Y)
-    return getDistance2D(mousePos, screenPos) <= Settings.Aimbot.FOV
-end
-
-local function multiplyMatrixVector(m, v)
-    local x = m.m[1][1] * v.X + m.m[1][2] * v.Y + m.m[1][3] * v.Z
-    local y = m.m[2][1] * v.X + m.m[2][2] * v.Y + m.m[2][3] * v.Z
-    local z = m.m[3][1] * v.X + m.m[3][2] * v.Y + m.m[3][3] * v.Z
-    return Vector3.new(x, y, z)
-end
-
-local function getClosestPlayer()
-    local closestTarget = nil
-    local shortestDistance = Settings.Aimbot.FOV
-    local mousePosition = Vector2.new(Mouse.X, Mouse.Y)
-
+-- Aimbot Function
+local function getClosestTarget()
+    local closest_target = nil
+    local shortest_distance = FeatureState.FOVSize
+    
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(Settings.Aimbot.TargetPart) then
-            if Settings.Aimbot.TeamCheck and player.Team == LocalPlayer.Team then
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(FeatureState.TargetPart) then
+            -- Team check
+            if FeatureState.TargetTeam and player.Team == LocalPlayer.Team then
                 continue
             end
             
-            local targetPart = player.Character:FindFirstChild(Settings.Aimbot.TargetPart)
-            local screenPos, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+            local target_part = player.Character[FeatureState.TargetPart]
+            local screen_pos, on_screen = Camera:WorldToViewportPoint(target_part.Position)
             
-            if onScreen then
-                local distance = (Vector2.new(screenPos.X, screenPos.Y) - mousePosition).Magnitude
+            if on_screen then
+                local mouse_pos = UserInputService:GetMouseLocation()
+                local distance = (Vector2.new(screen_pos.X, screen_pos.Y) - mouse_pos).Magnitude
                 
-                if distance < shortestDistance then
-                    if Settings.Aimbot.VisibleCheck then
-                        local ray = Workspace:Raycast(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position).Unit * 1000)
+                if distance < shortest_distance then
+                    -- Wall check
+                    if FeatureState.WallCheck then
+                        local ray = Workspace:Raycast(Camera.CFrame.Position, (target_part.Position - Camera.CFrame.Position).Unit * 1000)
                         if ray and ray.Instance:IsDescendantOf(player.Character) then
-                            shortestDistance = distance
-                            closestTarget = targetPart
+                            shortest_distance = distance
+                            closest_target = target_part
                         end
                     else
-                        shortestDistance = distance
-                        closestTarget = targetPart
+                        shortest_distance = distance
+                        closest_target = target_part
                     end
                 end
             end
         end
     end
     
-    return closestTarget
+    return closest_target
 end
 
--- Advanced target caching system
-local function updateTargetCache()
-    if tick() - LastCacheUpdate < CACHE_UPDATE_INTERVAL then
+-- Auto Farm Function
+local function autoFarm()
+    if not FeatureState.AutoFarm or not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
         return
     end
     
-    TargetCache = {}
-    LastCacheUpdate = tick()
+    local root = LocalPlayer.Character.HumanoidRootPart
+    local closest, distance = nil, FeatureState.FarmRange
     
-    local localPlayerModel = LocalPlayer.Character
-    if not localPlayerModel then return end
-    
-    -- Cache all players
     for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            local humanoid = player.Character:FindFirstChild("Humanoid")
-            local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local plr_root = player.Character.HumanoidRootPart
+            local dist = (plr_root.Position - root.Position).Magnitude
             
-            if humanoid and humanoid.Health > 0 and hrp then
-                local limbs = {}
-                for _, limbName in ipairs(R15Limbs) do
-                    local limb = player.Character:FindFirstChild(limbName)
-                    if limb then
-                        limbs[limbName] = limb
-                    end
+            if dist < distance then
+                closest = player
+                distance = dist
+            end
+        end
+    end
+    
+    if closest and closest.Character and closest.Character:FindFirstChild("HumanoidRootPart") then
+        local target_root = closest.Character.HumanoidRootPart
+        local behind = target_root.CFrame * CFrame.new(0, 0, -5)
+        
+        -- Apply God Mode
+        if FeatureState.GodMode and LocalPlayer.Character then
+            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                    part.Transparency = 0.5
                 end
+            end
+        end
+        
+        -- Teleport behind
+        root.CFrame = behind
+        
+        -- Auto shoot
+        local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+        if tool then
+            local head = closest.Character:FindFirstChild("Head")
+            if head then
+                local head_pos = head.Position
+                local velocity = head.Velocity
+                local predicted_pos = head_pos + velocity * FeatureState.Prediction
                 
-                TargetCache[player] = {
-                    Player = player,
-                    Character = player.Character,
-                    Humanoid = humanoid,
-                    HRP = hrp,
-                    Limbs = limbs,
-                    IsNPC = false,
-                    Visible = false,
-                    Distance = (hrp.Position - Camera.CFrame.Position).Magnitude
-                }
-            end
-        end
-    end
-    
-    -- Cache NPCs (if any)
-    local mobsFolder = Workspace:FindFirstChild("Mobs")
-    if mobsFolder then
-        for _, npc in ipairs(mobsFolder:GetChildren()) do
-            if npc:IsA("Model") and npc:FindFirstChild("HumanoidRootPart") and npc:FindFirstChild("Humanoid") then
-                local humanoid = npc:FindFirstChild("Humanoid")
-                local hrp = npc:FindFirstChild("HumanoidRootPart")
-                
-                if humanoid and humanoid.Health > 0 and hrp then
-                    local limbs = {}
-                    for _, limbName in ipairs(R15Limbs) do
-                        local limb = npc:FindFirstChild(limbName)
-                        if limb then
-                            limbs[limbName] = limb
-                        end
-                    end
-                    
-                    TargetCache[npc] = {
-                        Player = npc,
-                        Character = npc,
-                        Humanoid = humanoid,
-                        HRP = hrp,
-                        Limbs = limbs,
-                        IsNPC = true,
-                        Visible = false,
-                        Distance = (hrp.Position - Camera.CFrame.Position).Magnitude
-                    }
+                -- Fire the gun
+                if tool:FindFirstChild("RemoteEvent") then
+                    tool.RemoteEvent:FireServer(predicted_pos)
                 end
             end
         end
     end
 end
 
--- Create ESP for a player/NPC
-local function createESP(playerOrNpc)
-    if ESPObjects[playerOrNpc] then return end
-    
-    local esp = {
-        Box = Drawing.new("Square"),
-        Name = Drawing.new("Text"),
-        Health = Drawing.new("Square"),
-        HealthBar = Drawing.new("Square"),
-        Distance = Drawing.new("Text"),
-        Tracer = Drawing.new("Line"),
-        Chams = {},
-        Skeleton = {},
-        HealthText = Drawing.new("Text")
-    }
-    
-    -- Box
-    esp.Box.Visible = false
-    esp.Box.Color = Color3.fromRGB(255, 255, 255)
-    esp.Box.Thickness = 1.5
-    esp.Box.Transparency = 0.9
-    esp.Box.Filled = false
-    
-    -- Name
-    esp.Name.Visible = false
-    esp.Name.Color = Color3.fromRGB(255, 255, 255)
-    esp.Name.Size = 14
-    esp.Name.Center = true
-    esp.Name.Outline = true
-    
-    -- Health
-    esp.Health.Visible = false
-    esp.Health.Color = Color3.fromRGB(0, 0, 0)
-    esp.Health.Filled = true
-    esp.Health.Transparency = 0.5
-    
-    esp.HealthBar.Visible = false
-    esp.HealthBar.Color = Color3.fromRGB(0, 255, 0)
-    esp.HealthBar.Filled = true
-    
-    -- Health Text
-    esp.HealthText.Visible = false
-    esp.HealthText.Color = Color3.fromRGB(255, 255, 255)
-    esp.HealthText.Size = 12
-    esp.HealthText.Outline = true
-    
-    -- Distance
-    esp.Distance.Visible = false
-    esp.Distance.Color = Color3.fromRGB(255, 255, 255)
-    esp.Distance.Size = 12
-    esp.Distance.Center = true
-    esp.Distance.Outline = true
-    
-    -- Tracer
-    esp.Tracer.Visible = false
-    esp.Tracer.Color = Color3.fromRGB(255, 255, 255)
-    esp.Tracer.Thickness = 1.5
-    
-    -- Chams
-    for i = 1, 5 do
-        esp.Chams[i] = {
-            Box = Drawing.new("Square"),
-            Visible = false
-        }
-        
-        esp.Chams[i].Box.Visible = false
-        esp.Chams[i].Box.Color = Color3.fromRGB(0, 255, 255)
-        esp.Chams[i].Box.Thickness = 1
-        esp.Chams[i].Box.Filled = false
-        esp.Chams[i].Box.Transparency = 0.7
+-- Auto Kill Function
+local function autoKill()
+    if not FeatureState.AutoKill or not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return
     end
     
-    -- Skeleton
-    esp.Skeleton = {
-        Head = Drawing.new("Circle"),
-        Torso = Drawing.new("Line"),
-        Arms = Drawing.new("Line"),
-        Legs = Drawing.new("Line")
-    }
+    local root = LocalPlayer.Character.HumanoidRootPart
     
-    -- Configure skeleton elements
-    esp.Skeleton.Head.Visible = false
-    esp.Skeleton.Head.Radius = 4
-    esp.Skeleton.Head.Color = Color3.fromRGB(255, 255, 255)
-    esp.Skeleton.Head.Filled = true
-    
-    esp.Skeleton.Torso.Visible = false
-    esp.Skeleton.Torso.Color = Color3.fromRGB(255, 255, 255)
-    esp.Skeleton.Torso.Thickness = 1.5
-    
-    esp.Skeleton.Arms.Visible = false
-    esp.Skeleton.Arms.Color = Color3.fromRGB(255, 255, 255)
-    esp.Skeleton.Arms.Thickness = 1.5
-    
-    esp.Skeleton.Legs.Visible = false
-    esp.Skeleton.Legs.Color = Color3.fromRGB(255, 255, 255)
-    esp.Skeleton.Legs.Thickness = 1.5
-    
-    ESPObjects[playerOrNpc] = esp
-    ESPData[playerOrNpc] = {Color = Settings.ESP.EnemyColor, Visible = false}
-end
-
--- Draw 3D Box ESP
-local function draw3DBox(targetData)
-    local colorVal = Settings.ESP.EnemyColor
-    local r, g, b = colorVal.R * 255, colorVal.G * 255, colorVal.B * 255
-    local a = 1
-    local glowColorVal = Settings.ESP.GlowColor
-    local gr, gg, gb = glowColorVal.R * 255, glowColorVal.G * 255, glowColorVal.B * 255
-    local glowAlpha = 0.8
-    local width = Settings.ESP.BoxWidth
-    local height = Settings.ESP.BoxHeight
-    local thickness = Settings.ESP.SkeletonThickness
-    local glowSize = Settings.ESP.GlowSize
-    
-    local camPos = Camera.CFrame.Position
-    local camRot = Camera.CFrame
-    local screenPos = Camera.ViewportSize
-    
-    local hrp = targetData.HRP
-    if not hrp then return end
-    
-    local centerPos = hrp.Position
-    local vecToPlayer = centerPos - camPos
-    local camForward = camRot.LookVector
-    
-    if vecToPlayer:Dot(camForward) <= 0 then return end
-    
-    local hrpRot = hrp.CFrame
-    local halfW = width / 2
-    local halfH = height / 2
-    
-    local cornersLocal = {
-        Vector3.new(-halfW, -halfH, -halfW), Vector3.new(halfW, -halfH, -halfW),
-        Vector3.new(halfW, -halfH, halfW), Vector3.new(-halfW, -halfH, halfW),
-        Vector3.new(-halfW, halfH, -halfW), Vector3.new(halfW, halfH, -halfW),
-        Vector3.new(halfW, halfH, halfW), Vector3.new(-halfW, halfH, halfW)
-    }
-    
-    local screenCorners = {}
-    local minY, maxY, minX = math.huge, -math.huge, math.huge
-    local allCornersValid = true
-    
-    for i = 1, 8 do
-        local rotatedCorner = multiplyMatrixVector(hrpRot, cornersLocal[i])
-        local worldCorner = centerPos + rotatedCorner
-        local screenPos, onScreen = Camera:WorldToViewportPoint(worldCorner)
-        
-        if onScreen and math.abs(screenPos.X) < screenPos.X * 5 and math.abs(screenPos.Y) < screenPos.Y * 5 then
-            screenCorners[i] = Vector2.new(screenPos.X, screenPos.Y)
-            minY = math.min(minY, screenPos.Y)
-            maxY = math.max(maxY, screenPos.Y)
-            minX = math.min(minX, screenPos.X)
-        else
-            allCornersValid = false
-            break
-        end
-    end
-    
-    if allCornersValid then
-        local edges = {
-            {1, 2}, {2, 3}, {3, 4}, {4, 1},
-            {5, 6}, {6, 7}, {7, 8}, {8, 5},
-            {1, 5}, {2, 6}, {3, 7}, {4, 8}
-        }
-        
-        -- Draw glow effect
-        if Settings.ESP.Glow then
-            for i = 1, glowSize do
-                local alpha = glowAlpha * (1 - i/glowSize)
-                for _, edge in ipairs(edges) do
-                    local p1 = screenCorners[edge[1]]
-                    local p2 = screenCorners[edge[2]]
-                    if p1 and p2 then
-                        Drawing.new("Line").Draw({
-                            From = p1,
-                            To = p2,
-                            Color = Color3.fromRGB(gr, gg, gb),
-                            Thickness = Settings.ESP.SkeletonThickness + i,
-                            Transparency = alpha
-                        })
-                    end
-                end
-            end
-        end
-        
-        -- Draw outline
-        if Settings.ESP.Outline then
-            for _, edge in ipairs(edges) do
-                local p1 = screenCorners[edge[1]]
-                local p2 = screenCorners[edge[2]]
-                if p1 and p2 then
-                    Drawing.new("Line").Draw({
-                        From = p1,
-                        To = p2,
-                        Color = Color3.fromRGB(0, 0, 0),
-                        Thickness = Settings.ESP.SkeletonThickness + 1.5,
-                        Transparency = 1
-                    })
-                end
-            end
-        end
-        
-        -- Draw box
-        for _, edge in ipairs(edges) do
-            local p1 = screenCorners[edge[1]]
-            local p2 = screenCorners[edge[2]]
-            if p1 and p2 then
-                Drawing.new("Line").Draw({
-                    From = p1,
-                    To = p2,
-                    Color = Color3.fromRGB(r, g, b),
-                    Thickness = Settings.ESP.SkeletonThickness,
-                    Transparency = a
-                })
-            end
-        end
-        
-        -- Draw name
-        local textPosX = (screenCorners[1].X + screenCorners[2].X) / 2
-        local name = targetData.IsNPC and "NPC" or targetData.Player.Name
-        Drawing.new("Text").Draw({
-            Position = Vector2.new(textPosX, minY - 15),
-            Text = name,
-            Size = 14,
-            Color = Color3.fromRGB(r, g, b),
-            Outline = true
-        })
-        
-        -- Draw distance
-        local distance = getDistance3D(camPos, centerPos)
-        Drawing.new("Text").Draw({
-            Position = Vector2.new(textPosX, maxY + 5),
-            Text = tostring(distance) .. "m",
-            Size = 12,
-            Color = Color3.fromRGB(r, g, b),
-            Outline = true
-        })
-        
-        -- Draw health
-        local currentHP = targetData.Humanoid.Health
-        local maxHP = targetData.Humanoid.MaxHealth
-        local healthText = string.format("%d/%d", currentHP, maxHP)
-        
-        if Settings.ESP.HealthBarPosition == "Left" then
-            Drawing.new("Text").Draw({
-                Position = Vector2.new(minX - 5, (minY + maxY) / 2),
-                Text = healthText,
-                Size = 12,
-                Color = Color3.fromRGB(r, g, b),
-                Outline = true
-            })
-        elseif Settings.ESP.HealthBarPosition == "Top" then
-            Drawing.new("Text").Draw({
-                Position = Vector2.new(textPosX, minY - 30),
-                Text = healthText,
-                Size = 12,
-                Color = Color3.fromRGB(r, g, b),
-                Outline = true
-            })
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.CFrame = root.CFrame * CFrame.new(0, 0, -9)
         end
     end
 end
 
--- Draw skeleton ESP
-local function drawSkeleton(targetData)
-    local color = Settings.ESP.EnemyColor
-    local thickness = Settings.ESP.SkeletonThickness
-    local connections = {
-        {"Head", "UpperTorso"}, {"UpperTorso", "LowerTorso"},
-        {"UpperTorso", "LeftUpperArm"}, {"LeftUpperArm", "LeftLowerArm"}, {"LeftLowerArm", "LeftHand"},
-        {"UpperTorso", "RightUpperArm"}, {"RightUpperArm", "RightLowerArm"}, {"RightLowerArm", "RightHand"},
-        {"LowerTorso", "LeftUpperLeg"}, {"LeftUpperLeg", "LeftLowerLeg"}, {"LeftLowerLeg", "LeftFoot"},
-        {"LowerTorso", "RightUpperLeg"}, {"RightUpperLeg", "RightLowerLeg"}, {"RightLowerLeg", "RightFoot"}
-    }
-    
-    local screenPositions = {}
-    for name, part in pairs(targetData.Limbs) do
-        if part then
-            local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
-            if onScreen then
-                screenPositions[name] = Vector2.new(screenPos.X, screenPos.Y)
-            end
-        end
+-- Auto Respawn Function
+local function autoRespawn()
+    if not FeatureState.AutoRespawn or not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return
     end
     
-    -- Draw skeleton connections
-    for _, pair in ipairs(connections) do
-        local p1, p2 = screenPositions[pair[1]], screenPositions[pair[2]]
-        if p1 and p2 then
-            Drawing.new("Line").Draw({
-                From = p1,
-                To = p2,
-                Color = color,
-                Thickness = thickness
-            })
-        end
-    end
+    local root = LocalPlayer.Character.HumanoidRootPart
     
-    -- Draw head circle
-    if screenPositions["Head"] then
-        Drawing.new("Circle").Draw({
-            Position = screenPositions["Head"],
-            Radius = 5,
-            Color = color,
-            Filled = true
-        })
-    end
-    
-    -- Draw name
-    if screenPositions["Head"] then
-        local name = targetData.IsNPC and "NPC" or targetData.Player.Name
-        Drawing.new("Text").Draw({
-            Position = Vector2.new(screenPositions["Head"].X, screenPositions["Head"].Y - 15),
-            Text = name,
-            Size = 14,
-            Color = color,
-            Outline = true
-        })
-        
-        -- Draw distance
-        local hrpPos = targetData.HRP.Position
-        local camPos = Camera.CFrame.Position
-        local distance = getDistance3D(camPos, hrpPos)
-        Drawing.new("Text").Draw({
-            Position = Vector2.new(screenPositions["Head"].X, screenPositions["Head"].Y + 15),
-            Text = tostring(distance) .. "m",
-            Size = 12,
-            Color = color,
-            Outline = true
-        })
-        
-        -- Draw health
-        local currentHP = targetData.Humanoid.Health
-        local maxHP = targetData.Humanoid.MaxHealth
-        local healthText = string.format("%d/%d", currentHP, maxHP)
-        
-        Drawing.new("Text").Draw({
-            Position = Vector2.new(screenPositions["Head"].X - 30, screenPositions["Head"].Y),
-            Text = healthText,
-            Size = 12,
-            Color = color,
-            Outline = true
-        })
+    if root and root.Anchored then
+        game.ReplicatedStorage.Network.Remotes.Spawn:FireServer()
     end
 end
 
--- Update ESP
-local function updateESP()
-    updateTargetCache()
-    
-    for playerOrNpc, esp in pairs(ESPObjects) do
-        if not playerOrNpc.Character or not playerOrNpc.Character:FindFirstChild("HumanoidRootPart") then
-            esp.Box.Visible = false
-            esp.Name.Visible = false
-            esp.Health.Visible = false
-            esp.HealthBar.Visible = false
-            esp.Distance.Visible = false
-            esp.Tracer.Visible = false
-            
-            for _, chams in ipairs(esp.Chams) do
-                chams.Box.Visible = false
-            end
-            
-            esp.Skeleton.Head.Visible = false
-            esp.Skeleton.Torso.Visible = false
-            esp.Skeleton.Arms.Visible = false
-            esp.Skeleton.Legs.Visible = false
-            continue
-        end
-        
-        local targetData = TargetCache[playerOrNpc]
-        if not targetData then
-            esp.Box.Visible = false
-            continue
-        end
-        
-        local character = targetData.Character
-        local rootPart = targetData.HRP
-        local humanoid = targetData.Humanoid
-        local screenPos, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
-        
-        if onScreen and Settings.ESP.Enabled then
-            local distance = (rootPart.Position - Camera.CFrame.Position).Magnitude
-            if distance <= Settings.ESP.MaxDistance then
-                local teamColor = (targetData.IsNPC or targetData.Player.Team == LocalPlayer.Team) and Settings.ESP.TeamColor or Settings.ESP.EnemyColor
-                ESPData[playerOrNpc].Color = teamColor
-                ESPData[playerOrNpc].Visible = true
-                
-                -- Update ESP based on selected mode
-                if Settings.ESP.Mode == "3D Box" then
-                    esp.Box.Visible = false
-                    esp.Skeleton.Head.Visible = false
-                    
-                    if Settings.ESP.Boxes then
-                        draw3DBox(targetData)
-                    end
-                elseif Settings.ESP.Mode == "Skeleton" then
-                    esp.Box.Visible = false
-                    
-                    if Settings.ESP.Boxes then
-                        drawSkeleton(targetData)
-                    end
-                elseif Settings.ESP.Mode == "Dot" then
-                    esp.Box.Visible = false
-                    esp.Skeleton.Head.Visible = false
-                    
-                    if Settings.ESP.Boxes then
-                        local headPos = targetData.Limbs["Head"] and targetData.Limbs["Head"].Position
-                        if headPos then
-                            local headScreenPos, headOnScreen = Camera:WorldToViewportPoint(headPos)
-                            if headOnScreen then
-                                Drawing.new("Circle").Draw({
-                                    Position = Vector2.new(headScreenPos.X, headScreenPos.Y),
-                                    Radius = 5,
-                                    Color = teamColor,
-                                    Filled = true
-                                })
-                                
-                                -- Draw name
-                                Drawing.new("Text").Draw({
-                                    Position = Vector2.new(headScreenPos.X, headScreenPos.Y - 15),
-                                    Text = targetData.IsNPC and "NPC" or targetData.Player.Name,
-                                    Size = 14,
-                                    Color = teamColor,
-                                    Outline = true
-                                })
-                                
-                                -- Draw distance
-                                Drawing.new("Text").Draw({
-                                    Position = Vector2.new(headScreenPos.X, headScreenPos.Y + 15),
-                                    Text = tostring(getDistance3D(Camera.CFrame.Position, rootPart.Position)) .. "m",
-                                    Size = 12,
-                                    Color = teamColor,
-                                    Outline = true
-                                })
-                                
-                                -- Draw health
-                                local healthText = string.format("%d/%d", humanoid.Health, humanoid.MaxHealth)
-                                Drawing.new("Text").Draw({
-                                    Position = Vector2.new(headScreenPos.X - 30, headScreenPos.Y),
-                                    Text = healthText,
-                                    Size = 12,
-                                    Color = teamColor,
-                                    Outline = true
-                                })
-                            end
-                        end
-                    end
-                end
-            else
-                esp.Box.Visible = false
-                esp.Skeleton.Head.Visible = false
-            end
-        else
-            esp.Box.Visible = false
-            esp.Skeleton.Head.Visible = false
-        end
-    end
-end
-
--- Player Functions
-local function setWalkSpeed(speed)
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.WalkSpeed = speed
-    end
-end
-
-local function setJumpPower(power)
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.JumpPower = power
-    end
-end
-
-local flyConnection
-local function toggleFly(enabled)
-    if flyConnection then
-        flyConnection:Disconnect()
-        flyConnection = nil
+-- Bring Heads Function
+local function bringHeads()
+    if not FeatureState.BringHeads or not Camera then
+        return
     end
     
-    if enabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000)
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        bodyVelocity.Parent = LocalPlayer.Character.HumanoidRootPart
-        
-        flyConnection = RunService.Heartbeat:Connect(function()
-            if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                return
-            end
-            
-            local velocity = Vector3.new(0, 0, 0)
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                velocity = velocity + (Camera.CFrame.LookVector * 50)
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                velocity = velocity - (Camera.CFrame.LookVector * 50)
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-                velocity = velocity - (Camera.CFrame.RightVector * 50)
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                velocity = velocity + (Camera.CFrame.RightVector * 50)
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                velocity = velocity + Vector3.new(0, 50, 0)
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                velocity = velocity - Vector3.new(0, 50, 0)
-            end
-            
-            bodyVelocity.Velocity = velocity
-        end)
-    end
-end
-
--- Auto-Respawn and Auto-Kill functions from message(6).txt
-local SavedPositions = {AutoRe = nil}
-local Connections = {Died = nil, CharacterAdded = nil}
-
-local function SaveCamPos()
-    local success, pos = pcall(function()
-        return Camera.CFrame
-    end)
-    if success then
-        SavedPositions.OldCameraPos = pos
-    end
-end
-
-local function LoadCamPos()
-    if SavedPositions.OldCameraPos then
-        local success = pcall(function()
-            Camera.CFrame = SavedPositions.OldCameraPos
-        end)
-        if not success then
-            warn("Failed to load camera position")
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+            player.Character.Head.CFrame = CFrame.new(Camera.CFrame.Position + Camera.CFrame.LookVector * 10)
         end
     end
-end
-
-local function onDiedEvent()
-    pcall(function()
-        Connections.Died:Disconnect()
-        SaveCamPos()
-        SavedPositions.AutoRe = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.CFrame
-        if Settings.Auto.Respawn then
-            task.spawn(function()
-                task.wait(0.2)
-                game:GetService("ReplicatedStorage").Network.Remotes.Spawn:FireServer()
-            end)
-        end
-    end)
-end
-
-local function onCharacterAdded()
-    pcall(function()
-        Connections.Died:Disconnect()
-        local LHuman = LocalPlayer.Character:WaitForChild("Humanoid", 1)
-        if LHuman then
-            Connections.Died = LHuman.Died:Connect(onDiedEvent)
-        end
-        
-        if SavedPositions.AutoRe and Settings.Auto.Respawn then
-            local LRoot = LocalPlayer.Character:WaitForChild("HumanoidRootPart", 1)
-            if LRoot then
-                LRoot.CFrame = SavedPositions.AutoRe
-                LoadCamPos()
-                LRoot.CFrame = SavedPositions.AutoRe
-                task.spawn(function()
-                    for i = 1, 4 do
-                        task.wait()
-                        LRoot.CFrame = SavedPositions.AutoRe
-                    end
-                end)
-            end
-        end
-        
-        LocalPlayer.Character:WaitForChild("Humanoid", 1):SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-        LocalPlayer.Character:WaitForChild("Humanoid", 1):SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-    end)
-end
-
--- Auto-Kill implementation from message(6).txt
-local function autoKillTask()
-    pcall(function()
-        if Settings.Auto.Kill then
-            if LocalPlayer.Character and LocalPlayer.Character:GetAttribute("Team") == 1 then
-                for _, v in ipairs(Workspace:GetChildren()) do
-                    if v:IsA("Model") and v ~= LocalPlayer.Character then
-                        if v:GetAttribute("Team") == 2 then
-                            v.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -9)
-                        end
-                    end
-                end
-            elseif LocalPlayer.Character and LocalPlayer.Character:GetAttribute("Team") == 2 then
-                for _, v in ipairs(Workspace:GetChildren()) do
-                    if v:IsA("Model") and v ~= LocalPlayer.Character then
-                        if v:GetAttribute("Team") == 1 then
-                            v.HumanoidRootPart.CFrame = LocalPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, -9)
-                        end
-                    end
-                end
-            end
-        end
-    end)
-end
-
--- Anti-Aim Function
-local antiAimConnection
-local function toggleAntiAim(enabled)
-    if antiAimConnection then
-        antiAimConnection:Disconnect()
-        antiAimConnection = nil
-    end
-    
-    if enabled then
-        antiAimConnection = RunService.Heartbeat:Connect(function()
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local rootPart = LocalPlayer.Character.HumanoidRootPart
-                local angle = math.rad(Settings.Misc.AntiAimAngle)
-                local rotation = CFrame.Angles(0, angle, 0)
-                rootPart.CFrame = rootPart.CFrame * rotation
-            end
-        end)
-    end
-end
-
--- Auto-BunnyHop
-local function autoBunnyHop()
-    if Settings.Player.AutoBunnyHop and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        local humanoid = LocalPlayer.Character.Humanoid
-        if humanoid.FloorMaterial ~= Enum.Material.Air and math.random(1, 100) <= Settings.Player.BunnyHopChance then
-            humanoid.Jump = true
-        end
-    end
-end
-
--- Advanced prediction
-local function getPredictedPosition(targetPart)
-    if not targetPart then return nil end
-    
-    local velocity = targetPart.AssemblyLinearVelocity
-    local prediction = Settings.Advanced.PredictionAmount
-    
-    return targetPart.Position + velocity * prediction
-end
-
--- Hook metamethod for silent aim
-local oldNamecall
-oldNamecall = hookmetamethod(game, "__namecall", function(...)
-    local method = getnamecallmethod()
-    local args = {...}
-    
-    if args[1] == workspace and method == "Raycast" then
-        if typeof(args[#args]) ~= "RaycastParams" then
-            return oldNamecall(...)
-        end
-        
-        if Settings.Aimbot.Enabled then
-            local closest = getClosestPlayer()
-            if closest then
-                local origin = args[2]
-                local direction = (closest.Position - origin).Unit
-                local distance = (closest.Position - origin).Magnitude
-                
-                args[3] = direction * distance
-                return oldNamecall(unpack(args))
-            end
-        end
-    end
-    
-    return oldNamecall(...)
-end)
-
--- Main UI
-local Combat = Window:DrawTab({
-    Icon = "crosshair",
-    Name = "Combat",
-    Type = "Double"
-})
-
-local Visuals = Window:DrawTab({
-    Icon = "eye",
-    Name = "Visuals"
-})
-
-local Movement = Window:DrawTab({
-    Icon = "run",
-    Name = "Movement"
-})
-
-local Auto = Window:DrawTab({
-    Icon = "autorenew",
-    Name = "Auto"
-})
-
-local Misc = Window:DrawTab({
-    Icon = "settings-3",
-    Name = "Miscellaneous"
-})
-
-local Advanced = Window:DrawTab({
-    Icon = "target",
-    Name = "Advanced"
-})
-
--- Combat Tab
-do
-    local general = Combat:DrawSection({
-        Name = "General",
-        Position = "LEFT"
-    })
-    
-    local advanced = Combat:DrawSection({
-        Name = "Advanced",
-        Position = "RIGHT"
-    })
-    
-    -- General Settings
-    general:AddToggle({
-        Name = "Aimbot Enabled",
-        Flag = "aimbot_enabled",
-        Default = Settings.Aimbot.Enabled,
-        Callback = function(state)
-            Settings.Aimbot.Enabled = state
-            fovCircle.Visible = state and Settings.Aimbot.ShowFOV
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Auto Shoot",
-        Flag = "auto_shoot",
-        Default = Settings.Aimbot.AutoShoot,
-        Callback = function(state)
-            Settings.Aimbot.AutoShoot = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Sticky Aim",
-        Flag = "sticky_aim",
-        Default = Settings.Aimbot.StickyAim,
-        Callback = function(state)
-            Settings.Aimbot.StickyAim = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Visible Check",
-        Flag = "visible_check",
-        Default = Settings.Aimbot.VisibleCheck,
-        Callback = function(state)
-            Settings.Aimbot.VisibleCheck = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Team Check",
-        Flag = "team_check",
-        Default = Settings.Aimbot.TeamCheck,
-        Callback = function(state)
-            Settings.Aimbot.TeamCheck = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Wall Check",
-        Flag = "wall_check",
-        Default = Settings.Aimbot.WallCheck,
-        Callback = function(state)
-            Settings.Aimbot.WallCheck = state
-        end
-    })
-    
-    general:AddSlider({
-        Name = "FOV Size",
-        Min = 10,
-        Max = 500,
-        Default = Settings.Aimbot.FOV,
-        Flag = "fov_size",
-        Callback = function(value)
-            Settings.Aimbot.FOV = value
-            fovCircle.Radius = value
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Show FOV",
-        Flag = "show_fov",
-        Default = Settings.Aimbot.ShowFOV,
-        Callback = function(state)
-            Settings.Aimbot.ShowFOV = state
-            fovCircle.Visible = state and Settings.Aimbot.Enabled
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Auto Pistol",
-        Flag = "auto_pistol",
-        Default = Settings.Aimbot.AutoPistol,
-        Callback = function(state)
-            Settings.Aimbot.AutoPistol = state
-        end
-    })
-    
-    -- Advanced Settings
-    advanced:AddDropdown({
-        Name = "Target Part",
-        Values = {"Head", "UpperTorso", "HumanoidRootPart"},
-        Default = Settings.Aimbot.TargetPart,
-        Flag = "target_part",
-        Callback = function(option)
-            Settings.Aimbot.TargetPart = option
-        end
-    })
-    
-    advanced:AddSlider({
-        Name = "Smoothness",
-        Min = 1,
-        Max = 10,
-        Default = Settings.Aimbot.Smoothness,
-        Flag = "smoothness",
-        Callback = function(value)
-            Settings.Aimbot.Smoothness = value
-        end
-    })
-    
-    advanced:AddSlider({
-        Name = "Prediction",
-        Min = 0,
-        Max = 0.5,
-        Default = Settings.Aimbot.Prediction,
-        Flag = "prediction",
-        Callback = function(value)
-            Settings.Aimbot.Prediction = value
-        end
-    })
-    
-    advanced:AddDropdown({
-        Name = "Hitboxes",
-        Values = {"Head", "UpperTorso", "LowerTorso", "Arms", "Legs"},
-        Default = Settings.Aimbot.Hitboxes,
-        Flag = "hitboxes",
-        Multi = true,
-        Callback = function(value)
-            Settings.Aimbot.Hitboxes = value
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "Multipoint",
-        Flag = "multipoint",
-        Default = Settings.Aimbot.Multipoint,
-        Callback = function(state)
-            Settings.Aimbot.Multipoint = state
-        end
-    }):Link:AddSlider({
-        Name = "Scale",
-        Min = 0.1,
-        Max = 1,
-        Default = Settings.Aimbot.MultipointScale,
-        Flag = "multipoint_scale",
-        Callback = function(value)
-            Settings.Aimbot.MultipointScale = value
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "Enable Hitchance",
-        Flag = "hitchance_enabled",
-        Default = Settings.Aimbot.EnableHitchance,
-        Callback = function(state)
-            Settings.Aimbot.EnableHitchance = state
-        end
-    }):Link:AddSlider({
-        Name = "Hitchance",
-        Min = 0,
-        Max = 100,
-        Default = Settings.Aimbot.Hitchance,
-        Flag = "hitchance",
-        Callback = function(value)
-            Settings.Aimbot.Hitchance = value
-        end
-    })
-    
-    advanced:AddSlider({
-        Name = "Min Damage",
-        Min = 0,
-        Max = 100,
-        Default = Settings.Aimbot.MinDamage,
-        Flag = "min_damage",
-        Callback = function(value)
-            Settings.Aimbot.MinDamage = value
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "Auto Wallbang",
-        Flag = "auto_wallbang",
-        Default = Settings.Aimbot.AutoWallbang,
-        Callback = function(state)
-            Settings.Aimbot.AutoWallbang = state
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "No Recoil",
-        Flag = "no_recoil",
-        Default = Settings.Aimbot.NoRecoil,
-        Callback = function(state)
-            Settings.Aimbot.NoRecoil = state
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "No Spread",
-        Flag = "no_spread",
-        Default = Settings.Aimbot.NoSpread,
-        Callback = function(state)
-            Settings.Aimbot.NoSpread = state
-        end
-    })
-    
-    general:AddParagraph({
-        Title = "Aimbot Information",
-        Content = "The aimbot uses a silent aim approach that\noverrides raycasts to ensure precision.\nAdjust settings to match your playstyle."
-    })
-end
-
--- Visuals Tab
-do
-    local general = Visuals:DrawSection({
-        Name = "General",
-        Position = "LEFT"
-    })
-    
-    local advanced = Visuals:DrawSection({
-        Name = "Advanced",
-        Position = "RIGHT"
-    })
-    
-    -- General Settings
-    general:AddToggle({
-        Name = "ESP Enabled",
-        Flag = "esp_enabled",
-        Default = Settings.ESP.Enabled,
-        Callback = function(state)
-            Settings.ESP.Enabled = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Player Boxes",
-        Flag = "esp_boxes",
-        Default = Settings.ESP.Boxes,
-        Callback = function(state)
-            Settings.ESP.Boxes = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Player Names",
-        Flag = "esp_names",
-        Default = Settings.ESP.Names,
-        Callback = function(state)
-            Settings.ESP.Names = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Health Bars",
-        Flag = "esp_health",
-        Default = Settings.ESP.Health,
-        Callback = function(state)
-            Settings.ESP.Health = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Distance",
-        Flag = "esp_distance",
-        Default = Settings.ESP.Distance,
-        Callback = function(state)
-            Settings.ESP.Distance = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Tracers",
-        Flag = "esp_tracers",
-        Default = Settings.ESP.Tracers,
-        Callback = function(state)
-            Settings.ESP.Tracers = state
-        end
-    })
-    
-    general:AddDropdown({
-        Name = "ESP Mode",
-        Values = {"Dot ESP", "Skeleton ESP", "3D Box ESP"},
-        Default = Settings.ESP.Mode,
-        Flag = "esp_mode",
-        Callback = function(option)
-            Settings.ESP.Mode = option
-        end
-    })
-    
-    general:AddSlider({
-        Name = "Max Distance",
-        Min = 100,
-        Max = 2000,
-        Default = Settings.ESP.MaxDistance,
-        Flag = "esp_max_distance",
-        Callback = function(value)
-            Settings.ESP.MaxDistance = value
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Visible Only",
-        Flag = "esp_visible_only",
-        Default = Settings.ESP.VisibleOnly,
-        Callback = function(state)
-            Settings.ESP.VisibleOnly = state
-        end
-    })
-    
-    -- Advanced Settings
-    advanced:AddColorPicker({
-        Name = "Team Color",
-        Default = Settings.ESP.TeamColor,
-        Flag = "team_color",
-        Callback = function(color)
-            Settings.ESP.TeamColor = color
-        end
-    })
-    
-    advanced:AddColorPicker({
-        Name = "Enemy Color",
-        Default = Settings.ESP.EnemyColor,
-        Flag = "enemy_color",
-        Callback = function(color)
-            Settings.ESP.EnemyColor = color
-        end
-    })
-    
-    advanced:AddColorPicker({
-        Name = "Glow Color",
-        Default = Settings.ESP.GlowColor,
-        Flag = "glow_color",
-        Callback = function(color)
-            Settings.ESP.GlowColor = color
-        end
-    })
-    
-    advanced:AddSlider({
-        Name = "Glow Size",
-        Min = 2,
-        Max = 15,
-        Default = Settings.ESP.GlowSize,
-        Flag = "glow_size",
-        Callback = function(value)
-            Settings.ESP.GlowSize = value
-        end
-    })
-    
-    advanced:AddSlider({
-        Name = "Box Width",
-        Min = 1,
-        Max = 10,
-        Default = Settings.ESP.BoxWidth,
-        Flag = "box_width",
-        Callback = function(value)
-            Settings.ESP.BoxWidth = value
-        end
-    })
-    
-    advanced:AddSlider({
-        Name = "Box Height",
-        Min = 1,
-        Max = 15,
-        Default = Settings.ESP.BoxHeight,
-        Flag = "box_height",
-        Callback = function(value)
-            Settings.ESP.BoxHeight = value
-        end
-    })
-    
-    advanced:AddSlider({
-        Name = "Skeleton Thickness",
-        Min = 1,
-        Max = 5,
-        Default = Settings.ESP.SkeletonThickness,
-        Flag = "skeleton_thickness",
-        Callback = function(value)
-            Settings.ESP.SkeletonThickness = value
-        end
-    })
-    
-    advanced:AddDropdown({
-        Name = "Health Bar Position",
-        Values = {"Left", "Top"},
-        Default = Settings.ESP.HealthBarPosition,
-        Flag = "health_bar_position",
-        Callback = function(option)
-            Settings.ESP.HealthBarPosition = option
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "Chams",
-        Flag = "esp_chams",
-        Default = Settings.ESP.Chams,
-        Callback = function(state)
-            Settings.ESP.Chams = state
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "Glow",
-        Flag = "esp_glow",
-        Default = Settings.ESP.Glow,
-        Callback = function(state)
-            Settings.ESP.Glow = state
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "Outline",
-        Flag = "esp_outline",
-        Default = Settings.ESP.Outline,
-        Callback = function(state)
-            Settings.ESP.Outline = state
-        end
-    })
-    
-    general:AddParagraph({
-        Title = "ESP Information",
-        Content = "The ESP system provides visual information\nabout players in the game world.\nAdjust colors to match your preference."
-    })
-end
-
--- Movement Tab
-do
-    local general = Movement:DrawSection({
-        Name = "General",
-        Position = "LEFT"
-    })
-    
-    local advanced = Movement:DrawSection({
-        Name = "Advanced",
-        Position = "RIGHT"
-    })
-    
-    -- General Settings
-    general:AddSlider({
-        Name = "Walk Speed",
-        Min = 16,
-        Max = 100,
-        Default = Settings.Player.Speed,
-        Flag = "walk_speed",
-        Callback = function(value)
-            Settings.Player.Speed = value
-            setWalkSpeed(value)
-        end
-    })
-    
-    general:AddSlider({
-        Name = "Jump Power",
-        Min = 50,
-        Max = 200,
-        Default = Settings.Player.JumpPower,
-        Flag = "jump_power",
-        Callback = function(value)
-            Settings.Player.JumpPower = value
-            setJumpPower(value)
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Fly Mode",
-        Flag = "fly_mode",
-        Default = Settings.Player.Fly,
-        Callback = function(state)
-            Settings.Player.Fly = state
-            toggleFly(state)
-        end
-    })
-    
-    general:AddToggle({
-        Name = "NoClip",
-        Flag = "noclip",
-        Default = Settings.Player.NoClip,
-        Callback = function(state)
-            Settings.Player.NoClip = state
-            if LocalPlayer.Character then
-                for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = not state
-                        part.Transparency = state and 0.5 or 0
-                    end
-                end
-            end
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Auto BunnyHop",
-        Flag = "bunny_hop",
-        Default = Settings.Player.AutoBunnyHop,
-        Callback = function(state)
-            Settings.Player.AutoBunnyHop = state
-        end
-    })
-    
-    general:AddSlider({
-        Name = "BunnyHop Chance",
-        Min = 0,
-        Max = 100,
-        Default = Settings.Player.BunnyHopChance,
-        Flag = "bunny_hop_chance",
-        Callback = function(value)
-            Settings.Player.BunnyHopChance = value
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Auto Sprint",
-        Flag = "auto_sprint",
-        Default = Settings.Player.AutoSprint,
-        Callback = function(state)
-            Settings.Player.AutoSprint = state
-        end
-    })
-    
-    general:AddSlider({
-        Name = "Sprint Speed",
-        Min = 16,
-        Max = 50,
-        Default = Settings.Player.SprintSpeed,
-        Flag = "sprint_speed",
-        Callback = function(value)
-            Settings.Player.SprintSpeed = value
-        end
-    })
-    
-    -- Advanced Settings
-    advanced:AddToggle({
-        Name = "Auto Crouch",
-        Flag = "auto_crouch",
-        Default = Settings.Player.AutoCrouch,
-        Callback = function(state)
-            Settings.Player.AutoCrouch = state
-        end
-    })
-    
-    advanced:AddSlider({
-        Name = "Crouch Speed",
-        Min = 1,
-        Max = 16,
-        Default = Settings.Player.CrouchSpeed,
-        Flag = "crouch_speed",
-        Callback = function(value)
-            Settings.Player.CrouchSpeed = value
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "Auto Strafe",
-        Flag = "auto_strafe",
-        Default = Settings.Misc.AutoStrafe,
-        Callback = function(state)
-            Settings.Misc.AutoStrafe = state
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "Circle Strafe",
-        Flag = "circle_strafe",
-        Default = Settings.Misc.CircleStrafe,
-        Callback = function(state)
-            Settings.Misc.CircleStrafe = state
-        end
-    })
-    
-    advanced:AddSlider({
-        Name = "Circle Radius",
-        Min = 50,
-        Max = 200,
-        Default = Settings.Misc.CircleRadius,
-        Flag = "circle_radius",
-        Callback = function(value)
-            Settings.Misc.CircleRadius = value
-        end
-    })
-    
-    general:AddParagraph({
-        Title = "Movement Information",
-        Content = "Adjust your movement settings to improve\nyour mobility in the game.\nNoClip and Fly allow you to bypass\nstandard physics limitations."
-    })
-end
-
--- Auto Tab
-do
-    local general = Auto:DrawSection({
-        Name = "General",
-        Position = "LEFT"
-    })
-    
-    local advanced = Auto:DrawSection({
-        Name = "Advanced",
-        Position = "RIGHT"
-    })
-    
-    -- General Settings
-    general:AddToggle({
-        Name = "Auto Respawn",
-        Flag = "auto_respawn",
-        Default = Settings.Auto.Respawn,
-        Callback = function(state)
-            Settings.Auto.Respawn = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Auto Kill",
-        Flag = "auto_kill",
-        Default = Settings.Auto.Kill,
-        Callback = function(state)
-            Settings.Auto.Kill = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Auto Farm",
-        Flag = "auto_farm",
-        Default = Settings.Auto.Farm,
-        Callback = function(state)
-            Settings.Auto.Farm = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "God Mode on Farm",
-        Flag = "god_mode_farm",
-        Default = Settings.Auto.GodMode,
-        Callback = function(state)
-            Settings.Auto.GodMode = state
-        end
-    })
-    
-    general:AddSlider({
-        Name = "Farm Range",
-        Min = 50,
-        Max = 500,
-        Default = Settings.Auto.FarmRange,
-        Flag = "farm_range",
-        Callback = function(value)
-            Settings.Auto.FarmRange = value
-        end
-    })
-    
-    general:AddParagraph({
-        Title = "Auto Information",
-        Content = "Automate game mechanics to give\nyou an advantage in combat.\nUse responsibly to avoid detection."
-    })
-end
-
--- Misc Tab
-do
-    local general = Misc:DrawSection({
-        Name = "General",
-        Position = "LEFT"
-    })
-    
-    local advanced = Misc:DrawSection({
-        Name = "Advanced",
-        Position = "RIGHT"
-    })
-    
-    -- General Settings
-    general:AddToggle({
-        Name = "Full Bright",
-        Flag = "full_bright",
-        Default = Settings.Misc.FullBright,
-        Callback = function(state)
-            Settings.Misc.FullBright = state
-            if state then
-                Lighting.Brightness = 2
-                Lighting.ClockTime = 14
-                Lighting.FogEnd = 100000
-                Lighting.GlobalShadows = false
-            else
-                Lighting.Brightness = 1
-                Lighting.ClockTime = 12
-                Lighting.FogEnd = 500
-                Lighting.GlobalShadows = true
-            end
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Radar",
-        Flag = "radar",
-        Default = Settings.Misc.Radar,
-        Callback = function(state)
-            Settings.Misc.Radar = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Trigger Bot",
-        Flag = "trigger_bot",
-        Default = Settings.Misc.TriggerBot,
-        Callback = function(state)
-            Settings.Misc.TriggerBot = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Anti-Aim",
-        Flag = "anti_aim",
-        Default = Settings.Misc.AntiAim,
-        Callback = function(state)
-            Settings.Misc.AntiAim = state
-            toggleAntiAim(state)
-        end
-    })
-    
-    general:AddToggle({
-        Name = "No Flash",
-        Flag = "no_flash",
-        Default = Settings.Misc.NoFlash,
-        Callback = function(state)
-            Settings.Misc.NoFlash = state
-            -- Implementation would go here
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Third Person",
-        Flag = "third_person",
-        Default = Settings.Misc.ThirdPerson,
-        Callback = function(state)
-            Settings.Misc.ThirdPerson = state
-            -- Implementation would go here
-        end
-    })
-    
-    general:AddToggle({
-        Name = "FOV Changer",
-        Flag = "fov_changer",
-        Default = Settings.Misc.FOVChanger,
-        Callback = function(state)
-            Settings.Misc.FOVChanger = state
-            if state then
-                Camera.FieldOfView = Settings.Misc.FOVAmount
-            else
-                Camera.FieldOfView = 70
-            end
-        end
-    })
-    
-    general:AddSlider({
-        Name = "FOV Amount",
-        Min = 70,
-        Max = 120,
-        Default = Settings.Misc.FOVAmount,
-        Flag = "fov_amount",
-        Callback = function(value)
-            Settings.Misc.FOVAmount = value
-            if Settings.Misc.FOVChanger then
-                Camera.FieldOfView = value
-            end
-        end
-    })
-    
-    -- Advanced Settings
-    advanced:AddSlider({
-        Name = "Anti-Aim Angle",
-        Min = 0,
-        Max = 360,
-        Default = Settings.Misc.AntiAimAngle,
-        Flag = "anti_aim_angle",
-        Callback = function(value)
-            Settings.Misc.AntiAimAngle = value
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "Auto Reload",
-        Flag = "auto_reload",
-        Default = Settings.Misc.AutoReload,
-        Callback = function(state)
-            Settings.Misc.AutoReload = state
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "Auto Aim Assist",
-        Flag = "auto_aim_assist",
-        Default = Settings.Misc.AutoAimAssist,
-        Callback = function(state)
-            Settings.Misc.AutoAimAssist = state
-        end
-    })
-    
-    advanced:AddSlider({
-        Name = "Aim Assist Strength",
-        Min = 0,
-        Max = 1,
-        Default = Settings.Misc.AimAssistStrength,
-        Flag = "aim_assist_strength",
-        Callback = function(value)
-            Settings.Misc.AimAssistStrength = value
-        end
-    })
-    
-    general:AddParagraph({
-        Title = "Misc Information",
-        Content = "Various utility features to enhance\nyour gameplay experience.\nUse responsibly to avoid detection."
-    })
-end
-
--- Advanced Tab
-do
-    local general = Advanced:DrawSection({
-        Name = "General",
-        Position = "LEFT"
-    })
-    
-    local advanced = Advanced:DrawSection({
-        Name = "Advanced",
-        Position = "RIGHT"
-    })
-    
-    -- General Settings
-    general:AddToggle({
-        Name = "Prediction",
-        Flag = "prediction_enabled",
-        Default = Settings.Advanced.PredictionEnabled,
-        Callback = function(state)
-            Settings.Advanced.PredictionEnabled = state
-        end
-    })
-    
-    general:AddSlider({
-        Name = "Prediction Amount",
-        Min = 0,
-        Max = 0.5,
-        Default = Settings.Advanced.PredictionAmount,
-        Flag = "prediction_amount",
-        Callback = function(value)
-            Settings.Advanced.PredictionAmount = value
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Velocity Compensation",
-        Flag = "velocity_compensation",
-        Default = Settings.Advanced.VelocityCompensation,
-        Callback = function(state)
-            Settings.Advanced.VelocityCompensation = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Bullet Drop Compensation",
-        Flag = "bullet_drop_compensation",
-        Default = Settings.Advanced.BulletDropCompensation,
-        Callback = function(state)
-            Settings.Advanced.BulletDropCompensation = state
-        end
-    })
-    
-    general:AddToggle({
-        Name = "Advanced Wall Check",
-        Flag = "advanced_wall_check",
-        Default = Settings.Advanced.AdvancedWallCheck,
-        Callback = function(state)
-            Settings.Advanced.AdvancedWallCheck = state
-        end
-    })
-    
-    general:AddDropdown({
-        Name = "Visible Check Method",
-        Values = {"Raycast", "Intersection"},
-        Default = Settings.Advanced.VisibleCheckMethod,
-        Flag = "visible_check_method",
-        Callback = function(option)
-            Settings.Advanced.VisibleCheckMethod = option
-        end
-    })
-    
-    -- Advanced Settings
-    advanced:AddDropdown({
-        Name = "Target Priority",
-        Values = {"Closest", "Highest HP", "Lowest HP", "Farthest"},
-        Default = Settings.Advanced.TargetPriority,
-        Flag = "target_priority",
-        Callback = function(option)
-            Settings.Advanced.TargetPriority = option
-        end
-    })
-    
-    advanced:AddDropdown({
-        Name = "Target Filter",
-        Values = {"Visible", "All"},
-        Default = Settings.Advanced.TargetFilter,
-        Flag = "target_filter",
-        Callback = function(option)
-            Settings.Advanced.TargetFilter = option
-        end
-    })
-    
-    advanced:AddSlider({
-        Name = "Max Targets",
-        Min = 1,
-        Max = 10,
-        Default = Settings.Advanced.MaxTargets,
-        Flag = "max_targets",
-        Callback = function(value)
-            Settings.Advanced.MaxTargets = value
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "Smart Aim",
-        Flag = "smart_aim",
-        Default = Settings.Advanced.SmartAim,
-        Callback = function(state)
-            Settings.Advanced.SmartAim = state
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "Aim When Shooting",
-        Flag = "aim_when_shooting",
-        Default = Settings.Advanced.AimWhenShooting,
-        Callback = function(state)
-            Settings.Advanced.AimWhenShooting = state
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "Auto Scope",
-        Flag = "auto_scope",
-        Default = Settings.Advanced.AutoScope,
-        Callback = function(state)
-            Settings.Advanced.AutoScope = state
-        end
-    })
-    
-    advanced:AddToggle({
-        Name = "Aim Assist",
-        Flag = "aim_assist",
-        Default = Settings.Advanced.AimAssist,
-        Callback = function(state)
-            Settings.Advanced.AimAssist = state
-        end
-    })
-    
-    advanced:AddSlider({
-        Name = "Aim Assist Amount",
-        Min = 0,
-        Max = 1,
-        Default = Settings.Advanced.AimAssistAmount,
-        Flag = "aim_assist_amount",
-        Callback = function(value)
-            Settings.Advanced.AimAssistAmount = value
-        end
-    })
-    
-    general:AddParagraph({
-        Title = "Advanced Information",
-        Content = "These settings provide more precise control\nover the aimbot system.\nUse them to fine-tune your gameplay."
-    })
 end
 
 -- Main Loop
-RunService.Heartbeat:Connect(function()
-    -- Update FOV circle
-    if Settings.Aimbot.Enabled and Settings.Aimbot.ShowFOV then
+local mainConnection
+mainConnection = RunService.Heartbeat:Connect(function()
+    -- Update FOV Circle
+    if FeatureState.FOVVisible then
         fovCircle.Visible = true
         fovCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-        fovCircle.Radius = Settings.Aimbot.FOV
+        fovCircle.Radius = FeatureState.FOVSize
+        fovCircle.Color = Color3.new(1, 1, 1)
     else
         fovCircle.Visible = false
     end
@@ -1980,91 +885,37 @@ RunService.Heartbeat:Connect(function()
     -- Update ESP
     updateESP()
     
-    -- Auto-BunnyHop
-    if Settings.Player.AutoBunnyHop then
-        autoBunnyHop()
-    end
-    
-    -- Auto Sprint
-    if Settings.Player.AutoSprint and UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Player.SprintSpeed
-    elseif LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Player.Speed
-    end
-    
-    -- Auto Crouch
-    if Settings.Player.AutoCrouch and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.WalkSpeed = Settings.Player.CrouchSpeed
-    end
-    
-    -- FOV Changer
-    if Settings.Misc.FOVChanger then
-        Camera.FieldOfView = Settings.Misc.FOVAmount
-    end
-    
-    -- Circle Strafe
-    if Settings.Misc.CircleStrafe and UserInputService:IsKeyDown(Settings.Misc.BhopKey) and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local rootPart = LocalPlayer.Character.HumanoidRootPart
-        local angle = tick() * 5
-        local radius = Settings.Misc.CircleRadius
+    -- Aimbot
+    if FeatureState.AimbotEnabled then
+        local target = getClosestTarget()
         
-        local x = math.cos(angle) * radius
-        local z = math.sin(angle) * radius
-        
-        local targetPosition = rootPart.Position + Vector3.new(x, 0, z)
-        local direction = (targetPosition - rootPart.Position).Unit * 50
-        
-        rootPart.Velocity = direction
-    end
-end)
-
--- Auto-Respawn and Auto-Kill implementation
-Connections.CharacterAdded = LocalPlayer.CharacterAdded:Connect(onCharacterAdded)
-if LocalPlayer.Character then
-    onCharacterAdded()
-end
-
--- Auto-Farm implementation
-RunService.Heartbeat:Connect(function()
-    if Settings.Auto.Farm then
-        local target = getFarmTarget()
-        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-            local tRoot = target.Character.HumanoidRootPart
-            local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if root then
-                if Settings.Auto.GodMode then 
-                    setGodMode(true) 
-                end
-                
-                -- Teleport behind
-                local behind = tRoot.CFrame * CFrame.new(0, 0, -4)
-                root.CFrame = behind
-                
-                -- Auto-shoot
-                local tool = LocalPlayer.Character:FindFirstChildOfClass("Tool")
-                if tool and tool:FindFirstChild("RemoteEvent") then
-                    local head = target.Character:FindFirstChild("Head")
-                    if head then
-                        local vel = head.Velocity
-                        local predicted = head.Position + vel * Settings.Advanced.PredictionAmount
-                        tool.RemoteEvent:FireServer(predicted)
-                    end
-                end
-            end
-        end
-    else
-        if Settings.Auto.GodMode and lastTarget then
-            setGodMode(false)
-            lastTarget = nil
+        if target then
+            local target_pos = target.Position
+            local camera_cf = Camera.CFrame
+            local direction = (target_pos - camera_cf.Position).Unit
+            
+            Camera.CFrame = camera_cf:Lerp(CFrame.lookAt(camera_cf.Position, camera_cf.Position + direction), 1 / FeatureState.Smoothness)
         end
     end
-end)
-
--- Auto-Kill implementation
-task.spawn(function()
-    while true do
-        task.wait(0.1)
-        autoKillTask()
+    
+    -- Farming
+    if FeatureState.AutoFarm then
+        autoFarm()
+    end
+    
+    -- Auto Kill
+    if FeatureState.AutoKill then
+        autoKill()
+    end
+    
+    -- Auto Respawn
+    if FeatureState.AutoRespawn then
+        autoRespawn()
+    end
+    
+    -- Bring Heads
+    if FeatureState.BringHeads then
+        bringHeads()
     end
 end)
 
@@ -2074,11 +925,11 @@ Players.PlayerAdded:Connect(function(player)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
-    if ESPObjects[player] then
-        for _, drawing in pairs(ESPObjects[player]) do
+    if espObjects[player] then
+        for _, drawing in pairs(espObjects[player]) do
             drawing:Remove()
         end
-        ESPObjects[player] = nil
+        espObjects[player] = nil
     end
 end)
 
@@ -2089,5 +940,15 @@ for _, player in ipairs(Players:GetPlayers()) do
     end
 end
 
--- Draw the UI
+-- Add welcome notification
+task.spawn(function()
+    task.wait(1)
+    SoulsHub:Notify({
+        Title = "SOULS HUB",
+        Content = "Hypershot script initialized successfully!",
+        Duration = 5
+    })
+end)
+
+-- Final UI draw
 Window:Draw()
