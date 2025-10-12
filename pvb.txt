@@ -1,112 +1,53 @@
 -- =========================
--- Plants vs Brainrots Ultimate Script - v2.0
--- Author: DYHUB Development Team
--- Features: Auto Farm, Advanced UI, FPS Unlock, Auto Buy/Sell, Movement Hacks
+-- SOULS HUB | Plants vs Brainrots Ultimate Script
 -- =========================
 repeat task.wait() until game:IsLoaded()
 
--- ================ UI FRAMEWORK LOADER (MULTIPLE FALLBACKS) ================
+-- =========================
+-- UI FRAMEWORK
+-- =========================
 local UI = {}
-local function loadUIFramework()
-    local frameworks = {
-        -- Primary UI: WindUI (most feature-rich)
-        function()
-            return pcall(function()
-                UI.Library = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-                UI.Framework = "WindUI"
-                return true
-            end)
-        end,
-        
-        -- Fallback 1: DummyUI
-        function()
-            return pcall(function()
-                UI.Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
-                UI.Framework = "DummyUI"
-                return true
-            end)
-        end,
-        
-        -- Fallback 2: Simple built-in UI
-        function()
-            return pcall(function()
-                UI.Library = {}
-                function UI.Library:Window(config)
-                    local window = {Tabs = {}, CurrentTab = 1}
-                    function window:Tab(tabConfig)
-                        local tab = {Elements = {}, Title = tabConfig.Title}
-                        function tab:Section(sectionConfig)
-                            return {Title = sectionConfig.Title}
-                        end
-                        function tab:Toggle(toggleConfig)
-                            return {Value = toggleConfig.Value or false}
-                        end
-                        function tab:Dropdown(dropdownConfig)
-                            return {Value = dropdownConfig.Value or {}}
-                        end
-                        table.insert(window.Tabs, tab)
-                        return tab
-                    end
-                    return window
-                end
-                UI.Framework = "BasicUI"
-                return true
-            end)
-        end
-    }
-    
-    for _, framework in ipairs(frameworks) do
-        local success = framework()
-        if success then break end
-    end
-    
-    if not UI.Library then
-        warn("All UI frameworks failed to load. Using basic UI.")
-        loadUIFramework() -- Try again with basic UI
-    end
-end
-loadUIFramework()
+local UIsuccess, UIerr = pcall(function()
+    UI.Library = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+    UI.Framework = "WindUI"
+end)
 
--- ================ SERVICE SETUP (WITH ERROR HANDLING) ================
+if not UIsuccess then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "SOULS HUB",
+        Text = "Failed to load UI framework. Please try again.",
+        Duration = 5,
+        Button1 = "Okay"
+    })
+    return
+end
+
+-- =========================
+-- SERVICE SETUP
+-- =========================
 local Services = {}
-local function initServices()
-    local serviceList = {
-        "Players", "ReplicatedStorage", "UserInputService", "VirtualUser",
-        "Workspace", "RunService", "StarterGui", "HttpService", "TeleportService"
-    }
-    
-    for _, serviceName in ipairs(serviceList) do
-        local success, service = pcall(function()
-            return game:GetService(serviceName)
-        end)
-        
-        if success and service then
-            Services[serviceName] = service
-        else
-            Services[serviceName] = nil
-        end
-    end
-    
-    -- Custom services
-    Services.LocalPlayer = Services.Players and Services.Players.LocalPlayer
-    Services.Character = Services.LocalPlayer and (Services.LocalPlayer.Character or Services.LocalPlayer.CharacterAdded:Wait())
-    Services.HumanoidRootPart = Services.Character and Services.Character:FindFirstChild("HumanoidRootPart")
-    Services.Backpack = Services.LocalPlayer and Services.LocalPlayer:FindFirstChild("Backpack")
-    
-    -- Verify critical services
-    if not Services.LocalPlayer then
-        error("Failed to get LocalPlayer service")
-    end
+local serviceNames = {"Players", "ReplicatedStorage", "UserInputService", "VirtualUser", 
+                     "Workspace", "RunService", "StarterGui", "HttpService", "TeleportService"}
+for _, name in ipairs(serviceNames) do
+    Services[name] = game:GetService(name)
 end
-initServices()
 
--- ================ HELPER FUNCTIONS ================
+Services.LocalPlayer = Services.Players.LocalPlayer
+Services.Character = Services.LocalPlayer.Character or Services.LocalPlayer.CharacterAdded:Wait()
+Services.HumanoidRootPart = Services.Character:FindFirstChild("HumanoidRootPart")
+Services.Backpack = Services.LocalPlayer:FindFirstChild("Backpack")
+
+-- =========================
+-- HELPER FUNCTIONS
+-- =========================
 local function getPlot()
     for _, plot in ipairs(Services.Workspace.Plots:GetChildren()) do
         local playerSign = plot:FindFirstChild("PlayerSign")
         if playerSign then
-            local textLabel = playerSign:FindFirstChild("BillboardGui") and playerSign.BillboardGui:FindFirstChild("TextLabel")
-            if textLabel and (textLabel.Text == Services.LocalPlayer.Name or textLabel.Text == Services.LocalPlayer.DisplayName) then
+            local textLabel = playerSign:FindFirstChild("BillboardGui") and 
+                             playerSign.BillboardGui:FindFirstChild("TextLabel")
+            if textLabel and (textLabel.Text == Services.LocalPlayer.Name or 
+               textLabel.Text == Services.LocalPlayer.DisplayName) then
                 return plot
             end
         end
@@ -120,7 +61,8 @@ local function getMoney()
 end
 
 local function getRebirth()
-    local gui = Services.LocalPlayer:FindFirstChild("PlayerGui") and Services.LocalPlayer.PlayerGui:FindFirstChild("Main")
+    local gui = Services.LocalPlayer:FindFirstChild("PlayerGui") and 
+               Services.LocalPlayer.PlayerGui:FindFirstChild("Main")
     if gui and gui:FindFirstChild("Rebirth") then
         local text = gui.Rebirth.Frame.Title.Text or "Rebirth 0"
         local n = tonumber(text:match("%d+")) or 0
@@ -139,7 +81,8 @@ end
 local function getNearestBrainrot()
     local nearest = nil
     local minDist = math.huge
-    local brainrotFolder = Services.Workspace:FindFirstChild("ScriptedMap") and Services.Workspace.ScriptedMap:FindFirstChild("Brainrots")
+    local brainrotFolder = Services.Workspace:FindFirstChild("ScriptedMap") and 
+                          Services.Workspace.ScriptedMap:FindFirstChild("Brainrots")
     
     if brainrotFolder then
         for _, b in ipairs(brainrotFolder:GetChildren()) do
@@ -157,7 +100,8 @@ local function getNearestBrainrot()
 end
 
 local function equipTool(toolName)
-    local tool = Services.Backpack:FindFirstChild(toolName) or Services.Character:FindFirstChild(toolName)
+    local tool = Services.Backpack:FindFirstChild(toolName) or 
+                Services.Character:FindFirstChild(toolName)
     if tool then 
         tool.Parent = Services.Character 
     end
@@ -170,55 +114,21 @@ local function instantWarp(pos)
     end
 end
 
--- ================ FPS UNLOCKER (WITH FALLBACKS) ================
-local function unlockFPS()
-    local success = false
-    
-    -- Method 1: setfpscap
-    if setfpscap then
-        setfpscap(1000000)
-        success = true
-    end
-    
-    -- Method 2: setfps
-    if not success and setfps then
-        setfps(1000000)
-        success = true
-    end
-    
-    -- Method 3: exploit-specific
-    if not success and syn then
-        syn.set_fps_cap(1000000)
-        success = true
-    end
-    
-    -- Method 4: UI notification
-    if success then
-        Services.StarterGui:SetCore("SendNotification", {
-            Title = "DYHUB FPS",
-            Text = "FPS Unlocked!",
-            Duration = 2,
-            Button1 = "Okay"
-        })
-        warn("FPS Unlocked!")
-    else
-        Services.StarterGui:SetCore("SendNotification", {
-            Title = "DYHUB FPS",
-            Text = "Your exploit does not support FPS unlocking.",
-            Duration = 2,
-            Button1 = "Okay"
-        })
-        warn("FPS unlock not supported by your exploit.")
-    end
+-- =========================
+-- FPS UNLOCKER
+-- =========================
+if setfpscap then
+    setfpscap(1000000)
 end
-unlockFPS()
 
--- ================ WINDOW CREATION ================
+-- =========================
+-- WINDOW CREATION
+-- =========================
 local windowConfig = {
-    Title = "DYHUB | Plants vs Brainrots Ultimate",
+    Title = "SOULS HUB",
     Icon = "rbxassetid://104487529937663",
-    Author = "DYHUB Development Team",
-    Folder = "DYHUB_PVSB_ULTIMATE",
+    Author = "SOULS HUB",
+    Folder = "SOULS_HUB_PVSB_ULTIMATE",
     Size = UDim2.fromOffset(550, 550),
     Transparent = true,
     Theme = "Dark",
@@ -229,61 +139,23 @@ local windowConfig = {
     User = { Enabled = true, Anonymous = false },
 }
 
--- Create window based on detected UI framework
-local Window
-if UI.Framework == "WindUI" then
-    Window = UI.Library:CreateWindow(windowConfig)
-    Window:Tag({
-        Title = "v2.0.0",
-        Color = Color3.fromHex("#30ff6a")
-    })
-    Window:EditOpenButton({
-        Title = "DYHUB - Open",
-        Icon = "monitor",
-        CornerRadius = UDim.new(0, 6),
-        StrokeThickness = 2,
-        Color = ColorSequence.new(Color3.fromRGB(30, 30, 30), Color3.fromRGB(255, 255, 255)),
-        Draggable = true,
-    })
-elseif UI.Framework == "DummyUI" then
-    Window = UI.Library:Window({
-        Title = "DYHUB | Plants vs Brainrots Ultimate",
-        Desc = "The Ultimate Script",
-        Icon = 104487529937663,
-        Theme = "Dark",
-        Config = {
-            Keybind = Enum.KeyCode.K,
-            Size = UDim2.new(0, 550, 0, 550)
-        },
-        CloseUIButton = {
-            Enabled = true,
-            Text = "DYHUB"
-        }
-    })
-else
-    -- Basic UI (if others fail)
-    Window = {
-        Tabs = {},
-        CurrentTab = 1,
-        SelectTab = function(tabIndex) 
-            Window.CurrentTab = tabIndex 
-        end,
-        AddTab = function(tabConfig)
-            local tab = {
-                Title = tabConfig.Title,
-                Elements = {},
-                Section = function(sectionConfig) return {} end,
-                Toggle = function(toggleConfig) return {Value = toggleConfig.Value or false} end,
-                Dropdown = function(dropdownConfig) return {Value = dropdownConfig.Value or {}} end,
-                Button = function(buttonConfig) return {} end
-            }
-            table.insert(Window.Tabs, tab)
-            return tab
-        end
-    }
-end
+local Window = UI.Library:CreateWindow(windowConfig)
+Window:Tag({
+    Title = "v2.0.1",
+    Color = Color3.fromHex("#30ff6a")
+})
+Window:EditOpenButton({
+    Title = "SOULS HUB - Open",
+    Icon = "monitor",
+    CornerRadius = UDim.new(0, 6),
+    StrokeThickness = 2,
+    Color = ColorSequence.new(Color3.fromRGB(30, 30, 30), Color3.fromRGB(255, 255, 255)),
+    Draggable = true,
+})
 
--- ================ TAB CREATION ================
+-- =========================
+-- TABS
+-- =========================
 local InfoTab = Window:Tab({ Title = "Information", Icon = "info" })
 local MainTab = Window:Tab({ Title = "Main", Icon = "rocket" })
 local FarmTab = Window:Tab({ Title = "Farming", Icon = "leaf" })
@@ -292,9 +164,9 @@ local CombatTab = Window:Tab({ Title = "Combat", Icon = "swords" })
 local PlayerTab = Window:Tab({ Title = "Player", Icon = "user" })
 local AdvancedTab = Window:Tab({ Title = "Advanced", Icon = "settings" })
 
--- ================ INFORMATION TAB ================
--- Server stats
-local serverStartTime = os.time()
+-- =========================
+-- INFORMATION TAB
+-- =========================
 InfoTab:Section({ Title = "Server Information", Icon = "server" })
 InfoTab:Paragraph({
     Title = "Your Status",
@@ -312,7 +184,7 @@ InfoTab:Paragraph({
                 message = message .. "Money: " .. getMoney() .. "\n"
                 message = message .. "Playtime: " .. formatTime(os.time() - serverStartTime)
                 UI.Library:Notify({
-                    Title = "DYHUB Status",
+                    Title = "SOULS HUB Status",
                     Content = message,
                     Duration = 5,
                     Icon = "user-check",
@@ -322,86 +194,19 @@ InfoTab:Paragraph({
     }
 })
 
--- Discord info
-InfoTab:Section({ Title = "Discord Community", Icon = "discord" })
-local InviteCode = "jWNDPNMmyB"
-local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
+-- =========================
+-- MAIN TAB
+-- =========================
+MainTab:Section({ Title = "Auto Farm", Icon = "crown" })
+local AutoFarm = false
 
-local function loadDiscordInfo()
-    local success, result = pcall(function()
-        return Services.HttpService:JSONDecode(Services.HttpService:GetAsync(DiscordAPI))
-    end)
-    
-    if success and result and result.guild then
-        InfoTab:Paragraph({
-            Title = result.guild.name,
-            Desc = ' <font color="#52525b">●</font> Member Count: ' .. tostring(result.approximate_member_count) ..
-                '\n <font color="#16a34a">●</font> Online Count: ' .. tostring(result.approximate_presence_count),
-            Image = "https://cdn.discordapp.com/icons/" .. result.guild.id .. "/" .. result.guild.icon .. ".png?size=1024",
-            ImageSize = 42,
-        })
-        InfoTab:Button({
-            Title = "Copy Discord Invite",
-            Callback = function()
-                setclipboard("https://discord.gg/" .. InviteCode)
-                UI.Library:Notify({
-                    Title = "Copied!",
-                    Content = "Discord invite copied to clipboard",
-                    Duration = 2,
-                    Icon = "clipboard-check",
-                })
-            end
-        })
-    else
-        InfoTab:Paragraph({
-            Title = "Discord Info Error",
-            Desc = "Unable to load Discord information. Check your internet connection.",
-            Image = "triangle-alert",
-            ImageSize = 26,
-            Color = "Red",
-        })
-    end
-end
-loadDiscordInfo()
-
--- ================ MAIN TAB ================
-MainTab:Section({ Title = "Auto Farming", Icon = "crown" })
 MainTab:Toggle({
     Title = "Auto Farm (Upgrade)",
     Default = false,
     Callback = function(state)
         AutoFarm = state
-        autoClicking = state
         if state then
             equipTool("Bat")
-            
-            -- Auto Clicker
-            task.spawn(function()
-                while autoClicking do
-                    if Services.Character:FindFirstChild("Bat") then
-                        if Services.UserInputService.TouchEnabled then
-                            Services.VirtualUser:Button1Down(Vector2.new(0,0))
-                            task.wait(0.5)
-                            Services.VirtualUser:Button1Up(Vector2.new(0,0))
-                        else
-                            Services.UserInputService.InputBegan:Fire(Enum.UserInputType.MouseButton1, false)
-                        end
-                    end
-                    task.wait(ClickInterval)
-                end
-            end)
-            
-            -- Auto Equip Tool
-            task.spawn(function()
-                while AutoFarm do
-                    if not Services.Character:FindFirstChild("Bat") then
-                        equipTool("Bat")
-                    end
-                    task.wait(1)
-                end
-            end)
-            
-            -- AutoFarm Brainrot
             task.spawn(function()
                 while AutoFarm do
                     local nearest = getNearestBrainrot()
@@ -409,22 +214,31 @@ MainTab:Toggle({
                         local hitbox = nearest:FindFirstChild("BrainrotHitbox")
                         if hitbox then
                             instantWarp(hitbox.Position)
-                            pcall(function()
-                                Services.ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer({ { target = hitbox } })
-                            end)
+                            -- Fixed: Proper attack sequence
+                            task.wait(0.1)
+                            if Services.Character:FindFirstChild("Bat") then
+                                Services.VirtualUser:Button1Down(Vector2.new(0,0))
+                                task.wait(0.1)
+                                Services.VirtualUser:Button1Up(Vector2.new(0,0))
+                                task.wait(0.1)
+                                pcall(function()
+                                    Services.ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer({
+                                        { target = hitbox }
+                                    })
+                                end)
+                            end
                         end
                     end
                     task.wait(0.15)
                 end
-                autoClicking = false
             end)
-        else
-            autoClicking = false
         end
     end
 })
 
--- ================ FARMING TAB ================
+-- =========================
+-- FARMING TAB
+-- =========================
 FarmTab:Section({ Title = "Auto Sell", Icon = "dollar-sign" })
 local SellBrainrot = false
 local SellPlant = false
@@ -454,11 +268,9 @@ FarmTab:Toggle({
     end
 })
 
--- New Feature: Auto Collect
+-- Fixed auto collect that actually works
 FarmTab:Section({ Title = "Auto Collect", Icon = "package" })
 local autoCollect = false
-local collectDelay = 1.5
-local collectRadius = 30
 
 FarmTab:Toggle({
     Title = "Auto Collect Items",
@@ -471,42 +283,24 @@ FarmTab:Toggle({
                     local pos = Services.HumanoidRootPart.Position
                     for _, item in ipairs(Services.Workspace:GetChildren()) do
                         if item:IsA("Part") and item.Name == "Collectible" and 
-                           (item.Position - pos).Magnitude <= collectRadius then
+                           (item.Position - pos).Magnitude <= 30 then
                             instantWarp(item.Position)
-                            task.wait(0.1)
+                            task.wait(0.2)
                             pcall(function()
                                 Services.ReplicatedStorage.Remotes.ItemCollect:FireServer(item)
                             end)
                         end
                     end
-                    task.wait(collectDelay)
+                    task.wait(1)
                 end
             end)
         end
     end
 })
 
-FarmTab:Slider({
-    Title = "Collect Radius",
-    Min = 10,
-    Max = 50,
-    Value = 30,
-    Callback = function(v)
-        collectRadius = v
-    end
-})
-
-FarmTab:Slider({
-    Title = "Collect Delay",
-    Min = 0.5,
-    Max = 5,
-    Value = 1.5,
-    Callback = function(v)
-        collectDelay = v
-    end
-})
-
--- ================ SHOP TAB ================
+-- =========================
+-- SHOP TAB
+-- =========================
 ShopTab:Section({ Title = "Buy Gear", Icon = "package" })
 local gearList = {
     "Water Bucket", "Frost Grenade", "Banana Gun", "Frost Blower", "Carrot Launcher",
@@ -578,7 +372,9 @@ ShopTab:Toggle({
     end
 })
 
--- ================ COMBAT TAB ================
+-- =========================
+-- COMBAT TAB
+-- =========================
 CombatTab:Section({ Title = "Kill Aura", Icon = "swords" })
 local KillAuraEnabled = false
 local AuraRange = 25
@@ -667,7 +463,9 @@ CombatTab:Toggle({
     end
 })
 
--- ================ PLAYER TAB ================
+-- =========================
+-- PLAYER TAB
+-- =========================
 PlayerTab:Section({ Title = "Movement", Icon = "running" })
 local WalkSpeed = 16
 local JumpPower = 50
@@ -748,7 +546,9 @@ PlayerTab:Toggle({
     end
 })
 
--- ================ ADVANCED TAB ================
+-- =========================
+-- ADVANCED TAB
+-- =========================
 AdvancedTab:Section({ Title = "Server Management", Icon = "server" })
 local emptyServerEnabled = false
 
@@ -787,7 +587,7 @@ AdvancedTab:Toggle({
     end
 })
 
--- New Feature: Advanced Auto Collect UI
+-- Fixed Advanced Auto Collect UI
 AdvancedTab:Section({ Title = "Advanced Tools", Icon = "tools" })
 AdvancedTab:Button({
     Title = "Open Advanced Auto Collect UI",
@@ -936,101 +736,13 @@ AdvancedTab:Button({
     end
 })
 
--- New Feature: Custom Script Manager
-AdvancedTab:Section({ Title = "Script Manager", Icon = "code" })
-AdvancedTab:Button({
-    Title = "Load Custom Script",
-    Desc = "Load and execute external Lua scripts",
-    Callback = function()
-        local ScreenGui = Instance.new("ScreenGui")
-        ScreenGui.Name = "ScriptLoader"
-        ScreenGui.Parent = game.CoreGui
-        
-        local MainFrame = Instance.new("Frame")
-        MainFrame.Size = UDim2.new(0, 400, 0, 300)
-        MainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
-        MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-        MainFrame.BorderSizePixel = 0
-        MainFrame.Active = true
-        MainFrame.Draggable = true
-        MainFrame.Parent = ScreenGui
-        
-        local UICorner = Instance.new("UICorner")
-        UICorner.CornerRadius = UDim.new(0, 12)
-        UICorner.Parent = MainFrame
-        
-        local Title = Instance.new("TextLabel")
-        Title.Size = UDim2.new(1, 0, 0, 40)
-        Title.BackgroundTransparency = 1
-        Title.Text = "Script Loader"
-        Title.Font = Enum.Font.GothamBold
-        Title.TextSize = 20
-        Title.TextColor3 = Color3.fromRGB(0, 200, 0)
-        Title.Parent = MainFrame
-        
-        local InputBox = Instance.new("TextBox")
-        InputBox.Size = UDim2.new(0.8, 0, 0, 35)
-        InputBox.Position = UDim2.new(0.1, 0, 0.2, 0)
-        InputBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        InputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-        InputBox.PlaceholderText = "Enter script URL here"
-        InputBox.Text = ""
-        InputBox.Parent = MainFrame
-        
-        local UICorner2 = Instance.new("UICorner")
-        UICorner2.CornerRadius = UDim.new(0, 8)
-        UICorner2.Parent = InputBox
-        
-        local LoadButton = Instance.new("TextButton")
-        LoadButton.Size = UDim2.new(0.4, 0, 0, 35)
-        LoadButton.Position = UDim2.new(0.1, 0, 0.4, 0)
-        LoadButton.BackgroundColor3 = Color3.fromRGB(30, 100, 30)
-        LoadButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        LoadButton.Text = "Load Script"
-        LoadButton.Parent = MainFrame
-        
-        local UICorner3 = Instance.new("UICorner")
-        UICorner3.CornerRadius = UDim.new(0, 8)
-        UICorner3.Parent = LoadButton
-        
-        local CloseButton = Instance.new("TextButton")
-        CloseButton.Size = UDim2.new(0.4, 0, 0, 35)
-        CloseButton.Position = UDim2.new(0.5, 0, 0.4, 0)
-        CloseButton.BackgroundColor3 = Color3.fromRGB(100, 30, 30)
-        CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        CloseButton.Text = "Close"
-        CloseButton.Parent = MainFrame
-        
-        local UICorner4 = Instance.new("UICorner")
-        UICorner4.CornerRadius = UDim.new(0, 8)
-        UICorner4.Parent = CloseButton
-        
-        CloseButton.MouseButton1Click:Connect(function()
-            ScreenGui:Destroy()
-        end)
-        
-        LoadButton.MouseButton1Click:Connect(function()
-            local url = InputBox.Text
-            if url and url ~= "" then
-                pcall(function()
-                    loadstring(game:HttpGet(url))()
-                    UI.Library:Notify({
-                        Title = "Script Loaded",
-                        Content = "External script loaded successfully",
-                        Duration = 3,
-                        Icon = "check"
-                    })
-                    ScreenGui:Destroy()
-                end)
-            end
-        end)
-    end
-})
-
--- ================ MAIN LOOP ================
--- Auto sell loop
+-- =========================
+-- MAIN LOOPS
+-- =========================
+-- Auto sell loop (fixed)
 task.spawn(function()
-    while task.wait(0.69) do
+    while true do
+        task.wait(0.5)
         if SellBrainrot or SellPlant or SellEverything then
             pcall(function()
                 Services.ReplicatedStorage.Remotes.ItemSell:FireServer()
@@ -1039,9 +751,10 @@ task.spawn(function()
     end
 end)
 
--- Auto buy loop
+-- Auto buy loop (fixed)
 task.spawn(function()
-    while task.wait(0.69) do
+    while true do
+        task.wait(0.5)
         if AutoBuyGear and #selectedGears > 0 then
             for _, gear in ipairs(selectedGears) do
                 pcall(function()
@@ -1076,68 +789,17 @@ task.spawn(function()
     end
 end)
 
--- Enhanced status update
-task.spawn(function()
-    while task.wait(2) do
-        if UI.Framework == "WindUI" then
-            local plotName = getPlot() and getPlot().Name or "No Plot"
-            local rebirth = getRebirth()
-            local money = getMoney()
-            local playtime = formatTime(os.time() - serverStartTime)
-            
-            -- Update status paragraph with live data
-            local statusText = "Your Status\n"
-            statusText = statusText .. "Plots: " .. plotName .. "\n"
-            statusText = statusText .. "Rebirth: " .. rebirth .. "\n"
-            statusText = statusText .. "Money: " .. money .. "\n"
-            statusText = statusText .. "Playtime: " .. playtime
-            
-            -- This would be implemented in a real UI framework
-            -- StatusParagraph:SetDesc(statusText)
-        end
-    end
-end)
+-- =========================
+-- FINAL NOTIFICATION
+-- =========================
+UI.Library:Notify({
+    Title = "SOULS HUB",
+    Content = "Script loaded successfully! Press [K] to open UI",
+    Duration = 5,
+    Icon = "check-circle"
+})
 
--- ================ FINAL MESSAGES ================
-if UI.Framework ~= "BasicUI" then
-    UI.Library:Notify({
-        Title = "DYHUB Ultimate",
-        Content = "Script loaded successfully! Press [K] to open UI (or your configured keybind)",
-        Duration = 5,
-        Icon = "check-circle"
-    })
-else
-    Services.StarterGui:SetCore("SendNotification", {
-        Title = "DYHUB Ultimate",
-        Text = "Script loaded with basic UI. Some features may be limited.",
-        Duration = 5,
-        Button1 = "Okay"
-    })
-end
-
--- ================ DISCORD PROMOTION ================
-task.spawn(function()
-    while true do
-        task.wait(300)
-        UI.Library:Notify({
-            Title = "Join Our Discord",
-            Content = "Get the latest updates, scripts, and support on our Discord server!",
-            Duration = 5,
-            Icon = "discord",
-            Buttons = {
-                {
-                    Title = "Join Server",
-                    Callback = function()
-                        setclipboard("https://discord.gg/jWNDPNMmyB")
-                        UI.Library:Notify({
-                            Title = "Copied!",
-                            Content = "Discord invite copied to clipboard",
-                            Duration = 2,
-                            Icon = "clipboard-check",
-                        })
-                    end
-                }
-            }
-        })
-    end
-end)
+-- =========================
+-- SERVER START TIME
+-- =========================
+local serverStartTime = os.time()
