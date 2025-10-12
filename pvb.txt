@@ -1,0 +1,1143 @@
+-- =========================
+-- Plants vs Brainrots Ultimate Script - v2.0
+-- Author: DYHUB Development Team
+-- Features: Auto Farm, Advanced UI, FPS Unlock, Auto Buy/Sell, Movement Hacks
+-- =========================
+repeat task.wait() until game:IsLoaded()
+
+-- ================ UI FRAMEWORK LOADER (MULTIPLE FALLBACKS) ================
+local UI = {}
+local function loadUIFramework()
+    local frameworks = {
+        -- Primary UI: WindUI (most feature-rich)
+        function()
+            return pcall(function()
+                UI.Library = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+                UI.Framework = "WindUI"
+                return true
+            end)
+        end,
+        
+        -- Fallback 1: DummyUI
+        function()
+            return pcall(function()
+                UI.Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/x2zu/OPEN-SOURCE-UI-ROBLOX/main/X2ZU%20UI%20ROBLOX%20OPEN%20SOURCE/DummyUi-leak-by-x2zu/fetching-main/Tools/Framework.luau"))()
+                UI.Framework = "DummyUI"
+                return true
+            end)
+        end,
+        
+        -- Fallback 2: Simple built-in UI
+        function()
+            return pcall(function()
+                UI.Library = {}
+                function UI.Library:Window(config)
+                    local window = {Tabs = {}, CurrentTab = 1}
+                    function window:Tab(tabConfig)
+                        local tab = {Elements = {}, Title = tabConfig.Title}
+                        function tab:Section(sectionConfig)
+                            return {Title = sectionConfig.Title}
+                        end
+                        function tab:Toggle(toggleConfig)
+                            return {Value = toggleConfig.Value or false}
+                        end
+                        function tab:Dropdown(dropdownConfig)
+                            return {Value = dropdownConfig.Value or {}}
+                        end
+                        table.insert(window.Tabs, tab)
+                        return tab
+                    end
+                    return window
+                end
+                UI.Framework = "BasicUI"
+                return true
+            end)
+        end
+    }
+    
+    for _, framework in ipairs(frameworks) do
+        local success = framework()
+        if success then break end
+    end
+    
+    if not UI.Library then
+        warn("All UI frameworks failed to load. Using basic UI.")
+        loadUIFramework() -- Try again with basic UI
+    end
+end
+loadUIFramework()
+
+-- ================ SERVICE SETUP (WITH ERROR HANDLING) ================
+local Services = {}
+local function initServices()
+    local serviceList = {
+        "Players", "ReplicatedStorage", "UserInputService", "VirtualUser",
+        "Workspace", "RunService", "StarterGui", "HttpService", "TeleportService"
+    }
+    
+    for _, serviceName in ipairs(serviceList) do
+        local success, service = pcall(function()
+            return game:GetService(serviceName)
+        end)
+        
+        if success and service then
+            Services[serviceName] = service
+        else
+            Services[serviceName] = nil
+        end
+    end
+    
+    -- Custom services
+    Services.LocalPlayer = Services.Players and Services.Players.LocalPlayer
+    Services.Character = Services.LocalPlayer and (Services.LocalPlayer.Character or Services.LocalPlayer.CharacterAdded:Wait())
+    Services.HumanoidRootPart = Services.Character and Services.Character:FindFirstChild("HumanoidRootPart")
+    Services.Backpack = Services.LocalPlayer and Services.LocalPlayer:FindFirstChild("Backpack")
+    
+    -- Verify critical services
+    if not Services.LocalPlayer then
+        error("Failed to get LocalPlayer service")
+    end
+end
+initServices()
+
+-- ================ HELPER FUNCTIONS ================
+local function getPlot()
+    for _, plot in ipairs(Services.Workspace.Plots:GetChildren()) do
+        local playerSign = plot:FindFirstChild("PlayerSign")
+        if playerSign then
+            local textLabel = playerSign:FindFirstChild("BillboardGui") and playerSign.BillboardGui:FindFirstChild("TextLabel")
+            if textLabel and (textLabel.Text == Services.LocalPlayer.Name or textLabel.Text == Services.LocalPlayer.DisplayName) then
+                return plot
+            end
+        end
+    end
+    return nil
+end
+
+local function getMoney()
+    local leaderstats = Services.LocalPlayer:FindFirstChild("leaderstats")
+    return leaderstats and leaderstats:FindFirstChild("Money") and leaderstats.Money.Value or 0
+end
+
+local function getRebirth()
+    local gui = Services.LocalPlayer:FindFirstChild("PlayerGui") and Services.LocalPlayer.PlayerGui:FindFirstChild("Main")
+    if gui and gui:FindFirstChild("Rebirth") then
+        local text = gui.Rebirth.Frame.Title.Text or "Rebirth 0"
+        local n = tonumber(text:match("%d+")) or 0
+        return n - 1
+    end
+    return 0
+end
+
+local function formatTime(sec)
+    local h = math.floor(sec / 3600)
+    local m = math.floor((sec % 3600) / 60)
+    local s = sec % 60
+    return string.format("%02d:%02d:%02d", h, m, s)
+end
+
+local function getNearestBrainrot()
+    local nearest = nil
+    local minDist = math.huge
+    local brainrotFolder = Services.Workspace:FindFirstChild("ScriptedMap") and Services.Workspace.ScriptedMap:FindFirstChild("Brainrots")
+    
+    if brainrotFolder then
+        for _, b in ipairs(brainrotFolder:GetChildren()) do
+            local hitbox = b:FindFirstChild("BrainrotHitbox")
+            if hitbox then
+                local dist = (Services.HumanoidRootPart.Position - hitbox.Position).Magnitude
+                if dist < minDist then
+                    minDist = dist
+                    nearest = b
+                end
+            end
+        end
+    end
+    return nearest
+end
+
+local function equipTool(toolName)
+    local tool = Services.Backpack:FindFirstChild(toolName) or Services.Character:FindFirstChild(toolName)
+    if tool then 
+        tool.Parent = Services.Character 
+    end
+end
+
+local function instantWarp(pos)
+    if Services.HumanoidRootPart then
+        local offset = Vector3.new(0, 1, 3)
+        Services.HumanoidRootPart.CFrame = CFrame.new(pos + offset, pos)
+    end
+end
+
+-- ================ FPS UNLOCKER (WITH FALLBACKS) ================
+local function unlockFPS()
+    local success = false
+    
+    -- Method 1: setfpscap
+    if setfpscap then
+        setfpscap(1000000)
+        success = true
+    end
+    
+    -- Method 2: setfps
+    if not success and setfps then
+        setfps(1000000)
+        success = true
+    end
+    
+    -- Method 3: exploit-specific
+    if not success and syn then
+        syn.set_fps_cap(1000000)
+        success = true
+    end
+    
+    -- Method 4: UI notification
+    if success then
+        Services.StarterGui:SetCore("SendNotification", {
+            Title = "DYHUB FPS",
+            Text = "FPS Unlocked!",
+            Duration = 2,
+            Button1 = "Okay"
+        })
+        warn("FPS Unlocked!")
+    else
+        Services.StarterGui:SetCore("SendNotification", {
+            Title = "DYHUB FPS",
+            Text = "Your exploit does not support FPS unlocking.",
+            Duration = 2,
+            Button1 = "Okay"
+        })
+        warn("FPS unlock not supported by your exploit.")
+    end
+end
+unlockFPS()
+
+-- ================ WINDOW CREATION ================
+local windowConfig = {
+    Title = "DYHUB | Plants vs Brainrots Ultimate",
+    Icon = "rbxassetid://104487529937663",
+    Author = "DYHUB Development Team",
+    Folder = "DYHUB_PVSB_ULTIMATE",
+    Size = UDim2.fromOffset(550, 550),
+    Transparent = true,
+    Theme = "Dark",
+    BackgroundImageTransparency = 0.8,
+    HasOutline = false,
+    HideSearchBar = true,
+    ScrollBarEnabled = false,
+    User = { Enabled = true, Anonymous = false },
+}
+
+-- Create window based on detected UI framework
+local Window
+if UI.Framework == "WindUI" then
+    Window = UI.Library:CreateWindow(windowConfig)
+    Window:Tag({
+        Title = "v2.0.0",
+        Color = Color3.fromHex("#30ff6a")
+    })
+    Window:EditOpenButton({
+        Title = "DYHUB - Open",
+        Icon = "monitor",
+        CornerRadius = UDim.new(0, 6),
+        StrokeThickness = 2,
+        Color = ColorSequence.new(Color3.fromRGB(30, 30, 30), Color3.fromRGB(255, 255, 255)),
+        Draggable = true,
+    })
+elseif UI.Framework == "DummyUI" then
+    Window = UI.Library:Window({
+        Title = "DYHUB | Plants vs Brainrots Ultimate",
+        Desc = "The Ultimate Script",
+        Icon = 104487529937663,
+        Theme = "Dark",
+        Config = {
+            Keybind = Enum.KeyCode.K,
+            Size = UDim2.new(0, 550, 0, 550)
+        },
+        CloseUIButton = {
+            Enabled = true,
+            Text = "DYHUB"
+        }
+    })
+else
+    -- Basic UI (if others fail)
+    Window = {
+        Tabs = {},
+        CurrentTab = 1,
+        SelectTab = function(tabIndex) 
+            Window.CurrentTab = tabIndex 
+        end,
+        AddTab = function(tabConfig)
+            local tab = {
+                Title = tabConfig.Title,
+                Elements = {},
+                Section = function(sectionConfig) return {} end,
+                Toggle = function(toggleConfig) return {Value = toggleConfig.Value or false} end,
+                Dropdown = function(dropdownConfig) return {Value = dropdownConfig.Value or {}} end,
+                Button = function(buttonConfig) return {} end
+            }
+            table.insert(Window.Tabs, tab)
+            return tab
+        end
+    }
+end
+
+-- ================ TAB CREATION ================
+local InfoTab = Window:Tab({ Title = "Information", Icon = "info" })
+local MainTab = Window:Tab({ Title = "Main", Icon = "rocket" })
+local FarmTab = Window:Tab({ Title = "Farming", Icon = "leaf" })
+local ShopTab = Window:Tab({ Title = "Shop", Icon = "shopping-cart" })
+local CombatTab = Window:Tab({ Title = "Combat", Icon = "swords" })
+local PlayerTab = Window:Tab({ Title = "Player", Icon = "user" })
+local AdvancedTab = Window:Tab({ Title = "Advanced", Icon = "settings" })
+
+-- ================ INFORMATION TAB ================
+-- Server stats
+local serverStartTime = os.time()
+InfoTab:Section({ Title = "Server Information", Icon = "server" })
+InfoTab:Paragraph({
+    Title = "Your Status",
+    Desc = "[+] Show Plots \n[+] Show Rebirth \n[+] Show Money \n[+] Show Playtime",
+    Image = "rbxassetid://104487529937663",
+    ImageSize = 50,
+    Buttons = {
+        {
+            Icon = "info",
+            Title = "Show Status",
+            Callback = function()
+                local message = "Your Status\n"
+                message = message .. "Plots: " .. (getPlot() and getPlot().Name or "No Plot") .. "\n"
+                message = message .. "Rebirth: " .. getRebirth() .. "\n"
+                message = message .. "Money: " .. getMoney() .. "\n"
+                message = message .. "Playtime: " .. formatTime(os.time() - serverStartTime)
+                UI.Library:Notify({
+                    Title = "DYHUB Status",
+                    Content = message,
+                    Duration = 5,
+                    Icon = "user-check",
+                })
+            end
+        }
+    }
+})
+
+-- Discord info
+InfoTab:Section({ Title = "Discord Community", Icon = "discord" })
+local InviteCode = "jWNDPNMmyB"
+local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
+
+local function loadDiscordInfo()
+    local success, result = pcall(function()
+        return Services.HttpService:JSONDecode(Services.HttpService:GetAsync(DiscordAPI))
+    end)
+    
+    if success and result and result.guild then
+        InfoTab:Paragraph({
+            Title = result.guild.name,
+            Desc = ' <font color="#52525b">●</font> Member Count: ' .. tostring(result.approximate_member_count) ..
+                '\n <font color="#16a34a">●</font> Online Count: ' .. tostring(result.approximate_presence_count),
+            Image = "https://cdn.discordapp.com/icons/" .. result.guild.id .. "/" .. result.guild.icon .. ".png?size=1024",
+            ImageSize = 42,
+        })
+        InfoTab:Button({
+            Title = "Copy Discord Invite",
+            Callback = function()
+                setclipboard("https://discord.gg/" .. InviteCode)
+                UI.Library:Notify({
+                    Title = "Copied!",
+                    Content = "Discord invite copied to clipboard",
+                    Duration = 2,
+                    Icon = "clipboard-check",
+                })
+            end
+        })
+    else
+        InfoTab:Paragraph({
+            Title = "Discord Info Error",
+            Desc = "Unable to load Discord information. Check your internet connection.",
+            Image = "triangle-alert",
+            ImageSize = 26,
+            Color = "Red",
+        })
+    end
+end
+loadDiscordInfo()
+
+-- ================ MAIN TAB ================
+MainTab:Section({ Title = "Auto Farming", Icon = "crown" })
+MainTab:Toggle({
+    Title = "Auto Farm (Upgrade)",
+    Default = false,
+    Callback = function(state)
+        AutoFarm = state
+        autoClicking = state
+        if state then
+            equipTool("Bat")
+            
+            -- Auto Clicker
+            task.spawn(function()
+                while autoClicking do
+                    if Services.Character:FindFirstChild("Bat") then
+                        if Services.UserInputService.TouchEnabled then
+                            Services.VirtualUser:Button1Down(Vector2.new(0,0))
+                            task.wait(0.5)
+                            Services.VirtualUser:Button1Up(Vector2.new(0,0))
+                        else
+                            Services.UserInputService.InputBegan:Fire(Enum.UserInputType.MouseButton1, false)
+                        end
+                    end
+                    task.wait(ClickInterval)
+                end
+            end)
+            
+            -- Auto Equip Tool
+            task.spawn(function()
+                while AutoFarm do
+                    if not Services.Character:FindFirstChild("Bat") then
+                        equipTool("Bat")
+                    end
+                    task.wait(1)
+                end
+            end)
+            
+            -- AutoFarm Brainrot
+            task.spawn(function()
+                while AutoFarm do
+                    local nearest = getNearestBrainrot()
+                    if nearest then
+                        local hitbox = nearest:FindFirstChild("BrainrotHitbox")
+                        if hitbox then
+                            instantWarp(hitbox.Position)
+                            pcall(function()
+                                Services.ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer({ { target = hitbox } })
+                            end)
+                        end
+                    end
+                    task.wait(0.15)
+                end
+                autoClicking = false
+            end)
+        else
+            autoClicking = false
+        end
+    end
+})
+
+-- ================ FARMING TAB ================
+FarmTab:Section({ Title = "Auto Sell", Icon = "dollar-sign" })
+local SellBrainrot = false
+local SellPlant = false
+local SellEverything = false
+
+FarmTab:Toggle({
+    Title = "Sell Brainrot All",
+    Default = false,
+    Callback = function(state)
+        SellBrainrot = state
+    end
+})
+
+FarmTab:Toggle({
+    Title = "Sell Plants All",
+    Default = false,
+    Callback = function(state)
+        SellPlant = state
+    end
+})
+
+FarmTab:Toggle({
+    Title = "Sell Both All",
+    Default = false,
+    Callback = function(state)
+        SellEverything = state
+    end
+})
+
+-- New Feature: Auto Collect
+FarmTab:Section({ Title = "Auto Collect", Icon = "package" })
+local autoCollect = false
+local collectDelay = 1.5
+local collectRadius = 30
+
+FarmTab:Toggle({
+    Title = "Auto Collect Items",
+    Default = false,
+    Callback = function(state)
+        autoCollect = state
+        if state then
+            task.spawn(function()
+                while autoCollect do
+                    local pos = Services.HumanoidRootPart.Position
+                    for _, item in ipairs(Services.Workspace:GetChildren()) do
+                        if item:IsA("Part") and item.Name == "Collectible" and 
+                           (item.Position - pos).Magnitude <= collectRadius then
+                            instantWarp(item.Position)
+                            task.wait(0.1)
+                            pcall(function()
+                                Services.ReplicatedStorage.Remotes.ItemCollect:FireServer(item)
+                            end)
+                        end
+                    end
+                    task.wait(collectDelay)
+                end
+            end)
+        end
+    end
+})
+
+FarmTab:Slider({
+    Title = "Collect Radius",
+    Min = 10,
+    Max = 50,
+    Value = 30,
+    Callback = function(v)
+        collectRadius = v
+    end
+})
+
+FarmTab:Slider({
+    Title = "Collect Delay",
+    Min = 0.5,
+    Max = 5,
+    Value = 1.5,
+    Callback = function(v)
+        collectDelay = v
+    end
+})
+
+-- ================ SHOP TAB ================
+ShopTab:Section({ Title = "Buy Gear", Icon = "package" })
+local gearList = {
+    "Water Bucket", "Frost Grenade", "Banana Gun", "Frost Blower", "Carrot Launcher",
+    "Brainrot Launcher", "Plant Launcher", "Super Shovel"
+}
+
+local selectedGears = {}
+ShopTab:Dropdown({
+    Title = "Select Gear",
+    Values = gearList,
+    Multi = true,
+    Callback = function(values)
+        selectedGears = values
+    end
+})
+
+local AutoBuyGear = false
+local AutoBuyAllGear = false
+
+ShopTab:Toggle({
+    Title = "Auto Buy Gear (Selected)",
+    Default = false,
+    Callback = function(state)
+        AutoBuyGear = state
+    end
+})
+
+ShopTab:Toggle({
+    Title = "Auto Buy All Gear",
+    Default = false,
+    Callback = function(state)
+        AutoBuyAllGear = state
+    end
+})
+
+ShopTab:Section({ Title = "Buy Seeds", Icon = "leaf" })
+local seedList = {
+    "Cactus Seed", "Strawberry Seed", "Pumpkin Seed", "Sunflower Seed",
+    "Dragon Seed", "Eggplant Seed", "Watermelon Seed", "Cocotank Seed",
+    "Carnivorous Plant Seed", "Mr Carrot Seed", "Tomatrio Seed", "Brainrot Seed"
+}
+
+local selectedSeeds = {}
+ShopTab:Dropdown({
+    Title = "Select Seeds",
+    Values = seedList,
+    Multi = true,
+    Callback = function(values)
+        selectedSeeds = values
+    end
+})
+
+local AutoBuySeed = false
+local AutoBuyAllSeed = false
+
+ShopTab:Toggle({
+    Title = "Auto Buy Seed (Selected)",
+    Default = false,
+    Callback = function(state)
+        AutoBuySeed = state
+    end
+})
+
+ShopTab:Toggle({
+    Title = "Auto Buy All Seed",
+    Default = false,
+    Callback = function(state)
+        AutoBuyAllSeed = state
+    end
+})
+
+-- ================ COMBAT TAB ================
+CombatTab:Section({ Title = "Kill Aura", Icon = "swords" })
+local KillAuraEnabled = false
+local AuraRange = 25
+local SelectedWeapon = "Banana Gun"
+local AutoAttack = true
+
+CombatTab:Dropdown({
+    Title = "Kill Aura Weapon",
+    List = {"Banana Gun", "Frost Blower", "Carrot Launcher", "Brainrot Launcher"},
+    Value = SelectedWeapon,
+    Callback = function(choice)
+        SelectedWeapon = choice
+    end
+})
+
+CombatTab:Toggle({
+    Title = "Kill Aura",
+    Desc = "Automatically attacks all Brainrot variants",
+    Value = false,
+    Callback = function(state)
+        KillAuraEnabled = state
+        if KillAuraEnabled then
+            task.spawn(function()
+                while KillAuraEnabled do
+                    local char = Services.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+                        local root = char.HumanoidRootPart
+                        local humanoid = char.Humanoid
+                        local tool = char:FindFirstChildOfClass("Tool")
+                        
+                        -- Equip selected weapon
+                        if not tool or tool.Name ~= SelectedWeapon then
+                            local item = Services.Backpack:FindFirstChild(SelectedWeapon)
+                            if item then
+                                humanoid:EquipTool(item)
+                                tool = item
+                            end
+                        end
+                        
+                        -- Find and attack brainrots
+                        for _, mob in ipairs(Services.Workspace:GetChildren()) do
+                            if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and
+                               not Services.Players:FindFirstChild(mob.Name) then
+                                local isTarget = false
+                                local mobName = mob.Name:lower()
+                                
+                                -- Check if name contains brainrot-related terms
+                                for _, keyword in ipairs({"brainrot", "brain", "rot", "zombie", "monster"}) do
+                                    if mobName:find(keyword) then
+                                        isTarget = true
+                                        break
+                                    end
+                                end
+                                
+                                if isTarget then
+                                    local dist = (mob.HumanoidRootPart.Position - root.Position).Magnitude
+                                    if dist <= AuraRange and tool and AutoAttack then
+                                        pcall(function() tool:Activate() end)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    task.wait(0.05)
+                end
+            end)
+        end
+    end
+})
+
+CombatTab:Slider({
+    Title = "Aura Range",
+    Min = 10,
+    Max = 60,
+    Value = AuraRange,
+    Callback = function(v)
+        AuraRange = v
+    end
+})
+
+CombatTab:Toggle({
+    Title = "Auto Attack",
+    Default = true,
+    Callback = function(state)
+        AutoAttack = state
+    end
+})
+
+-- ================ PLAYER TAB ================
+PlayerTab:Section({ Title = "Movement", Icon = "running" })
+local WalkSpeed = 16
+local JumpPower = 50
+local WalkSpeedEnabled = false
+local JumpEnabled = false
+local NoClipEnabled = false
+
+PlayerTab:Toggle({
+    Title = "WalkSpeed Hack",
+    Desc = "Enable / Disable custom WalkSpeed",
+    Value = false,
+    Callback = function(state)
+        WalkSpeedEnabled = state
+        if WalkSpeedEnabled then
+            Services.LocalPlayer.Character.Humanoid.WalkSpeed = WalkSpeed
+        else
+            Services.LocalPlayer.Character.Humanoid.WalkSpeed = 16
+        end
+    end
+})
+
+PlayerTab:Slider({
+    Title = "WalkSpeed Value",
+    Min = 16,
+    Max = 200,
+    Value = WalkSpeed,
+    Callback = function(val)
+        WalkSpeed = val
+        if WalkSpeedEnabled then
+            Services.LocalPlayer.Character.Humanoid.WalkSpeed = WalkSpeed
+        end
+    end
+})
+
+PlayerTab:Toggle({
+    Title = "Jump Hack",
+    Desc = "Enable / Disable custom JumpPower",
+    Value = false,
+    Callback = function(state)
+        JumpEnabled = state
+        if JumpEnabled then
+            Services.LocalPlayer.Character.Humanoid.JumpPower = JumpPower
+        else
+            Services.LocalPlayer.Character.Humanoid.JumpPower = 50
+        end
+    end
+})
+
+PlayerTab:Slider({
+    Title = "JumpPower Value",
+    Min = 50,
+    Max = 300,
+    Value = JumpPower,
+    Callback = function(val)
+        JumpPower = val
+        if JumpEnabled then
+            Services.LocalPlayer.Character.Humanoid.JumpPower = JumpPower
+        end
+    end
+})
+
+PlayerTab:Toggle({
+    Title = "NoClip",
+    Desc = "Walk through walls",
+    Value = false,
+    Callback = function(state)
+        NoClipEnabled = state
+        task.spawn(function()
+            while NoClipEnabled do
+                for _, part in ipairs(Services.Character:GetDescendants()) do
+                    if part:IsA("BasePart") and part.CanCollide then
+                        part.CanCollide = false
+                    end
+                end
+                task.wait(0.2)
+            end
+        end)
+    end
+})
+
+-- ================ ADVANCED TAB ================
+AdvancedTab:Section({ Title = "Server Management", Icon = "server" })
+local emptyServerEnabled = false
+
+AdvancedTab:Toggle({
+    Title = "Auto Empty Server",
+    Desc = "Automatically finds and joins servers with few players",
+    Value = false,
+    Callback = function(state)
+        emptyServerEnabled = state
+        if state then
+            task.spawn(function()
+                while emptyServerEnabled do
+                    local currentPlayers = #Services.Players:GetPlayers()
+                    if currentPlayers > 3 then
+                        local success, servers = pcall(function()
+                            return Services.HttpService:JSONDecode(Services.HttpService:GetAsync(
+                                "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+                            ))
+                        end)
+                        
+                        if success and servers and servers.data then
+                            for _, server in ipairs(servers.data) do
+                                if server.playing <= 3 and server.id ~= game.JobId then
+                                    pcall(function()
+                                        Services.TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, Services.LocalPlayer)
+                                    end)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    task.wait(300)
+                end
+            end)
+        end
+    end
+})
+
+-- New Feature: Advanced Auto Collect UI
+AdvancedTab:Section({ Title = "Advanced Tools", Icon = "tools" })
+AdvancedTab:Button({
+    Title = "Open Advanced Auto Collect UI",
+    Desc = "Custom location saving and teleportation",
+    Callback = function()
+        local ScreenGui = Instance.new("ScreenGui")
+        ScreenGui.Name = "AdvancedAutoCollectUI"
+        ScreenGui.Parent = game.CoreGui
+        
+        local MainFrame = Instance.new("Frame")
+        MainFrame.Size = UDim2.new(0, 450, 0, 450)
+        MainFrame.Position = UDim2.new(0.5, -225, 0.5, -225)
+        MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        MainFrame.BorderSizePixel = 0
+        MainFrame.Active = true
+        MainFrame.Draggable = true
+        MainFrame.Parent = ScreenGui
+        
+        local UICorner = Instance.new("UICorner")
+        UICorner.CornerRadius = UDim.new(0, 12)
+        UICorner.Parent = MainFrame
+        
+        local Title = Instance.new("TextLabel")
+        Title.Size = UDim2.new(1, 0, 0, 40)
+        Title.BackgroundTransparency = 1
+        Title.Text = "🌱 Advanced Auto Collect"
+        Title.Font = Enum.Font.GothamBold
+        Title.TextSize = 20
+        Title.TextColor3 = Color3.fromRGB(0, 200, 0)
+        Title.Parent = MainFrame
+        
+        local savedLocations = {}
+        local autoTP = false
+        local tpDelay = 1
+        local selectedLocation = nil
+        
+        local function makeButton(text, order, callback)
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(1, -20, 0, 35)
+            btn.Position = UDim2.new(0, 10, 0, 50 + (order * 40))
+            btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+            btn.Text = text
+            btn.Font = Enum.Font.Gotham
+            btn.TextSize = 16
+            btn.Parent = MainFrame
+            
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 8)
+            corner.Parent = btn
+            
+            btn.MouseButton1Click:Connect(callback)
+            return btn
+        end
+        
+        local DropFrame = Instance.new("Frame")
+        DropFrame.Size = UDim2.new(1, -20, 0, 150)
+        DropFrame.Position = UDim2.new(0, 10, 0, 280)
+        DropFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        DropFrame.Parent = MainFrame
+        
+        local UICorner2 = Instance.new("UICorner")
+        UICorner2.CornerRadius = UDim.new(0, 8)
+        UICorner2.Parent = DropFrame
+        
+        local UIListLayout = Instance.new("UIListLayout")
+        UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        UIListLayout.Parent = DropFrame
+        
+        local function refreshDropdown()
+            for _, child in ipairs(DropFrame:GetChildren()) do
+                if child:IsA("TextButton") then child:Destroy() end
+            end
+            
+            for i, loc in ipairs(savedLocations) do
+                local opt = Instance.new("TextButton")
+                opt.Size = UDim2.new(1, -10, 0, 25)
+                opt.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+                opt.TextColor3 = Color3.fromRGB(255, 255, 255)
+                opt.Text = loc.Name
+                opt.Font = Enum.Font.Gotham
+                opt.TextSize = 14
+                opt.Parent = DropFrame
+                
+                local corner = Instance.new("UICorner")
+                corner.CornerRadius = UDim.new(0, 6)
+                corner.Parent = opt
+                
+                opt.MouseButton1Click:Connect(function()
+                    selectedLocation = loc
+                end)
+            end
+        end
+        
+        makeButton("📌 Save Current Location", 0, function()
+            if Services.Character and Services.HumanoidRootPart then
+                local locName = "Loc" .. tostring(#savedLocations + 1)
+                table.insert(savedLocations, {Name = locName, Position = Services.HumanoidRootPart.Position})
+                refreshDropdown()
+            end
+        end)
+        
+        makeButton("⚡ Teleport to Selected", 1, function()
+            if selectedLocation then
+                Services.HumanoidRootPart.CFrame = CFrame.new(selectedLocation.Position + Vector3.new(0, 3, 0))
+            end
+        end)
+        
+        makeButton("🔁 Toggle Auto Teleport", 2, function()
+            autoTP = not autoTP
+            if autoTP then
+                task.spawn(function()
+                    while autoTP do
+                        for _, loc in ipairs(savedLocations) do
+                            if not autoTP then break end
+                            Services.HumanoidRootPart.CFrame = CFrame.new(loc.Position + Vector3.new(0, 3, 0))
+                            task.wait(tpDelay)
+                        end
+                    end
+                end)
+            end
+        end)
+        
+        makeButton("⏱️ Increase Delay (+0.5s)", 3, function()
+            tpDelay = tpDelay + 0.5
+        end)
+        
+        makeButton("⏱️ Decrease Delay (-0.5s)", 4, function()
+            tpDelay = math.max(0.1, tpDelay - 0.5)
+        end)
+        
+        makeButton("🎯 Set Auto Farm Target", 5, function()
+            local nearest = getNearestBrainrot()
+            if nearest then
+                local hitbox = nearest:FindFirstChild("BrainrotHitbox")
+                if hitbox then
+                    table.insert(savedLocations, {Name = "Brainrot Target", Position = hitbox.Position})
+                    refreshDropdown()
+                end
+            end
+        end)
+        
+        makeButton("❌ Close", 6, function()
+            ScreenGui:Destroy()
+        end)
+    end
+})
+
+-- New Feature: Custom Script Manager
+AdvancedTab:Section({ Title = "Script Manager", Icon = "code" })
+AdvancedTab:Button({
+    Title = "Load Custom Script",
+    Desc = "Load and execute external Lua scripts",
+    Callback = function()
+        local ScreenGui = Instance.new("ScreenGui")
+        ScreenGui.Name = "ScriptLoader"
+        ScreenGui.Parent = game.CoreGui
+        
+        local MainFrame = Instance.new("Frame")
+        MainFrame.Size = UDim2.new(0, 400, 0, 300)
+        MainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
+        MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        MainFrame.BorderSizePixel = 0
+        MainFrame.Active = true
+        MainFrame.Draggable = true
+        MainFrame.Parent = ScreenGui
+        
+        local UICorner = Instance.new("UICorner")
+        UICorner.CornerRadius = UDim.new(0, 12)
+        UICorner.Parent = MainFrame
+        
+        local Title = Instance.new("TextLabel")
+        Title.Size = UDim2.new(1, 0, 0, 40)
+        Title.BackgroundTransparency = 1
+        Title.Text = "Script Loader"
+        Title.Font = Enum.Font.GothamBold
+        Title.TextSize = 20
+        Title.TextColor3 = Color3.fromRGB(0, 200, 0)
+        Title.Parent = MainFrame
+        
+        local InputBox = Instance.new("TextBox")
+        InputBox.Size = UDim2.new(0.8, 0, 0, 35)
+        InputBox.Position = UDim2.new(0.1, 0, 0.2, 0)
+        InputBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        InputBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+        InputBox.PlaceholderText = "Enter script URL here"
+        InputBox.Text = ""
+        InputBox.Parent = MainFrame
+        
+        local UICorner2 = Instance.new("UICorner")
+        UICorner2.CornerRadius = UDim.new(0, 8)
+        UICorner2.Parent = InputBox
+        
+        local LoadButton = Instance.new("TextButton")
+        LoadButton.Size = UDim2.new(0.4, 0, 0, 35)
+        LoadButton.Position = UDim2.new(0.1, 0, 0.4, 0)
+        LoadButton.BackgroundColor3 = Color3.fromRGB(30, 100, 30)
+        LoadButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        LoadButton.Text = "Load Script"
+        LoadButton.Parent = MainFrame
+        
+        local UICorner3 = Instance.new("UICorner")
+        UICorner3.CornerRadius = UDim.new(0, 8)
+        UICorner3.Parent = LoadButton
+        
+        local CloseButton = Instance.new("TextButton")
+        CloseButton.Size = UDim2.new(0.4, 0, 0, 35)
+        CloseButton.Position = UDim2.new(0.5, 0, 0.4, 0)
+        CloseButton.BackgroundColor3 = Color3.fromRGB(100, 30, 30)
+        CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        CloseButton.Text = "Close"
+        CloseButton.Parent = MainFrame
+        
+        local UICorner4 = Instance.new("UICorner")
+        UICorner4.CornerRadius = UDim.new(0, 8)
+        UICorner4.Parent = CloseButton
+        
+        CloseButton.MouseButton1Click:Connect(function()
+            ScreenGui:Destroy()
+        end)
+        
+        LoadButton.MouseButton1Click:Connect(function()
+            local url = InputBox.Text
+            if url and url ~= "" then
+                pcall(function()
+                    loadstring(game:HttpGet(url))()
+                    UI.Library:Notify({
+                        Title = "Script Loaded",
+                        Content = "External script loaded successfully",
+                        Duration = 3,
+                        Icon = "check"
+                    })
+                    ScreenGui:Destroy()
+                end)
+            end
+        end)
+    end
+})
+
+-- ================ MAIN LOOP ================
+-- Auto sell loop
+task.spawn(function()
+    while task.wait(0.69) do
+        if SellBrainrot or SellPlant or SellEverything then
+            pcall(function()
+                Services.ReplicatedStorage.Remotes.ItemSell:FireServer()
+            end)
+        end
+    end
+end)
+
+-- Auto buy loop
+task.spawn(function()
+    while task.wait(0.69) do
+        if AutoBuyGear and #selectedGears > 0 then
+            for _, gear in ipairs(selectedGears) do
+                pcall(function()
+                    Services.ReplicatedStorage.BridgeNet2.dataRemoteEvent:FireServer({gear, " "})
+                end)
+            end
+        end
+        
+        if AutoBuySeed and #selectedSeeds > 0 then
+            for _, seed in ipairs(selectedSeeds) do
+                pcall(function()
+                    Services.ReplicatedStorage.BridgeNet2.dataRemoteEvent:FireServer({seed, "\a"})
+                end)
+            end
+        end
+        
+        if AutoBuyAllGear then
+            for _, gear in ipairs(gearList) do
+                pcall(function()
+                    Services.ReplicatedStorage.BridgeNet2.dataRemoteEvent:FireServer({gear, " "})
+                end)
+            end
+        end
+        
+        if AutoBuyAllSeed then
+            for _, seed in ipairs(seedList) do
+                pcall(function()
+                    Services.ReplicatedStorage.BridgeNet2.dataRemoteEvent:FireServer({seed, "\a"})
+                end)
+            end
+        end
+    end
+end)
+
+-- Enhanced status update
+task.spawn(function()
+    while task.wait(2) do
+        if UI.Framework == "WindUI" then
+            local plotName = getPlot() and getPlot().Name or "No Plot"
+            local rebirth = getRebirth()
+            local money = getMoney()
+            local playtime = formatTime(os.time() - serverStartTime)
+            
+            -- Update status paragraph with live data
+            local statusText = "Your Status\n"
+            statusText = statusText .. "Plots: " .. plotName .. "\n"
+            statusText = statusText .. "Rebirth: " .. rebirth .. "\n"
+            statusText = statusText .. "Money: " .. money .. "\n"
+            statusText = statusText .. "Playtime: " .. playtime
+            
+            -- This would be implemented in a real UI framework
+            -- StatusParagraph:SetDesc(statusText)
+        end
+    end
+end)
+
+-- ================ FINAL MESSAGES ================
+if UI.Framework ~= "BasicUI" then
+    UI.Library:Notify({
+        Title = "DYHUB Ultimate",
+        Content = "Script loaded successfully! Press [K] to open UI (or your configured keybind)",
+        Duration = 5,
+        Icon = "check-circle"
+    })
+else
+    Services.StarterGui:SetCore("SendNotification", {
+        Title = "DYHUB Ultimate",
+        Text = "Script loaded with basic UI. Some features may be limited.",
+        Duration = 5,
+        Button1 = "Okay"
+    })
+end
+
+-- ================ DISCORD PROMOTION ================
+task.spawn(function()
+    while true do
+        task.wait(300)
+        UI.Library:Notify({
+            Title = "Join Our Discord",
+            Content = "Get the latest updates, scripts, and support on our Discord server!",
+            Duration = 5,
+            Icon = "discord",
+            Buttons = {
+                {
+                    Title = "Join Server",
+                    Callback = function()
+                        setclipboard("https://discord.gg/jWNDPNMmyB")
+                        UI.Library:Notify({
+                            Title = "Copied!",
+                            Content = "Discord invite copied to clipboard",
+                            Duration = 2,
+                            Icon = "clipboard-check",
+                        })
+                    end
+                }
+            }
+        })
+    end
+end)
