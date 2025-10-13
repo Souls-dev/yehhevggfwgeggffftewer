@@ -1,5 +1,5 @@
 -- =========================
--- SOULS HUB | Plants vs Brainrots Ultimate Script
+-- SOULS HUB | Plants vs Brainrots Ultimate Script (v3.0)
 -- =========================
 repeat task.wait() until game:IsLoaded()
 
@@ -141,7 +141,7 @@ local windowConfig = {
 
 local Window = UI.Library:CreateWindow(windowConfig)
 Window:Tag({
-    Title = "v2.0.1",
+    Title = "v3.0.0",
     Color = Color3.fromHex("#30ff6a")
 })
 Window:EditOpenButton({
@@ -168,6 +168,7 @@ local AdvancedTab = Window:Tab({ Title = "Advanced", Icon = "settings" })
 -- INFORMATION TAB
 -- =========================
 InfoTab:Section({ Title = "Server Information", Icon = "server" })
+local serverStartTime = os.time()
 InfoTab:Paragraph({
     Title = "Your Status",
     Desc = "[+] Show Plots \n[+] Show Rebirth \n[+] Show Money \n[+] Show Playtime",
@@ -199,6 +200,7 @@ InfoTab:Paragraph({
 -- =========================
 MainTab:Section({ Title = "Auto Farm", Icon = "crown" })
 local AutoFarm = false
+local HeldToolName = "Bat"
 
 MainTab:Toggle({
     Title = "Auto Farm (Upgrade)",
@@ -206,26 +208,42 @@ MainTab:Toggle({
     Callback = function(state)
         AutoFarm = state
         if state then
-            equipTool("Bat")
+            equipTool(HeldToolName)
             task.spawn(function()
                 while AutoFarm do
+                    -- Get nearest brainrot
                     local nearest = getNearestBrainrot()
                     if nearest then
                         local hitbox = nearest:FindFirstChild("BrainrotHitbox")
                         if hitbox then
+                            -- Teleport to brainrot
                             instantWarp(hitbox.Position)
-                            -- Fixed: Proper attack sequence
+                            
+                            -- Wait for position to settle
                             task.wait(0.1)
-                            if Services.Character:FindFirstChild("Bat") then
-                                Services.VirtualUser:Button1Down(Vector2.new(0,0))
-                                task.wait(0.1)
-                                Services.VirtualUser:Button1Up(Vector2.new(0,0))
-                                task.wait(0.1)
+                            
+                            -- Ensure tool is equipped
+                            if not Services.Character:FindFirstChild(HeldToolName) then
+                                equipTool(HeldToolName)
+                            end
+                            
+                            -- Proper attack sequence - FIXED
+                            if Services.Character:FindFirstChild(HeldToolName) then
+                                -- Method 1: Use WeaponAttack remote (proven to work)
                                 pcall(function()
                                     Services.ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer({
                                         { target = hitbox }
                                     })
                                 end)
+                                
+                                -- Method 2: Add direct click simulation as backup
+                                if Services.UserInputService.TouchEnabled then
+                                    Services.VirtualUser:Button1Down(Vector2.new(0,0))
+                                    task.wait(0.05)
+                                    Services.VirtualUser:Button1Up(Vector2.new(0,0))
+                                else
+                                    Services.UserInputService.InputBegan:Fire(Enum.UserInputType.MouseButton1, false)
+                                end
                             end
                         end
                     end
@@ -432,7 +450,21 @@ CombatTab:Toggle({
                                 if isTarget then
                                     local dist = (mob.HumanoidRootPart.Position - root.Position).Magnitude
                                     if dist <= AuraRange and tool and AutoAttack then
-                                        pcall(function() tool:Activate() end)
+                                        -- Use proper attack method
+                                        pcall(function()
+                                            if tool.Name == "Frost Grenade" then
+                                                -- Special handling for Frost Grenade
+                                                Services.ReplicatedStorage.Remotes.UseItem:FireServer({
+                                                    Toggle = true,
+                                                    Tool = tool,
+                                                    Time = 0.5,
+                                                    Pos = mob.HumanoidRootPart.Position
+                                                })
+                                            else
+                                                -- Standard weapon attack
+                                                tool:Activate()
+                                            end
+                                        end)
                                     end
                                 end
                             end
@@ -798,8 +830,3 @@ UI.Library:Notify({
     Duration = 5,
     Icon = "check-circle"
 })
-
--- =========================
--- SERVER START TIME
--- =========================
-local serverStartTime = os.time()
