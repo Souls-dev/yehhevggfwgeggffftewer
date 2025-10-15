@@ -1,5 +1,5 @@
 -- =========================
--- SOULS HUB | Plants vs Brainrots Ultimate Script (v3.0)
+-- SOULS HUB | Plants vs Brainrots Ultimate Script (v4.0)
 -- =========================
 repeat task.wait() until game:IsLoaded()
 
@@ -36,6 +36,7 @@ Services.LocalPlayer = Services.Players.LocalPlayer
 Services.Character = Services.LocalPlayer.Character or Services.LocalPlayer.CharacterAdded:Wait()
 Services.HumanoidRootPart = Services.Character:FindFirstChild("HumanoidRootPart")
 Services.Backpack = Services.LocalPlayer:FindFirstChild("Backpack")
+Services.RemoteEvents = Services.ReplicatedStorage:WaitForChild("Remotes")
 
 -- =========================
 -- HELPER FUNCTIONS
@@ -141,7 +142,7 @@ local windowConfig = {
 
 local Window = UI.Library:CreateWindow(windowConfig)
 Window:Tag({
-    Title = "v3.0.0",
+    Title = "v4.0.0",
     Color = Color3.fromHex("#30ff6a")
 })
 Window:EditOpenButton({
@@ -211,7 +212,6 @@ MainTab:Toggle({
             equipTool(HeldToolName)
             task.spawn(function()
                 while AutoFarm do
-                    -- Get nearest brainrot
                     local nearest = getNearestBrainrot()
                     if nearest then
                         local hitbox = nearest:FindFirstChild("BrainrotHitbox")
@@ -227,16 +227,16 @@ MainTab:Toggle({
                                 equipTool(HeldToolName)
                             end
                             
-                            -- Proper attack sequence - FIXED
+                            -- Use proper attack method from working scripts
                             if Services.Character:FindFirstChild(HeldToolName) then
-                                -- Method 1: Use WeaponAttack remote (proven to work)
+                                -- Use WeaponAttack remote (from working scripts)
                                 pcall(function()
-                                    Services.ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer({
+                                    Services.RemoteEvents.AttacksServer.WeaponAttack:FireServer({
                                         { target = hitbox }
                                     })
                                 end)
                                 
-                                -- Method 2: Add direct click simulation as backup
+                                -- Add click simulation as backup
                                 if Services.UserInputService.TouchEnabled then
                                     Services.VirtualUser:Button1Down(Vector2.new(0,0))
                                     task.wait(0.05)
@@ -305,7 +305,7 @@ FarmTab:Toggle({
                             instantWarp(item.Position)
                             task.wait(0.2)
                             pcall(function()
-                                Services.ReplicatedStorage.Remotes.ItemCollect:FireServer(item)
+                                Services.RemoteEvents.ItemCollect:FireServer(item)
                             end)
                         end
                     end
@@ -450,11 +450,11 @@ CombatTab:Toggle({
                                 if isTarget then
                                     local dist = (mob.HumanoidRootPart.Position - root.Position).Magnitude
                                     if dist <= AuraRange and tool and AutoAttack then
-                                        -- Use proper attack method
+                                        -- Use proper attack method from working scripts
                                         pcall(function()
                                             if tool.Name == "Frost Grenade" then
                                                 -- Special handling for Frost Grenade
-                                                Services.ReplicatedStorage.Remotes.UseItem:FireServer({
+                                                Services.RemoteEvents.UseItem:FireServer({
                                                     Toggle = true,
                                                     Tool = tool,
                                                     Time = 0.5,
@@ -619,152 +619,150 @@ AdvancedTab:Toggle({
     end
 })
 
--- Fixed Advanced Auto Collect UI
-AdvancedTab:Section({ Title = "Advanced Tools", Icon = "tools" })
+AdvancedTab:Section({ Title = "Event Tools", Icon = "zap" })
 AdvancedTab:Button({
-    Title = "Open Advanced Auto Collect UI",
-    Desc = "Custom location saving and teleportation",
+    Title = "TP Event Portal",
+    Desc = "Teleport to event portal",
     Callback = function()
-        local ScreenGui = Instance.new("ScreenGui")
-        ScreenGui.Name = "AdvancedAutoCollectUI"
-        ScreenGui.Parent = game.CoreGui
-        
-        local MainFrame = Instance.new("Frame")
-        MainFrame.Size = UDim2.new(0, 450, 0, 450)
-        MainFrame.Position = UDim2.new(0.5, -225, 0.5, -225)
-        MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-        MainFrame.BorderSizePixel = 0
-        MainFrame.Active = true
-        MainFrame.Draggable = true
-        MainFrame.Parent = ScreenGui
-        
-        local UICorner = Instance.new("UICorner")
-        UICorner.CornerRadius = UDim.new(0, 12)
-        UICorner.Parent = MainFrame
-        
-        local Title = Instance.new("TextLabel")
-        Title.Size = UDim2.new(1, 0, 0, 40)
-        Title.BackgroundTransparency = 1
-        Title.Text = "🌱 Advanced Auto Collect"
-        Title.Font = Enum.Font.GothamBold
-        Title.TextSize = 20
-        Title.TextColor3 = Color3.fromRGB(0, 200, 0)
-        Title.Parent = MainFrame
-        
-        local savedLocations = {}
-        local autoTP = false
-        local tpDelay = 1
-        local selectedLocation = nil
-        
-        local function makeButton(text, order, callback)
-            local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(1, -20, 0, 35)
-            btn.Position = UDim2.new(0, 10, 0, 50 + (order * 40))
-            btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-            btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-            btn.Text = text
-            btn.Font = Enum.Font.Gotham
-            btn.TextSize = 16
-            btn.Parent = MainFrame
-            
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(0, 8)
-            corner.Parent = btn
-            
-            btn.MouseButton1Click:Connect(callback)
-            return btn
+        local player = Services.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local hrp = character:WaitForChild("HumanoidRootPart")
+        hrp.CFrame = CFrame.new(Vector3.new(-175.4, 11.6, 987.8))
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Teleport Successful",
+            Text = "Teleported to event portal",
+            Duration = 3,
+            Button1 = "Okay"
+        })
+    end
+})
+
+AdvancedTab:Toggle({
+    Title = "Auto Buy Portal",
+    Desc = "Automatically buys event portal",
+    Value = false,
+    Callback = function(state)
+        local active = state
+        if state then
+            task.spawn(function()
+                while active do
+                    pcall(function()
+                        Services.RemoteEvents.BuyPortal:FireServer()
+                    end)
+                    task.wait(0.2)
+                end
+            end)
         end
+    end
+})
+
+AdvancedTab:Section({ Title = "Visual Tools", Icon = "eye" })
+AdvancedTab:Toggle({
+    Title = "ESP Player",
+    Desc = "Shows player names and distance",
+    Value = false,
+    Callback = function(state)
+        local espEnabled = state
+        local espObjects = {}
         
-        local DropFrame = Instance.new("Frame")
-        DropFrame.Size = UDim2.new(1, -20, 0, 150)
-        DropFrame.Position = UDim2.new(0, 10, 0, 280)
-        DropFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-        DropFrame.Parent = MainFrame
-        
-        local UICorner2 = Instance.new("UICorner")
-        UICorner2.CornerRadius = UDim.new(0, 8)
-        UICorner2.Parent = DropFrame
-        
-        local UIListLayout = Instance.new("UIListLayout")
-        UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        UIListLayout.Parent = DropFrame
-        
-        local function refreshDropdown()
-            for _, child in ipairs(DropFrame:GetChildren()) do
-                if child:IsA("TextButton") then child:Destroy() end
-            end
+        local function createESP(player)
+            if player == Services.LocalPlayer then return end
+            if not player.Character then return end
             
-            for i, loc in ipairs(savedLocations) do
-                local opt = Instance.new("TextButton")
-                opt.Size = UDim2.new(1, -10, 0, 25)
-                opt.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-                opt.TextColor3 = Color3.fromRGB(255, 255, 255)
-                opt.Text = loc.Name
-                opt.Font = Enum.Font.Gotham
-                opt.TextSize = 14
-                opt.Parent = DropFrame
-                
-                local corner = Instance.new("UICorner")
-                corner.CornerRadius = UDim.new(0, 6)
-                corner.Parent = opt
-                
-                opt.MouseButton1Click:Connect(function()
-                    selectedLocation = loc
-                end)
-            end
-        end
-        
-        makeButton("📌 Save Current Location", 0, function()
-            if Services.Character and Services.HumanoidRootPart then
-                local locName = "Loc" .. tostring(#savedLocations + 1)
-                table.insert(savedLocations, {Name = locName, Position = Services.HumanoidRootPart.Position})
-                refreshDropdown()
-            end
-        end)
-        
-        makeButton("⚡ Teleport to Selected", 1, function()
-            if selectedLocation then
-                Services.HumanoidRootPart.CFrame = CFrame.new(selectedLocation.Position + Vector3.new(0, 3, 0))
-            end
-        end)
-        
-        makeButton("🔁 Toggle Auto Teleport", 2, function()
-            autoTP = not autoTP
-            if autoTP then
-                task.spawn(function()
-                    while autoTP do
-                        for _, loc in ipairs(savedLocations) do
-                            if not autoTP then break end
-                            Services.HumanoidRootPart.CFrame = CFrame.new(loc.Position + Vector3.new(0, 3, 0))
-                            task.wait(tpDelay)
-                        end
+            local highlight = Instance.new("Highlight")
+            highlight.Adornee = player.Character
+            highlight.FillTransparency = 1
+            highlight.OutlineColor = Color3.fromRGB(255, 50, 50)
+            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            highlight.Parent = player.Character
+            
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = "NameESP"
+            billboard.Adornee = player.Character:FindFirstChild("Head") or player.Character:FindFirstChildWhichIsA("BasePart")
+            billboard.Size = UDim2.new(0, 200, 0, 50)
+            billboard.AlwaysOnTop = true
+            billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+            
+            local text = Instance.new("TextLabel")
+            text.Size = UDim2.new(1, 0, 1, 0)
+            text.BackgroundTransparency = 1
+            text.TextColor3 = Color3.fromRGB(255, 100, 100)
+            text.TextStrokeTransparency = 0
+            text.Font = Enum.Font.GothamBold
+            text.TextScaled = true
+            text.Parent = billboard
+            
+            billboard.Parent = player.Character
+            espObjects[player] = { highlight = highlight, billboard = billboard, text = text }
+            
+            task.spawn(function()
+                while espEnabled and player and player.Character and espObjects[player] do
+                    local root = player.Character:FindFirstChild("HumanoidRootPart")
+                    local localRoot = Services.LocalPlayer.Character and Services.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if root and localRoot then
+                        local distance = (root.Position - localRoot.Position).Magnitude
+                        espObjects[player].text.Text = string.format("%s - %.0fm", player.DisplayName, distance)
                     end
-                end)
+                    task.wait(0.2)
+                end
+            end)
+        end
+        
+        local function removeESP(player)
+            if espObjects[player] then
+                for _, v in pairs(espObjects[player]) do
+                    if typeof(v) == "Instance" then
+                        v:Destroy()
+                    end
+                end
+                espObjects[player] = nil
             end
-        end)
+        end
         
-        makeButton("⏱️ Increase Delay (+0.5s)", 3, function()
-            tpDelay = tpDelay + 0.5
-        end)
-        
-        makeButton("⏱️ Decrease Delay (-0.5s)", 4, function()
-            tpDelay = math.max(0.1, tpDelay - 0.5)
-        end)
-        
-        makeButton("🎯 Set Auto Farm Target", 5, function()
-            local nearest = getNearestBrainrot()
-            if nearest then
-                local hitbox = nearest:FindFirstChild("BrainrotHitbox")
-                if hitbox then
-                    table.insert(savedLocations, {Name = "Brainrot Target", Position = hitbox.Position})
-                    refreshDropdown()
+        if espEnabled then
+            for _, p in ipairs(Services.Players:GetPlayers()) do
+                if p.Character then
+                    createESP(p)
                 end
             end
-        end)
-        
-        makeButton("❌ Close", 6, function()
-            ScreenGui:Destroy()
-        end)
+            
+            Services.Players.PlayerAdded:Connect(function(p)
+                p.CharacterAdded:Connect(function()
+                    if espEnabled then
+                        createESP(p)
+                    end
+                end)
+            end)
+            
+            Services.Players.PlayerRemoving:Connect(function(p)
+                removeESP(p)
+            end)
+        else
+            for _, data in pairs(espObjects) do
+                for _, v in pairs(data) do
+                    if typeof(v) == "Instance" then
+                        v:Destroy()
+                    end
+                end
+            end
+            espObjects = {}
+        end
+    end
+})
+
+AdvancedTab:Toggle({
+    Title = "Infinite Jump",
+    Desc = "Enable infinite jumping",
+    Value = false,
+    Callback = function(state)
+        if state then
+            game:GetService("UserInputService").JumpRequest:Connect(function()
+                local char = Services.LocalPlayer.Character
+                if char and char:FindFirstChildOfClass("Humanoid") then
+                    char:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+                end
+            end)
+        end
     end
 })
 
@@ -777,7 +775,7 @@ task.spawn(function()
         task.wait(0.5)
         if SellBrainrot or SellPlant or SellEverything then
             pcall(function()
-                Services.ReplicatedStorage.Remotes.ItemSell:FireServer()
+                Services.RemoteEvents.ItemSell:FireServer()
             end)
         end
     end
