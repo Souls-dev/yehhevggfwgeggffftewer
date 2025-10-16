@@ -1,830 +1,554 @@
--- =========================
--- SOULS HUB | Plants vs Brainrots Ultimate Script (v4.0)
--- =========================
-repeat task.wait() until game:IsLoaded()
 
--- =========================
--- UI FRAMEWORK
--- =========================
-local UI = {}
-local UIsuccess, UIerr = pcall(function()
-    UI.Library = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-    UI.Framework = "WindUI"
-end)
+-- Souls Hub | Plants vs Brainrots (converted from Pvb.txt)
+-- ALL FEATURES PRESERVED. Discord invite links and avatar images removed.
 
-if not UIsuccess then
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "SOULS HUB",
-        Text = "Failed to load UI framework. Please try again.",
-        Duration = 5,
-        Button1 = "Okay"
-    })
-    return
+local replicated = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- Clear old GUI (Fluent remnants)
+do 
+	if LocalPlayer.PlayerGui:FindFirstChild("Roblox/Fluent") then  
+		LocalPlayer.PlayerGui:FindFirstChild("Roblox/Fluent"):Destroy() 
+	end 
+	if LocalPlayer.PlayerGui:FindFirstChild("ScreenGuis") then  
+		LocalPlayer.PlayerGui.ScreenGuis:Destroy() 
+	end
 end
 
--- =========================
--- SERVICE SETUP
--- =========================
-local Services = {}
-local serviceNames = {"Players", "ReplicatedStorage", "UserInputService", "VirtualUser", 
-                     "Workspace", "RunService", "StarterGui", "HttpService", "TeleportService"}
-for _, name in ipairs(serviceNames) do
-    Services[name] = game:GetService(name)
+-- Anti-AFK
+do
+	local GC = getconnections or get_signal_cons
+	if GC then
+		for i,v in ipairs(GC(LocalPlayer.Idled)) do 
+			if v["Disable"] then v["Disable"](v) 
+			elseif v["Disconnect"] then v["Disconnect"](v) end 
+		end
+	end
 end
 
-Services.LocalPlayer = Services.Players.LocalPlayer
-Services.Character = Services.LocalPlayer.Character or Services.LocalPlayer.CharacterAdded:Wait()
-Services.HumanoidRootPart = Services.Character:FindFirstChild("HumanoidRootPart")
-Services.Backpack = Services.LocalPlayer:FindFirstChild("Backpack")
-Services.RemoteEvents = Services.ReplicatedStorage:WaitForChild("Remotes")
+-- Folder Setup
+local mainFolder = "h4xscirpt"
+local path = mainFolder.."/PlantsVsBrainrots"
+local ConfigName = path.."/"..LocalPlayer.Name.."-config.json"
 
--- =========================
--- HELPER FUNCTIONS
--- =========================
-local function getPlot()
-    for _, plot in ipairs(Services.Workspace.Plots:GetChildren()) do
-        local playerSign = plot:FindFirstChild("PlayerSign")
-        if playerSign then
-            local textLabel = playerSign:FindFirstChild("BillboardGui") and 
-                             playerSign.BillboardGui:FindFirstChild("TextLabel")
-            if textLabel and (textLabel.Text == Services.LocalPlayer.Name or 
-               textLabel.Text == Services.LocalPlayer.DisplayName) then
-                return plot
-            end
-        end
-    end
-    return nil
-end
-
-local function getMoney()
-    local leaderstats = Services.LocalPlayer:FindFirstChild("leaderstats")
-    return leaderstats and leaderstats:FindFirstChild("Money") and leaderstats.Money.Value or 0
-end
-
-local function getRebirth()
-    local gui = Services.LocalPlayer:FindFirstChild("PlayerGui") and 
-               Services.LocalPlayer.PlayerGui:FindFirstChild("Main")
-    if gui and gui:FindFirstChild("Rebirth") then
-        local text = gui.Rebirth.Frame.Title.Text or "Rebirth 0"
-        local n = tonumber(text:match("%d+")) or 0
-        return n - 1
-    end
-    return 0
-end
-
-local function formatTime(sec)
-    local h = math.floor(sec / 3600)
-    local m = math.floor((sec % 3600) / 60)
-    local s = sec % 60
-    return string.format("%02d:%02d:%02d", h, m, s)
-end
-
-local function getNearestBrainrot()
-    local nearest = nil
-    local minDist = math.huge
-    local brainrotFolder = Services.Workspace:FindFirstChild("ScriptedMap") and 
-                          Services.Workspace.ScriptedMap:FindFirstChild("Brainrots")
-    
-    if brainrotFolder then
-        for _, b in ipairs(brainrotFolder:GetChildren()) do
-            local hitbox = b:FindFirstChild("BrainrotHitbox")
-            if hitbox then
-                local dist = (Services.HumanoidRootPart.Position - hitbox.Position).Magnitude
-                if dist < minDist then
-                    minDist = dist
-                    nearest = b
-                end
-            end
-        end
-    end
-    return nearest
-end
-
-local function equipTool(toolName)
-    local tool = Services.Backpack:FindFirstChild(toolName) or 
-                Services.Character:FindFirstChild(toolName)
-    if tool then 
-        tool.Parent = Services.Character 
-    end
-end
-
-local function instantWarp(pos)
-    if Services.HumanoidRootPart then
-        local offset = Vector3.new(0, 1, 3)
-        Services.HumanoidRootPart.CFrame = CFrame.new(pos + offset, pos)
-    end
-end
-
--- =========================
--- FPS UNLOCKER
--- =========================
-if setfpscap then
-    setfpscap(1000000)
-end
-
--- =========================
--- WINDOW CREATION
--- =========================
-local windowConfig = {
-    Title = "SOULS HUB",
-    Icon = "rbxassetid://104487529937663",
-    Author = "SOULS HUB",
-    Folder = "SOULS_HUB_PVSB_ULTIMATE",
-    Size = UDim2.fromOffset(550, 550),
-    Transparent = true,
-    Theme = "Dark",
-    BackgroundImageTransparency = 0.8,
-    HasOutline = false,
-    HideSearchBar = true,
-    ScrollBarEnabled = false,
-    User = { Enabled = true, Anonymous = false },
+-- Default Settings
+local DefaultSettings = {
+	AutoEquipBest = false,
+	AutoEquipDelay = 1,
+	AutoBuySeed = false,
+	AutoBuyGear = false,
+	BuyAllSeeds = false,
+	BuyAllGears = false,
+	SelectedSeeds = {},
+	SelectedGears = {},
+	BuyAmount = 10,
+	DiscordEnabled = false,
+	DiscordURL = "",
+	WhiteScreen = false
 }
 
-local Window = UI.Library:CreateWindow(windowConfig)
-Window:Tag({
-    Title = "v4.0.0",
-    Color = Color3.fromHex("#30ff6a")
-})
-Window:EditOpenButton({
-    Title = "SOULS HUB - Open",
-    Icon = "monitor",
-    CornerRadius = UDim.new(0, 6),
-    StrokeThickness = 2,
-    Color = ColorSequence.new(Color3.fromRGB(30, 30, 30), Color3.fromRGB(255, 255, 255)),
-    Draggable = true,
-})
+local Settings = {}
 
--- =========================
--- TABS
--- =========================
-local InfoTab = Window:Tab({ Title = "Information", Icon = "info" })
-local MainTab = Window:Tab({ Title = "Main", Icon = "rocket" })
-local FarmTab = Window:Tab({ Title = "Farming", Icon = "leaf" })
-local ShopTab = Window:Tab({ Title = "Shop", Icon = "shopping-cart" })
-local CombatTab = Window:Tab({ Title = "Combat", Icon = "swords" })
-local PlayerTab = Window:Tab({ Title = "Player", Icon = "user" })
-local AdvancedTab = Window:Tab({ Title = "Advanced", Icon = "settings" })
+-- Load/Save Config
+do 
+	if not isfolder(mainFolder) then makefolder(mainFolder) end
+	if not isfolder(path) then makefolder(path) end
 
--- =========================
--- INFORMATION TAB
--- =========================
-InfoTab:Section({ Title = "Server Information", Icon = "server" })
-local serverStartTime = os.time()
-InfoTab:Paragraph({
-    Title = "Your Status",
-    Desc = "[+] Show Plots \n[+] Show Rebirth \n[+] Show Money \n[+] Show Playtime",
-    Image = "rbxassetid://104487529937663",
-    ImageSize = 50,
-    Buttons = {
-        {
-            Icon = "info",
-            Title = "Show Status",
-            Callback = function()
-                local message = "Your Status\n"
-                message = message .. "Plots: " .. (getPlot() and getPlot().Name or "No Plot") .. "\n"
-                message = message .. "Rebirth: " .. getRebirth() .. "\n"
-                message = message .. "Money: " .. getMoney() .. "\n"
-                message = message .. "Playtime: " .. formatTime(os.time() - serverStartTime)
-                UI.Library:Notify({
-                    Title = "SOULS HUB Status",
-                    Content = message,
-                    Duration = 5,
-                    Icon = "user-check",
-                })
-            end
-        }
-    }
-})
+	if isfile(ConfigName) then
+		local success, result = pcall(function()
+			return HttpService:JSONDecode(readfile(ConfigName))
+		end)
 
--- =========================
--- MAIN TAB
--- =========================
-MainTab:Section({ Title = "Auto Farm", Icon = "crown" })
-local AutoFarm = false
-local HeldToolName = "Bat"
+		if success and type(result) == "table" then
+			Settings = result
+		else
+			Settings = DefaultSettings
+		end
+	else
+		Settings = DefaultSettings
+		writefile(ConfigName, HttpService:JSONEncode(Settings))
+	end
 
-MainTab:Toggle({
-    Title = "Auto Farm (Upgrade)",
-    Default = false,
-    Callback = function(state)
-        AutoFarm = state
-        if state then
-            equipTool(HeldToolName)
-            task.spawn(function()
-                while AutoFarm do
-                    local nearest = getNearestBrainrot()
-                    if nearest then
-                        local hitbox = nearest:FindFirstChild("BrainrotHitbox")
-                        if hitbox then
-                            -- Teleport to brainrot
-                            instantWarp(hitbox.Position)
-                            
-                            -- Wait for position to settle
-                            task.wait(0.1)
-                            
-                            -- Ensure tool is equipped
-                            if not Services.Character:FindFirstChild(HeldToolName) then
-                                equipTool(HeldToolName)
-                            end
-                            
-                            -- Use proper attack method from working scripts
-                            if Services.Character:FindFirstChild(HeldToolName) then
-                                -- Use WeaponAttack remote (from working scripts)
-                                pcall(function()
-                                    Services.RemoteEvents.AttacksServer.WeaponAttack:FireServer({
-                                        { target = hitbox }
-                                    })
-                                end)
-                                
-                                -- Add click simulation as backup
-                                if Services.UserInputService.TouchEnabled then
-                                    Services.VirtualUser:Button1Down(Vector2.new(0,0))
-                                    task.wait(0.05)
-                                    Services.VirtualUser:Button1Up(Vector2.new(0,0))
-                                else
-                                    Services.UserInputService.InputBegan:Fire(Enum.UserInputType.MouseButton1, false)
-                                end
-                            end
-                        end
-                    end
-                    task.wait(0.15)
-                end
-            end)
-        end
-    end
-})
+	for key, value in pairs(DefaultSettings) do
+		if Settings[key] == nil then
+			Settings[key] = value
+		end
+	end
+end
 
--- =========================
--- FARMING TAB
--- =========================
-FarmTab:Section({ Title = "Auto Sell", Icon = "dollar-sign" })
-local SellBrainrot = false
-local SellPlant = false
-local SellEverything = false
+local function saveConfig()
+	if not isfolder(path) then makefolder(path) end
+	writefile(ConfigName, HttpService:JSONEncode(Settings))
+end
 
-FarmTab:Toggle({
-    Title = "Sell Brainrot All",
-    Default = false,
-    Callback = function(state)
-        SellBrainrot = state
-    end
-})
-
-FarmTab:Toggle({
-    Title = "Sell Plants All",
-    Default = false,
-    Callback = function(state)
-        SellPlant = state
-    end
-})
-
-FarmTab:Toggle({
-    Title = "Sell Both All",
-    Default = false,
-    Callback = function(state)
-        SellEverything = state
-    end
-})
-
--- Fixed auto collect that actually works
-FarmTab:Section({ Title = "Auto Collect", Icon = "package" })
-local autoCollect = false
-
-FarmTab:Toggle({
-    Title = "Auto Collect Items",
-    Default = false,
-    Callback = function(state)
-        autoCollect = state
-        if state then
-            task.spawn(function()
-                while autoCollect do
-                    local pos = Services.HumanoidRootPart.Position
-                    for _, item in ipairs(Services.Workspace:GetChildren()) do
-                        if item:IsA("Part") and item.Name == "Collectible" and 
-                           (item.Position - pos).Magnitude <= 30 then
-                            instantWarp(item.Position)
-                            task.wait(0.2)
-                            pcall(function()
-                                Services.RemoteEvents.ItemCollect:FireServer(item)
-                            end)
-                        end
-                    end
-                    task.wait(1)
-                end
-            end)
-        end
-    end
-})
-
--- =========================
--- SHOP TAB
--- =========================
-ShopTab:Section({ Title = "Buy Gear", Icon = "package" })
-local gearList = {
-    "Water Bucket", "Frost Grenade", "Banana Gun", "Frost Blower", "Carrot Launcher",
-    "Brainrot Launcher", "Plant Launcher", "Super Shovel"
+-- Game Data
+local AllSeeds = {
+	"Cactus Seed",
+	"Carnivorous Plant Seed",
+	"Cocotank Seed",
+	"Dragon Fruit Seed",
+	"Eggplant Seed",
+	"Grape Seed",
+	"Mr Carrot Seed",
+	"Pumpkin Seed",
+	"Shroombino Seed",
+	"Strawberry Seed",
+	"Sunflower Seed",
+	"Tomatrio Seed",
+	"Watermelon Seed"
 }
 
-local selectedGears = {}
-ShopTab:Dropdown({
-    Title = "Select Gear",
-    Values = gearList,
-    Multi = true,
-    Callback = function(values)
-        selectedGears = values
-    end
-})
-
-local AutoBuyGear = false
-local AutoBuyAllGear = false
-
-ShopTab:Toggle({
-    Title = "Auto Buy Gear (Selected)",
-    Default = false,
-    Callback = function(state)
-        AutoBuyGear = state
-    end
-})
-
-ShopTab:Toggle({
-    Title = "Auto Buy All Gear",
-    Default = false,
-    Callback = function(state)
-        AutoBuyAllGear = state
-    end
-})
-
-ShopTab:Section({ Title = "Buy Seeds", Icon = "leaf" })
-local seedList = {
-    "Cactus Seed", "Strawberry Seed", "Pumpkin Seed", "Sunflower Seed",
-    "Dragon Seed", "Eggplant Seed", "Watermelon Seed", "Cocotank Seed",
-    "Carnivorous Plant Seed", "Mr Carrot Seed", "Tomatrio Seed", "Brainrot Seed"
+local AllGears = {
+	"Banana Gun",
+	"Carrot Launcher",
+	"Frost Blower",
+	"Frost Grenade",
+	"Water Bucket"
 }
 
-local selectedSeeds = {}
-ShopTab:Dropdown({
-    Title = "Select Seeds",
-    Values = seedList,
-    Multi = true,
-    Callback = function(values)
-        selectedSeeds = values
-    end
-})
+-- Webhook System (kept but invite links removed)
+local discordWebhook = {}
+local http_request = http_request or syn and syn.request or request
+local webhookSupported = http_request ~= nil
+local lastSentTime = 0
+local COOLDOWN_TIME = 15
 
-local AutoBuySeed = false
-local AutoBuyAllSeed = false
+local function getRandomColor()
+	return math.random(0, 0xFFFFFF)
+end
 
-ShopTab:Toggle({
-    Title = "Auto Buy Seed (Selected)",
-    Default = false,
-    Callback = function(state)
-        AutoBuySeed = state
-    end
-})
+discordWebhook.getBackpackData = function()
+	local brainrots = {}
+	local plants = {}
+	local seeds = {}
+	local gears = {}
 
-ShopTab:Toggle({
-    Title = "Auto Buy All Seed",
-    Default = false,
-    Callback = function(state)
-        AutoBuyAllSeed = state
-    end
-})
+	local backpack = LocalPlayer:FindFirstChild("Backpack")
+	if not backpack then return brainrots, plants, seeds, gears end
 
--- =========================
--- COMBAT TAB
--- =========================
-CombatTab:Section({ Title = "Kill Aura", Icon = "swords" })
-local KillAuraEnabled = false
-local AuraRange = 25
-local SelectedWeapon = "Banana Gun"
-local AutoAttack = true
+	local gearLookup = {}
+	for _, gear in pairs(AllGears) do
+		gearLookup[gear] = true
+	end
 
-CombatTab:Dropdown({
-    Title = "Kill Aura Weapon",
-    List = {"Banana Gun", "Frost Blower", "Carrot Launcher", "Brainrot Launcher"},
-    Value = SelectedWeapon,
-    Callback = function(choice)
-        SelectedWeapon = choice
-    end
-})
+	for _, item in pairs(backpack:GetChildren()) do
+		if item:IsA("Tool") then
+			local itemName = item.Name
+			if itemName:match("%[%d+%s*kg%]") then
+				table.insert(brainrots, itemName)
+			elseif itemName:find("Seed") then
+				table.insert(seeds, itemName)
+			elseif gearLookup[itemName] then
+				table.insert(gears, itemName)
+			else
+				table.insert(plants, itemName)
+			end
+		end
+	end
 
-CombatTab:Toggle({
-    Title = "Kill Aura",
-    Desc = "Automatically attacks all Brainrot variants",
-    Value = false,
-    Callback = function(state)
-        KillAuraEnabled = state
-        if KillAuraEnabled then
-            task.spawn(function()
-                while KillAuraEnabled do
-                    local char = Services.Character
-                    if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
-                        local root = char.HumanoidRootPart
-                        local humanoid = char.Humanoid
-                        local tool = char:FindFirstChildOfClass("Tool")
-                        
-                        -- Equip selected weapon
-                        if not tool or tool.Name ~= SelectedWeapon then
-                            local item = Services.Backpack:FindFirstChild(SelectedWeapon)
-                            if item then
-                                humanoid:EquipTool(item)
-                                tool = item
-                            end
-                        end
-                        
-                        -- Find and attack brainrots
-                        for _, mob in ipairs(Services.Workspace:GetChildren()) do
-                            if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and
-                               not Services.Players:FindFirstChild(mob.Name) then
-                                local isTarget = false
-                                local mobName = mob.Name:lower()
-                                
-                                -- Check if name contains brainrot-related terms
-                                for _, keyword in ipairs({"brainrot", "brain", "rot", "zombie", "monster"}) do
-                                    if mobName:find(keyword) then
-                                        isTarget = true
-                                        break
-                                    end
-                                end
-                                
-                                if isTarget then
-                                    local dist = (mob.HumanoidRootPart.Position - root.Position).Magnitude
-                                    if dist <= AuraRange and tool and AutoAttack then
-                                        -- Use proper attack method from working scripts
-                                        pcall(function()
-                                            if tool.Name == "Frost Grenade" then
-                                                -- Special handling for Frost Grenade
-                                                Services.RemoteEvents.UseItem:FireServer({
-                                                    Toggle = true,
-                                                    Tool = tool,
-                                                    Time = 0.5,
-                                                    Pos = mob.HumanoidRootPart.Position
-                                                })
-                                            else
-                                                -- Standard weapon attack
-                                                tool:Activate()
-                                            end
-                                        end)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    task.wait(0.05)
-                end
-            end)
-        end
-    end
-})
+	return brainrots, plants, seeds, gears
+end
 
-CombatTab:Slider({
-    Title = "Aura Range",
-    Min = 10,
-    Max = 60,
-    Value = AuraRange,
-    Callback = function(v)
-        AuraRange = v
-    end
-})
+discordWebhook.sendToDiscord = function()
+	if not Settings.DiscordEnabled or not webhookSupported or Settings.DiscordURL == "" then return end
 
-CombatTab:Toggle({
-    Title = "Auto Attack",
-    Default = true,
-    Callback = function(state)
-        AutoAttack = state
-    end
-})
+	local currentTime = tick()
+	if currentTime - lastSentTime < COOLDOWN_TIME then
+		print("Cooldown active, skipping webhook")
+		return
+	end
+	lastSentTime = currentTime
 
--- =========================
--- PLAYER TAB
--- =========================
-PlayerTab:Section({ Title = "Movement", Icon = "running" })
-local WalkSpeed = 16
-local JumpPower = 50
-local WalkSpeedEnabled = false
-local JumpEnabled = false
-local NoClipEnabled = false
+	local brainrots, plants, seeds, gears = discordWebhook.getBackpackData()
+	local brainrotCount = #brainrots
+	local plantCount = #plants
+	local seedCount = #seeds
+	local gearCount = #gears
 
-PlayerTab:Toggle({
-    Title = "WalkSpeed Hack",
-    Desc = "Enable / Disable custom WalkSpeed",
-    Value = false,
-    Callback = function(state)
-        WalkSpeedEnabled = state
-        if WalkSpeedEnabled then
-            Services.LocalPlayer.Character.Humanoid.WalkSpeed = WalkSpeed
-        else
-            Services.LocalPlayer.Character.Humanoid.WalkSpeed = 16
-        end
-    end
-})
+	local brainrotText = (brainrotCount > 0) and table.concat(brainrots, "\n") or "None"
+	local plantText = (plantCount > 0) and table.concat(plants, "\n") or "None"
+	local seedText = (seedCount > 0) and table.concat(seeds, "\n") or "None"
+	local gearText = (gearCount > 0) and table.concat(gears, "\n") or "None"
 
-PlayerTab:Slider({
-    Title = "WalkSpeed Value",
-    Min = 16,
-    Max = 200,
-    Value = WalkSpeed,
-    Callback = function(val)
-        WalkSpeed = val
-        if WalkSpeedEnabled then
-            Services.LocalPlayer.Character.Humanoid.WalkSpeed = WalkSpeed
-        end
-    end
-})
+	local embed = {
+		title = "Plants vs Brainrots - Backpack Inventory",
+		color = getRandomColor(),
+		fields = {
+			{ name = "Player", value = LocalPlayer.Name, inline = false },
+			{ name = string.format("Brainrots (%d)", brainrotCount), value = "```" .. brainrotText .. "```", inline = false },
+			{ name = string.format("Plants (%d)", plantCount), value = "```" .. plantText .. "```", inline = false },
+			{ name = string.format("Seeds (%d)", seedCount), value = "```" .. seedText .. "```", inline = false },
+			{ name = string.format("Gears (%d)", gearCount), value = "```" .. gearText .. "```", inline = false },
+			{ name = "Total Count", value = string.format("Total Items: %d", brainrotCount + plantCount + seedCount + gearCount), inline = false }
+		},
+		footer = { text = "Souls Hub - Plants vs Brainrots  •  " .. os.date("%H:%M:%S") },
+		timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+	}
 
-PlayerTab:Toggle({
-    Title = "Jump Hack",
-    Desc = "Enable / Disable custom JumpPower",
-    Value = false,
-    Callback = function(state)
-        JumpEnabled = state
-        if JumpEnabled then
-            Services.LocalPlayer.Character.Humanoid.JumpPower = JumpPower
-        else
-            Services.LocalPlayer.Character.Humanoid.JumpPower = 50
-        end
-    end
-})
+	local payload = HttpService:JSONEncode({
+		username = "SoulsHub PvB",
+		embeds = {embed}
+	})
 
-PlayerTab:Slider({
-    Title = "JumpPower Value",
-    Min = 50,
-    Max = 300,
-    Value = JumpPower,
-    Callback = function(val)
-        JumpPower = val
-        if JumpEnabled then
-            Services.LocalPlayer.Character.Humanoid.JumpPower = JumpPower
-        end
-    end
-})
+	local success, response = pcall(function()
+		return http_request({
+			Url = Settings.DiscordURL,
+			Method = "POST",
+			Headers = {["Content-Type"] = "application/json"},
+			Body = payload
+		})
+	end)
 
-PlayerTab:Toggle({
-    Title = "NoClip",
-    Desc = "Walk through walls",
-    Value = false,
-    Callback = function(state)
-        NoClipEnabled = state
-        task.spawn(function()
-            while NoClipEnabled do
-                for _, part in ipairs(Services.Character:GetDescendants()) do
-                    if part:IsA("BasePart") and part.CanCollide then
-                        part.CanCollide = false
-                    end
-                end
-                task.wait(0.2)
-            end
-        end)
-    end
-})
+	if success then
+		print("Webhook sent successfully")
+	else
+		warn("Webhook failed: " .. tostring(response))
+	end
+end
 
--- =========================
--- ADVANCED TAB
--- =========================
-AdvancedTab:Section({ Title = "Server Management", Icon = "server" })
-local emptyServerEnabled = false
+-- Functions (auto loops)
+local func = {}
 
-AdvancedTab:Toggle({
-    Title = "Auto Empty Server",
-    Desc = "Automatically finds and joins servers with few players",
-    Value = false,
-    Callback = function(state)
-        emptyServerEnabled = state
-        if state then
-            task.spawn(function()
-                while emptyServerEnabled do
-                    local currentPlayers = #Services.Players:GetPlayers()
-                    if currentPlayers > 3 then
-                        local success, servers = pcall(function()
-                            return Services.HttpService:JSONDecode(Services.HttpService:GetAsync(
-                                "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-                            ))
-                        end)
-                        
-                        if success and servers and servers.data then
-                            for _, server in ipairs(servers.data) do
-                                if server.playing <= 3 and server.id ~= game.JobId then
-                                    pcall(function()
-                                        Services.TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, Services.LocalPlayer)
-                                    end)
-                                    break
-                                end
-                            end
-                        end
-                    end
-                    task.wait(300)
-                end
-            end)
-        end
-    end
-})
+func['AutoEquipBest'] = function()
+	while _G.AutoEquipBest do 
+		task.wait(Settings.AutoEquipDelay or 1)
+		pcall(function()
+			replicated:WaitForChild("Remotes"):WaitForChild("EquipBestBrainrots"):FireServer()
+		end)
+	end
+end
 
-AdvancedTab:Section({ Title = "Event Tools", Icon = "zap" })
-AdvancedTab:Button({
-    Title = "TP Event Portal",
-    Desc = "Teleport to event portal",
-    Callback = function()
-        local player = Services.LocalPlayer
-        local character = player.Character or player.CharacterAdded:Wait()
-        local hrp = character:WaitForChild("HumanoidRootPart")
-        hrp.CFrame = CFrame.new(Vector3.new(-175.4, 11.6, 987.8))
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Teleport Successful",
-            Text = "Teleported to event portal",
-            Duration = 3,
-            Button1 = "Okay"
-        })
-    end
-})
+func['AutoBuySeed'] = function()
+	while _G.AutoBuySeed do 
+		task.wait(0.1)
+		pcall(function()
+			local seedsToBuy = {}
+			if Settings.BuyAllSeeds then
+				seedsToBuy = AllSeeds
+			else
+				for _, seed in pairs(Settings.SelectedSeeds) do
+					table.insert(seedsToBuy, seed)
+				end
+			end
 
-AdvancedTab:Toggle({
-    Title = "Auto Buy Portal",
-    Desc = "Automatically buys event portal",
-    Value = false,
-    Callback = function(state)
-        local active = state
-        if state then
-            task.spawn(function()
-                while active do
-                    pcall(function()
-                        Services.RemoteEvents.BuyPortal:FireServer()
-                    end)
-                    task.wait(0.2)
-                end
-            end)
-        end
-    end
-})
+			local amount = Settings.BuyAmount or 10
+			for _, seed in pairs(seedsToBuy) do
+				for i = 1, amount do
+					replicated:WaitForChild("Remotes"):WaitForChild("BuyItem"):FireServer(seed)
+					task.wait(0.01)
+				end
+			end
+		end)
+		task.wait(0.01)
+	end
+end
 
-AdvancedTab:Section({ Title = "Visual Tools", Icon = "eye" })
-AdvancedTab:Toggle({
-    Title = "ESP Player",
-    Desc = "Shows player names and distance",
-    Value = false,
-    Callback = function(state)
-        local espEnabled = state
-        local espObjects = {}
-        
-        local function createESP(player)
-            if player == Services.LocalPlayer then return end
-            if not player.Character then return end
-            
-            local highlight = Instance.new("Highlight")
-            highlight.Adornee = player.Character
-            highlight.FillTransparency = 1
-            highlight.OutlineColor = Color3.fromRGB(255, 50, 50)
-            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            highlight.Parent = player.Character
-            
-            local billboard = Instance.new("BillboardGui")
-            billboard.Name = "NameESP"
-            billboard.Adornee = player.Character:FindFirstChild("Head") or player.Character:FindFirstChildWhichIsA("BasePart")
-            billboard.Size = UDim2.new(0, 200, 0, 50)
-            billboard.AlwaysOnTop = true
-            billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-            
-            local text = Instance.new("TextLabel")
-            text.Size = UDim2.new(1, 0, 1, 0)
-            text.BackgroundTransparency = 1
-            text.TextColor3 = Color3.fromRGB(255, 100, 100)
-            text.TextStrokeTransparency = 0
-            text.Font = Enum.Font.GothamBold
-            text.TextScaled = true
-            text.Parent = billboard
-            
-            billboard.Parent = player.Character
-            espObjects[player] = { highlight = highlight, billboard = billboard, text = text }
-            
-            task.spawn(function()
-                while espEnabled and player and player.Character and espObjects[player] do
-                    local root = player.Character:FindFirstChild("HumanoidRootPart")
-                    local localRoot = Services.LocalPlayer.Character and Services.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if root and localRoot then
-                        local distance = (root.Position - localRoot.Position).Magnitude
-                        espObjects[player].text.Text = string.format("%s - %.0fm", player.DisplayName, distance)
-                    end
-                    task.wait(0.2)
-                end
-            end)
-        end
-        
-        local function removeESP(player)
-            if espObjects[player] then
-                for _, v in pairs(espObjects[player]) do
-                    if typeof(v) == "Instance" then
-                        v:Destroy()
-                    end
-                end
-                espObjects[player] = nil
-            end
-        end
-        
-        if espEnabled then
-            for _, p in ipairs(Services.Players:GetPlayers()) do
-                if p.Character then
-                    createESP(p)
-                end
-            end
-            
-            Services.Players.PlayerAdded:Connect(function(p)
-                p.CharacterAdded:Connect(function()
-                    if espEnabled then
-                        createESP(p)
-                    end
-                end)
-            end)
-            
-            Services.Players.PlayerRemoving:Connect(function(p)
-                removeESP(p)
-            end)
-        else
-            for _, data in pairs(espObjects) do
-                for _, v in pairs(data) do
-                    if typeof(v) == "Instance" then
-                        v:Destroy()
-                    end
-                end
-            end
-            espObjects = {}
-        end
-    end
-})
+func['AutoBuyGear'] = function()
+	while _G.AutoBuyGear do 
+		task.wait(0.1)
+		pcall(function()
+			local gearsToBuy = {}
+			if Settings.BuyAllGears then
+				gearsToBuy = AllGears
+			else
+				for _, gear in pairs(Settings.SelectedGears) do
+					table.insert(gearsToBuy, gear)
+				end
+			end
 
-AdvancedTab:Toggle({
-    Title = "Infinite Jump",
-    Desc = "Enable infinite jumping",
-    Value = false,
-    Callback = function(state)
-        if state then
-            game:GetService("UserInputService").JumpRequest:Connect(function()
-                local char = Services.LocalPlayer.Character
-                if char and char:FindFirstChildOfClass("Humanoid") then
-                    char:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
-                end
-            end)
-        end
-    end
-})
+			local amount = Settings.BuyAmount or 10
+			for _, gear in pairs(gearsToBuy) do
+				for i = 1, amount do
+					replicated:WaitForChild("Remotes"):WaitForChild("BuyGear"):FireServer(gear)
+					task.wait(0.01)
+				end
+			end
+		end)
+		task.wait(0.01)
+	end
+end
 
--- =========================
--- MAIN LOOPS
--- =========================
--- Auto sell loop (fixed)
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        if SellBrainrot or SellPlant or SellEverything then
-            pcall(function()
-                Services.RemoteEvents.ItemSell:FireServer()
-            end)
-        end
-    end
+func['WhiteScreen'] = function()
+	if _G.WhiteScreen then
+		RunService:Set3dRenderingEnabled(false)
+	else
+		RunService:Set3dRenderingEnabled(true)
+	end
+end
+
+-- Load Souls Hub UI
+local ok, SoulsHub = pcall(function()
+	return loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
 end)
 
--- Auto buy loop (fixed)
-task.spawn(function()
-    while true do
-        task.wait(0.5)
-        if AutoBuyGear and #selectedGears > 0 then
-            for _, gear in ipairs(selectedGears) do
-                pcall(function()
-                    Services.ReplicatedStorage.BridgeNet2.dataRemoteEvent:FireServer({gear, " "})
-                end)
-            end
-        end
-        
-        if AutoBuySeed and #selectedSeeds > 0 then
-            for _, seed in ipairs(selectedSeeds) do
-                pcall(function()
-                    Services.ReplicatedStorage.BridgeNet2.dataRemoteEvent:FireServer({seed, "\a"})
-                end)
-            end
-        end
-        
-        if AutoBuyAllGear then
-            for _, gear in ipairs(gearList) do
-                pcall(function()
-                    Services.ReplicatedStorage.BridgeNet2.dataRemoteEvent:FireServer({gear, " "})
-                end)
-            end
-        end
-        
-        if AutoBuyAllSeed then
-            for _, seed in ipairs(seedList) do
-                pcall(function()
-                    Services.ReplicatedStorage.BridgeNet2.dataRemoteEvent:FireServer({seed, "\a"})
-                end)
-            end
-        end
-    end
-end)
+if not ok or not SoulsHub then
+	warn("Failed to load Souls Hub UI library.")
+	return
+end
 
--- =========================
--- FINAL NOTIFICATION
--- =========================
-UI.Library:Notify({
-    Title = "SOULS HUB",
-    Content = "Script loaded successfully! Press [K] to open UI",
-    Duration = 5,
-    Icon = "check-circle"
+SoulsHub:Loader(nil, 1).yield()
+
+-- Create Window
+local Window = SoulsHub.new({
+	Keybind = "LeftAlt",
 })
+Window:Watermark()
+Window.Username = LocalPlayer.Name
+Window:Update({
+	ExpireDate = SoulsHub:GetDate(tick() + 84000)
+})
+
+-- Config manager (basic)
+local FileWatcher = SoulsHub:ConfigManager({
+	Directory = "SoulsHub",
+	Config = "PvB-Configs"
+});
+local Configs = Window:DrawConfig({
+	Name = "Configs",
+	Icon = "folder",
+	Config = FileWatcher
+});
+Configs:Init()
+
+-- Tabs & Sections
+local farmTab = Window:DrawTab({ Icon = "sprout", Name = "Farm", Type = "Double" })
+local shopTab = Window:DrawTab({ Icon = "shopping-cart", Name = "Shop", Type = "Double" })
+local webhookTab = Window:DrawTab({ Icon = "message-circle", Name = "Webhook", Type = "Single" })
+local settingsTab = Window:DrawTab({ Icon = "settings", Name = "Settings", Type = "Single" })
+
+-- Farm Section
+local farmSection = farmTab:DrawSection({ Name = "Auto Equip", Position = "LEFT" })
+farmSection:AddToggle({
+	Name = "Auto Equip Best Brainrots",
+	Flag = "AutoEquipBest",
+	Default = Settings.AutoEquipBest,
+	Callback = function(val)
+		Settings.AutoEquipBest = val
+		_G.AutoEquipBest = val
+		saveConfig()
+		if val then task.spawn(func['AutoEquipBest']) end
+	end
+})
+farmSection:AddSlider({
+	Name = "Equip Delay (seconds)",
+	Min = 0.5, Max = 10, Default = Settings.AutoEquipDelay or 1, Round = 1,
+	Flag = "AutoEquipDelay",
+	Callback = function(val)
+		Settings.AutoEquipDelay = val
+		saveConfig()
+	end
+})
+
+farmSection:AddButton({
+	Name = "Manual Equip Best",
+	Callback = function()
+		pcall(function()
+			replicated:WaitForChild("Remotes"):WaitForChild("EquipBestBrainrots"):FireServer()
+		end)
+	end
+})
+
+-- Shop Section
+local shopLeft = shopTab:DrawSection({ Name = "Seeds Shop", Position = "LEFT" })
+local shopRight = shopTab:DrawSection({ Name = "Gears Shop", Position = "RIGHT" })
+
+shopLeft:AddParagraph({ Title = "Buy Speed", Content = "Seeds will be bought in bulk for faster purchase" })
+shopLeft:AddSlider({
+	Name = "Buy Amount (per cycle)",
+	Min = 1, Max = 50, Default = Settings.BuyAmount or 10, Round = 1,
+	Flag = "BuyAmount",
+	Callback = function(val)
+		Settings.BuyAmount = val
+		saveConfig()
+	end
+})
+
+shopLeft:AddToggle({
+	Name = "Buy All Seeds",
+	Default = Settings.BuyAllSeeds,
+	Flag = "BuyAllSeeds",
+	Callback = function(val)
+		Settings.BuyAllSeeds = val
+		saveConfig()
+	end
+})
+
+local seedsDropdownValues = AllSeeds
+shopLeft:AddDropdown({
+	Name = "Select Seeds to Buy",
+	Values = seedsDropdownValues,
+	Default = Settings.SelectedSeeds or {},
+	Multi = true,
+	Flag = "SelectedSeeds",
+	Callback = function(t)
+		-- SoulsHub returns table of selected values when Multi = true
+		local sel = {}
+		for _, v in pairs(t) do
+			table.insert(sel, v)
+		end
+		Settings.SelectedSeeds = sel
+		saveConfig()
+	end
+})
+
+shopLeft:AddToggle({
+	Name = "Auto Buy Seeds",
+	Default = Settings.AutoBuySeed,
+	Flag = "AutoBuySeed",
+	Callback = function(val)
+		Settings.AutoBuySeed = val
+		_G.AutoBuySeed = val
+		saveConfig()
+		if val then task.spawn(func['AutoBuySeed']) end
+	end
+})
+
+shopLeft:AddButton({
+	Name = "Buy Seeds Now (Fast)",
+	Callback = function()
+		pcall(function()
+			local seedsToBuy = Settings.BuyAllSeeds and AllSeeds or Settings.SelectedSeeds
+			local amount = Settings.BuyAmount or 10
+			for _, seed in pairs(seedsToBuy) do
+				for i = 1, amount do
+					replicated:WaitForChild("Remotes"):WaitForChild("BuyItem"):FireServer(seed)
+				end
+			end
+		end)
+	end
+})
+
+-- Gears side
+shopRight:AddDropdown({
+	Name = "Select Gears to Buy",
+	Values = AllGears,
+	Default = Settings.SelectedGears or {},
+	Multi = true,
+	Flag = "SelectedGears",
+	Callback = function(t)
+		local sel = {}
+		for _, v in pairs(t) do
+			table.insert(sel, v)
+		end
+		Settings.SelectedGears = sel
+		saveConfig()
+	end
+})
+
+shopRight:AddToggle({
+	Name = "Buy All Gears",
+	Default = Settings.BuyAllGears,
+	Flag = "BuyAllGears",
+	Callback = function(val)
+		Settings.BuyAllGears = val
+		saveConfig()
+	end
+})
+
+shopRight:AddToggle({
+	Name = "Auto Buy Gears",
+	Default = Settings.AutoBuyGear,
+	Flag = "AutoBuyGear",
+	Callback = function(val)
+		Settings.AutoBuyGear = val
+		_G.AutoBuyGear = val
+		saveConfig()
+		if val then task.spawn(func['AutoBuyGear']) end
+	end
+})
+
+shopRight:AddButton({
+	Name = "Buy Gears Now (Fast)",
+	Callback = function()
+		pcall(function()
+			local gearsToBuy = Settings.BuyAllGears and AllGears or Settings.SelectedGears
+			local amount = Settings.BuyAmount or 10
+			for _, gear in pairs(gearsToBuy) do
+				for i = 1, amount do
+					replicated:WaitForChild("Remotes"):WaitForChild("BuyGear"):FireServer(gear)
+				end
+			end
+		end)
+	end
+})
+
+-- Webhook Tab
+local webhookSection = webhookTab:DrawSection({ Name = "Discord Webhook", Position = "LEFT" })
+webhookSection:AddParagraph({ Title = "Note", Content = "Webhook kept as an optional feature. No invite links included. Provide a webhook URL to enable." })
+
+webhookSection:AddToggle({
+	Name = "Enable Discord Webhook",
+	Default = Settings.DiscordEnabled,
+	Flag = "DiscordEnabled",
+	Callback = function(val)
+		Settings.DiscordEnabled = val
+		saveConfig()
+	end
+})
+
+webhookSection:AddInput({
+	Name = "Webhook URL",
+	Default = Settings.DiscordURL,
+	Placeholder = "Paste Discord webhook URL (optional)",
+	Flag = "DiscordURL",
+	Callback = function(val)
+		Settings.DiscordURL = val or ""
+		saveConfig()
+	end
+})
+
+webhookSection:AddButton({
+	Name = "Send Backpack Data Now",
+	Callback = function()
+		if not Settings.DiscordEnabled or Settings.DiscordURL == "" then
+			return
+		end
+		discordWebhook.sendToDiscord()
+	end
+})
+
+webhookSection:AddButton({
+	Name = "Preview Backpack",
+	Callback = function()
+		local brainrots, plants, seeds, gears = discordWebhook.getBackpackData()
+		local text = string.format("Brainrots: %d\nPlants: %d\nSeeds: %d\nGears: %d", #brainrots, #plants, #seeds, #gears)
+		print(text)
+	end
+})
+
+-- Settings Tab
+local settingsSection = settingsTab:DrawSection({ Name = "Performance", Position = "LEFT" })
+settingsSection:AddToggle({
+	Name = "White Screen Mode",
+	Default = Settings.WhiteScreen,
+	Flag = "WhiteScreen",
+	Callback = function(val)
+		Settings.WhiteScreen = val
+		_G.WhiteScreen = val
+		saveConfig()
+		func['WhiteScreen']()
+	end
+})
+
+local infoSection = settingsTab:DrawSection({ Name = "Information", Position = "RIGHT" })
+infoSection:AddButton({
+	Name = "Script Info",
+	Callback = function()
+		local info = string.format("Script: PvB (Souls Hub)\nPlayer: %s\nWebhook Support: %s\nSeeds: %d\nGears: %d",
+			LocalPlayer.Name,
+			webhookSupported and "Supported" or "Not Supported",
+			#AllSeeds,
+			#AllGears
+		)
+		print(info)
+	end
+})
+
+-- Finalize
+SoulsHub.Colors.Highlight = SoulsHub.Colors.Highlight -- keep existing highlight
+SoulsHub:ChangeHighlightColor(SoulsHub.Colors.Highlight)
+
+print("Souls Hub | Plants vs Brainrots loaded!")
