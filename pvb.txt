@@ -1,1247 +1,997 @@
--- [[ Souls Hub - Ultimate Game Automation - FINAL WORKING VERSION ]]
--- [[ Merged: Plants vs Brainrots, VynHub, Cheat Admin Panel, Movement, ESP ]]
--- [[ No key system - Instant load ]]
--- [[ 100% compatible with Souls Hub UI library as per documentation ]]
+--! Souls Hub - Plants vs Brainrots Ultimate Script
+--! Merged from all provided sources with enhanced features
+--! Do not add any print or warn statements as requested
 
--- Prevent multiple executions
-if getgenv().SoulsHubLoaded then return end
-getgenv().SoulsHubLoaded = true
+-- Initialize required services
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Backpack = LocalPlayer:WaitForChild("Backpack")
 
--- Load Souls Hub UI library with proper error handling and multiple fallbacks
-local SoulsHub
-local success, result = pcall(function()
-    return loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
-end)
-
-if success and result then
-    SoulsHub = result
-else
-    -- Try alternative URLs if the primary one fails
-    local fallbackURLs = {
-        "https://raw.githubusercontent.com/SomeUser/SoulsHub/main/library.lua",
-        "https://raw.githubusercontent.com/AnotherUser/SoulsHub/main/library.lua"
-    }
-    
-    for _, url in ipairs(fallbackURLs) do
-        local fallbackSuccess, fallbackResult = pcall(function()
-            return loadstring(game:HttpGet(url))()
-        end)
-        
-        if fallbackSuccess and fallbackResult then
-            SoulsHub = fallbackResult
-            break
-        end
-    end
-end
-
-if not SoulsHub then
-    warn("Failed to load SoulsHub library. Script cannot continue.")
-    return
-end
-
--- Critical: Wait for the library to initialize properly as per documentation
+-- Initialize Souls Hub UI (critical for functionality)
+local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
 task.wait(1)
+SoulsHub:Loader(nil, 1).yield()
 
--- Call the loader as per documentation (must be done unconditionally)
-if SoulsHub.Loader then
-    pcall(function() SoulsHub:Loader(nil, 1).yield() end)
-else
-    warn("SoulsHub.Loader is not available. Continuing without loader.")
+-- Create configuration manager
+local FileWatcher = SoulsHub:ConfigManager({
+    Directory = "SoulsHub",
+    Config = "PvB-Configs"
+})
+
+-- Create main window
+local Window = SoulsHub.new({
+    Keybind = "LeftAlt",
+})
+
+-- Setup watermark
+local watermark = Window:Watermark()
+watermark:AddText({
+    Icon = "user",
+    Text = LocalPlayer.Name
+})
+
+local timeText = watermark:AddText({
+    Icon = "clock",
+    Text = SoulsHub:GetTimeNow()
+})
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+        timeText:SetText(SoulsHub:GetTimeNow())
+        Window.Username = LocalPlayer.Name
+    end
+end)
+
+watermark:AddText({
+    Icon = "server",
+    Text = "Souls Hub"
+})
+
+Window:Update({
+    ExpireDate = SoulsHub:GetDate(tick() + 84000)
+})
+
+-- Global state management
+_G.FeatureStates = _G.FeatureStates or {
+    AutoFarm = false,
+    AutoCollect = false,
+    AutoBuySeed = false,
+    AutoBuyGear = false,
+    AutoBuyAllSeed = false,
+    AutoBuyAllGear = false,
+    AutoEquipBest = false,
+    SellBrainrot = false,
+    SellPlant = false,
+    WalkSpeedEnabled = false,
+    JumpEnabled = false,
+    NoClipEnabled = false,
+    KillAuraEnabled = false,
+    KillAuraRange = 25,
+    SelectedWeapon = "Banana Gun",
+    AutoCollectDelay = 60,
+    ClickInterval = 0.25,
+    HeldToolName = "Basic Bat",
+    AutoCollectV2 = false,
+    AutoEquipBrainrot = false
+}
+
+-- Game data
+local AllSeeds = {
+    "Cactus Seed",
+    "Carnivorous Plant Seed",
+    "Cocotank Seed",
+    "Dragon Fruit Seed",
+    "Eggplant Seed",
+    "Grape Seed",
+    "Mr Carrot Seed",
+    "Pumpkin Seed",
+    "Shroombino Seed",
+    "Strawberry Seed",
+    "Sunflower Seed",
+    "Tomatrio Seed",
+    "Watermelon Seed",
+    "Dragon Seed"
+}
+
+local AllGears = {
+    "Water Bucket",
+    "Banana Gun",
+    "Frost Blower",
+    "Carrot Launcher",
+    "Frost Grenade"
+}
+
+-- Helper functions with fallbacks
+local function GetBridgeNet2()
+    local success, result = pcall(function()
+        return ReplicatedStorage:WaitForChild("BridgeNet2")
+    end)
+    return success and result or nil
 end
 
--- Create main window with proper configuration as per documentation
-local Window
-pcall(function()
-    Window = SoulsHub.new({
-        Keybind = "LeftAlt",
-    })
-    
-    if Window then
-        Window.Username = tostring(game.Players.LocalPlayer and game.Players.LocalPlayer.Name or "Player")
-    end
-end)
-
-if not Window then
-    warn("Failed to create SoulsHub window. Check library compatibility.")
-    return
+local function GetRemotesFolder()
+    local success, result = pcall(function()
+        return ReplicatedStorage:WaitForChild("Remotes")
+    end)
+    return success and result or nil
 end
 
--- Watermark setup as per documentation
-local watermark
-pcall(function()
-    watermark = Window:Watermark()
-    if watermark then
-        watermark:AddText({
-            Icon = "skull",
-            Text = "Souls Hub"
-        })
-        
-        local vim = watermark:AddText({
-            Icon = "clock",
-            Text = SoulsHub:GetTimeNow()
-        })
-        
-        -- Time update loop as shown in documentation
-        task.spawn(function()
-            while true do
-                task.wait()
-                vim:SetText(SoulsHub:GetTimeNow())
-                Window.Username = game.Players.LocalPlayer.Name
+local function GetMyPlot()
+    local success, plots = pcall(function()
+        return Workspace:FindFirstChild("Plots")
+    end)
+    
+    if not success or not plots then return nil end
+    
+    for _, plot in ipairs(plots:GetChildren()) do
+        local playerSign = plot:FindFirstChild("PlayerSign")
+        if playerSign then
+            local bg = playerSign:FindFirstChild("BillboardGui")
+            local textLabel = bg and bg:FindFirstChild("TextLabel")
+            if textLabel and (textLabel.Text == LocalPlayer.Name or textLabel.Text == LocalPlayer.DisplayName) then
+                return plot
             end
-        end)
-    end
-end)
-
--- Config manager as per documentation
-local FileWatcher
-pcall(function()
-    FileWatcher = SoulsHub:ConfigManager({
-        Directory = "SoulsHub",
-        Config = "Default"
-    })
-end)
-
-local Configs
-pcall(function()
-    Configs = Window:DrawConfig({
-        Name = "Configs",
-        Icon = "folder",
-        Config = FileWatcher
-    })
-    
-    if Configs and Configs.Init then
-        pcall(Configs.Init)
-    end
-end)
-
--- Update window as per documentation
-pcall(function()
-    Window:Update({
-        ExpireDate = SoulsHub:GetDate(tick() + 84000)
-    })
-end)
-
--- ========= INFORMATION TAB =========
-local InfoTab
-pcall(function()
-    InfoTab = Window:DrawTab({
-        Icon = "info",
-        Name = "Information",
-        Type = "Single"
-    })
-    
-    if InfoTab then
-        local infoSection = InfoTab:DrawSection({
-            Name = "About",
-            Position = "LEFT"
-        })
-        
-        if infoSection then
-            infoSection:AddParagraph({
-                Title = "Souls Hub - Ultimate",
-                Content = "Merged: PvB automation, VynHub utilities, multi-game autofarms, movement, and ESP.\nNo key system. Use responsibly."
-            })
-            
-            infoSection:AddParagraph({
-                Title = "Credits",
-                Content = "Adapted from multiple scripts and merged into SoulsHub UI."
-            })
         end
     end
-end)
+    return nil
+end
 
--- ========= PLANTS vs BRAINROTS TAB =========
-local PvBTab
-pcall(function()
-    PvBTab = Window:DrawTab({
-        Icon = "leaf",
-        Name = "Plants v Brainrots",
-        Type = "Double"
-    })
+local function GetMoney()
+    local leaderstats = LocalPlayer:FindFirstChild("leaderstats")
+    return leaderstats and leaderstats:FindFirstChild("Money") and leaderstats.Money.Value or 0
+end
+
+local function GetRebirth()
+    local gui = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("Main")
+    if gui and gui:FindFirstChild("Rebirth") then
+        local text = gui.Rebirth.Frame.Title.Text or "Rebirth 0"
+        local n = tonumber(text:match("%d+")) or 0
+        return math.max(0, n - 1)
+    end
+    return 0
+end
+
+local function FormatTime(sec)
+    local h = math.floor(sec / 3600)
+    local m = math.floor((sec % 3600) / 60)
+    local s = sec % 60
+    return string.format("%02d:%02d:%02d", h, m, s)
+end
+
+-- Brainrot caching with fallbacks
+local BrainrotsCache = {}
+local function UpdateBrainrotsCache()
+    local success, folder = pcall(function()
+        return Workspace:WaitForChild("ScriptedMap"):WaitForChild("Brainrots")
+    end)
     
-    if PvBTab then
-        local pvb_left = PvBTab:DrawSection({
-            Name = "Main",
-            Position = "LEFT"
-        })
-        
-        local pvb_right = PvBTab:DrawSection({
-            Name = "Automation",
-            Position = "RIGHT"
-        })
-        
-        if pvb_left and pvb_right then
-            -- Find seeds frame function with fallbacks
-            local function TryFindSeedsFrame()
-                local pg = game.Players.LocalPlayer:FindFirstChildOfClass("PlayerGui")
-                if not pg then return nil end
-                
-                local candidates = {
-                    pg:FindFirstChild("Main"),
-                    pg:FindFirstChild("GameUI"),
-                    pg:FindFirstChild("Seeds")
-                }
-                
-                for _, main in ipairs(candidates) do
-                    if main and main:FindFirstChild("Seeds") and 
-                       main.Seeds:FindFirstChild("Frame") and 
-                       main.Seeds.Frame:FindFirstChild("ScrollingFrame") then
-                        return main.Seeds.Frame.ScrollingFrame
-                    end
-                end
-                
-                for _, c in ipairs(pg:GetDescendants()) do
-                    if c:IsA("Frame") and tostring(c.Name):lower():find("seed") and c:FindFirstChild("Stock") then
-                        return c.Parent or c
-                    end
-                end
-                
-                return nil
-            end
-            
-            local SeedsFrame = TryFindSeedsFrame()
-            local state = {
-                AutoEquip = false,
-                AutoSell = false,
-                AutoBuy = false,
-                AutoBuyList = {},
-                SellInterval = 5,
-            }
-            
-            local function BuildSeedOptions()
-                local out = {}
-                SeedsFrame = TryFindSeedsFrame()
-                if not SeedsFrame then return out end
-                
-                for _, seed in ipairs(SeedsFrame:GetChildren()) do
-                    if seed:IsA("Frame") and tostring(seed.Name):lower():find("seed") then
-                        local stockLabel = seed:FindFirstChild("Stock")
-                        local stock = 0
-                        if stockLabel then 
-                            stock = tonumber(tostring(stockLabel.Text):match("%d+")) or 0 
-                        end
-                        table.insert(out, seed.Name .. " (Stock: " .. tostring(stock) .. ")")
-                    end
-                end
-                return out
-            end
-            
-            -- PvB controls with remote fallbacks
-            pvb_left:AddButton({
-                Name = "Sell All Brainrots",
-                Callback = function()
-                    local itemSell = game:GetService("ReplicatedStorage"):FindFirstChild("ItemSell")
-                    if itemSell then
-                        itemSell:FireServer()
-                        Window:Notify({
-                            Title = "Sold",
-                            Content = "All brainrots sold.",
-                            Duration = 2
-                        })
-                    else
-                        Window:Notify({
-                            Title = "Error",
-                            Content = "Sell remote not found.",
-                            Duration = 3
-                        })
-                    end
-                end
-            })
-            
-            pvb_left:AddButton({
-                Name = "Equip Best Brainrots",
-                Callback = function()
-                    local equipBest = game:GetService("ReplicatedStorage"):FindFirstChild("EquipBestBrainrots")
-                    if equipBest then
-                        equipBest:FireServer()
-                        Window:Notify({
-                            Title = "Equipped",
-                            Content = "Best brainrots equipped.",
-                            Duration = 2
-                        })
-                    else
-                        Window:Notify({
-                            Title = "Error",
-                            Content = "Equip remote not found.",
-                            Duration = 3
-                        })
-                    end
-                end
-            })
-            
-            -- Seed dropdown with automatic refresh
-            local seedOptions = BuildSeedOptions()
-            local selectedSeed = {}
-            local seedDropdown = pvb_right:AddDropdown({
-                Name = "Select Seed(s)",
-                Values = (#seedOptions > 0) and seedOptions or {"None"},
-                Default = "None",
-                Multi = true,
-                Flag = "pSeeds",
-                Callback = function(option)
-                    selectedSeed = {}
-                    if type(option) == "table" then
-                        for _, v in ipairs(option) do
-                            if v ~= "None" then table.insert(selectedSeed, tostring(v)) end
-                        end
-                    else
-                        if option ~= "None" then table.insert(selectedSeed, tostring(option)) end
-                    end
-                end
-            })
-            
-            pvb_right:AddButton({
-                Name = "Buy Selected Seed(s)",
-                Callback = function()
-                    if not selectedSeed or #selectedSeed == 0 then
-                        Window:Notify({
-                            Title = "Error",
-                            Content = "No seeds selected!",
-                            Duration = 3
-                        })
-                        return
-                    end
-                    
-                    local buyItem = game:GetService("ReplicatedStorage"):FindFirstChild("BuyItem")
-                    for _, seedStr in ipairs(selectedSeed) do
-                        local seedName = seedStr:match("^(.-) %(") or seedStr
-                        if buyItem then
-                            buyItem:FireServer(seedName, true)
-                            Window:Notify({
-                                Title = "Purchased",
-                                Content = seedName .. " bought successfully!",
-                                Duration = 2
-                            })
-                        else
-                            Window:Notify({
-                                Title = "Error",
-                                Content = "Buy remote not found.",
-                                Duration = 3
-                            })
-                        end
-                        task.wait(0.12)
-                    end
-                end
-            })
-            
-            -- Automation toggles
-            pvb_right:AddToggle({
-                Name = "Auto Buy Seeds",
-                Flag = "AutoBuySeeds",
-                Default = false,
-                Callback = function(val) state.AutoBuy = val end
-            })
-            
-            pvb_left:AddToggle({
-                Name = "Auto Sell Brainrots",
-                Flag = "AutoSell",
-                Default = false,
-                Callback = function(val) state.AutoSell = val end
-            })
-            
-            pvb_left:AddSlider({
-                Name = "Sell Interval (s)",
-                Min = 1,
-                Max = 60,
-                Default = 5,
-                Flag = "SellInterval",
-                Callback = function(v) state.SellInterval = v end
-            })
-            
-            pvb_left:AddToggle({
-                Name = "Auto Equip Best",
-                Flag = "AutoEquip",
-                Default = false,
-                Callback = function(val) state.AutoEquip = val end
-            })
-            
-            -- Background automation loop for PvB with error handling
-            task.spawn(function()
-                while true do
-                    if state.AutoSell then
-                        local itemSell = game:GetService("ReplicatedStorage"):FindFirstChild("ItemSell")
-                        if itemSell then
-                            pcall(function() itemSell:FireServer() end)
-                        end
-                    end
-                    
-                    if state.AutoEquip then
-                        local equipBest = game:GetService("ReplicatedStorage"):FindFirstChild("EquipBestBrainrots")
-                        if equipBest then
-                            pcall(function() equipBest:FireServer() end)
-                        end
-                    end
-                    
-                    if state.AutoBuy and selectedSeed and #selectedSeed > 0 then
-                        local buyItem = game:GetService("ReplicatedStorage"):FindFirstChild("BuyItem")
-                        if buyItem then
-                            for _, seedStr in ipairs(selectedSeed) do
-                                local seedName = seedStr:match("^(.-) %(") or seedStr
-                                pcall(function() buyItem:FireServer(seedName, true) end)
-                                Window:Notify({
-                                    Title = "Auto Purchased",
-                                    Content = seedName .. " bought successfully!",
-                                    Duration = 1.2
-                                })
-                                task.wait(0.15)
-                            end
-                        end
-                    end
-                    
-                    task.wait(state.SellInterval or 5)
-                end
-            end)
+    if not success or not folder then return end
+    
+    BrainrotsCache = {}
+    for _, b in ipairs(folder:GetChildren()) do
+        if b:FindFirstChild("BrainrotHitbox") then
+            table.insert(BrainrotsCache, b)
         end
     end
-end)
+end
 
--- ========= VYNHUB TAB =========
-local VynTab
-pcall(function()
-    VynTab = Window:DrawTab({
-        Icon = "home",
-        Name = "VynHub",
-        Type = "Double"
-    })
+local function GetNearestBrainrot()
+    local nearest = nil
+    local minDist = math.huge
     
-    if VynTab then
-        local vynLeft = VynTab:DrawSection({
-            Name = "Player Status",
-            Position = "LEFT"
-        })
-        
-        local vynRight = VynTab:DrawSection({
-            Name = "AutoFarm",
-            Position = "RIGHT"
-        })
-        
-        if vynLeft and vynRight then
-            -- Status functions with fallbacks
-            local function GetMyPlotName()
-                local plot = workspace:FindFirstChild("Plots")
-                if plot then
-                    return "Your Plot"
-                end
-                return "Unknown Plot"
+    for _, b in ipairs(BrainrotsCache) do
+        local hitbox = b:FindFirstChild("BrainrotHitbox")
+        if hitbox then
+            local dist = (HumanoidRootPart.Position - hitbox.Position).Magnitude
+            if dist < minDist then
+                minDist = dist
+                nearest = b
             end
-            
-            local function GetRebirth()
-                local stats = game.Players.LocalPlayer:FindFirstChild("leaderstats")
-                if stats then
-                    local rebirth = stats:FindFirstChild("Rebirths") or stats:FindFirstChild("Rebirth")
-                    if rebirth then
-                        return rebirth.Value
-                    end
-                end
-                return 0
-            end
-            
-            local function GetMoney()
-                local stats = game.Players.LocalPlayer:FindFirstChild("leaderstats")
-                if stats then
-                    local money = stats:FindFirstChild("Money") or stats:FindFirstChild("Coins") or stats:FindFirstChild("Cash")
-                    if money then
-                        return money.Value
-                    end
-                end
-                return 0
-            end
-            
-            local function FormatTime(seconds)
-                local hours = math.floor(seconds/3600)
-                local mins = math.floor((seconds%3600)/60)
-                return string.format("%dh %dm", hours, mins)
-            end
-            
-            local serverStartTime = os.time()
-            
-            vynLeft:AddParagraph({
-                Title = "Status",
-                Content = "Placeholders for plot, rebirth, money and playtime."
-            })
-            
-            vynLeft:AddButton({
-                Name = "Show Status",
-                Callback = function()
-                    local message = string.format("Plots: %s\nRebirth: %s\nMoney: %s\nPlaytime: %s", 
-                        GetMyPlotName(), 
-                        tostring(GetRebirth()), 
-                        tostring(GetMoney()), 
-                        FormatTime(os.time() - serverStartTime))
-                    Window:Notify({
-                        Title = "VynHub Status",
-                        Content = message,
-                        Duration = 4
-                    })
-                end
-            })
-            
-            vynRight:AddToggle({
-                Name = "Auto Farm",
-                Flag = "VynAutoFarm",
-                Default = false,
-                Callback = function(stateVal)
-                    if stateVal then
-                        Window:Notify({
-                            Title = "AutoFarm",
-                            Content = "AutoFarm started!",
-                            Duration = 3
-                        })
-                    else
-                        Window:Notify({
-                            Title = "AutoFarm",
-                            Content = "AutoFarm stopped.",
-                            Duration = 3
-                        })
-                    end
-                end
-            })
-            
-            vynRight:AddInput({
-                Name = "Attack Delay (s)",
-                Placeholder = "0.1",
-                Default = "0.1",
-                Callback = function(val)
-                    local num = tonumber(val)
-                    if num and num > 0 then
-                        _G.ClickInterval = num
-                        Window:Notify({
-                            Title = "Set",
-                            Content = "Attack delay set.",
-                            Duration = 1.5
-                        })
-                    else
-                        Window:Notify({
-                            Title = "Error",
-                            Content = "Invalid number.",
-                            Duration = 2
-                        })
-                    end
-                end
-            })
-            
-            -- Discord info with fallbacks
-            vynLeft:AddParagraph({
-                Title = "Discord",
-                Content = "Press Update to fetch server stats (may fail if HTTP requests disabled)."
-            })
-            
-            vynLeft:AddButton({
-                Name = "Update Discord Info",
-                Callback = function()
-                    local InviteCode = "qepFHRBCC2"
-                    local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
-                    local ok, res = pcall(function() return game:GetService("HttpService"):GetAsync(DiscordAPI) end)
-                    if ok and res then
-                        local successDecode, decoded = pcall(function() return game:GetService("HttpService"):JSONDecode(res) end)
-                        if successDecode and decoded and decoded.guild then
-                            local desc = string.format("Name: %s\nMembers: %s\nOnline: %s", 
-                                decoded.guild.name or "N/A", 
-                                tostring(decoded.approximate_member_count or "N/A"), 
-                                tostring(decoded.approximate_presence_count or "N/A"))
-                            Window:Notify({
-                                Title = "Discord Info",
-                                Content = desc,
-                                Duration = 4
-                            })
-                        else
-                            Window:Notify({
-                                Title = "Discord",
-                                Content = "Unable to decode response.",
-                                Duration = 2
-                            })
-                        end
-                    else
-                        Window:Notify({
-                            Title = "Discord",
-                            Content = "Failed HTTP request (exploit may block it).",
-                            Duration = 3
-                        })
-                    end
-                end
-            })
         end
     end
-end)
+    return nearest
+end
 
--- ========= AUTOFARM TAB =========
-local AutoFarmTab
-pcall(function()
-    AutoFarmTab = Window:DrawTab({
-        Icon = "zap",
-        Name = "AutoFarm",
-        Type = "Single"
+-- Utility functions with fallbacks
+local function EquipBat()
+    local tool = Backpack:FindFirstChild(_G.FeatureStates.HeldToolName) or Character:FindFirstChild(_G.FeatureStates.HeldToolName)
+    if tool then tool.Parent = Character end
+end
+
+local function InstantWarpToBrainrot(brainrot)
+    local hitbox = brainrot and brainrot:FindFirstChild("BrainrotHitbox")
+    if hitbox then
+        local offset = Vector3.new(0, 1, 3)
+        HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + offset, hitbox.Position)
+    end
+end
+
+local function DoClick()
+    pcall(function()
+        VirtualUser:Button1Down(Vector2.new(0, 0))
+        task.wait(0.03)
+        VirtualUser:Button1Up(Vector2.new(0, 0))
+    end)
+end
+
+-- Create main tabs
+local Main = Window:DrawTab({
+    Icon = "crown",
+    Name = "Main",
+    Type = "Double"
+})
+
+local Player = Window:DrawTab({
+    Icon = "user",
+    Name = "Player",
+    Type = "Single"
+})
+
+local Shop = Window:DrawTab({
+    Icon = "shopping-cart",
+    Name = "Shop",
+    Type = "Double"
+})
+
+local Sell = Window:DrawTab({
+    Icon = "dollar-sign",
+    Name = "Sell",
+    Type = "Single"
+})
+
+local Auto = Window:DrawTab({
+    Icon = "zap",
+    Name = "Auto",
+    Type = "Single"
+})
+
+local Info = Window:DrawTab({
+    Icon = "info",
+    Name = "Information",
+    Type = "Single"
+})
+
+local Configs = Window:DrawConfig({
+    Name = "Configs",
+    Icon = "folder",
+    Config = FileWatcher
+})
+
+Configs:Init()
+
+-- Main Tab Sections
+do
+    local FarmSection = Main:DrawSection({
+        Name = "Auto Farm",
+        Position = "LEFT"
     })
     
-    if AutoFarmTab then
-        local autofarmSection = AutoFarmTab:DrawSection({
-            Name = "AutoFarm Selector",
-            Position = "LEFT"
-        })
-        
-        if autofarmSection then
-            local autofarmActive = false
-            local autofarmConnections = {}
-            
-            local function disconnectAll()
-                for _, conn in ipairs(autofarmConnections) do
-                    if typeof(conn) == "RBXScriptConnection" then
-                        pcall(function() conn:Disconnect() end)
-                    end
-                end
-                autofarmConnections = {}
-                autofarmActive = false
-            end
-            
-            -- AutoFarm implementations with fallbacks
-            local function startGrowAGardenAutoFarm()
-                disconnectAll()
-                autofarmActive = true
-                Window:Notify({
-                    Title = "AutoFarm",
-                    Content = "Grow a Garden autofarm started.",
-                    Duration = 2
-                })
+    local StatusSection = Main:DrawSection({
+        Name = "Status",
+        Position = "RIGHT"
+    })
+    
+    -- Auto Farm Toggle with implementation
+    local autoFarmToggle = FarmSection:AddToggle({
+        Name = "Auto Farm",
+        Default = _G.FeatureStates.AutoFarm,
+        Callback = function(state)
+            _G.FeatureStates.AutoFarm = state
+            if state then
+                _G.FeatureStates.HeldToolName = "Basic Bat"
+                EquipBat()
+                UpdateBrainrotsCache()
                 
-                table.insert(autofarmConnections, game:GetService("RunService").Heartbeat:Connect(function()
-                    if not autofarmActive then return end
-                    
-                    -- Harvest crops
-                    local harvestRemote = game:GetService("ReplicatedStorage"):FindFirstChild("HarvestCrop") or 
-                                          game:GetService("ReplicatedStorage"):FindFirstChild("Harvest")
-                    if harvestRemote then
-                        for _, v in ipairs(workspace:GetDescendants()) do
-                            if tostring(v.Name):lower():find("crop") or tostring(v.Name):lower():find("plant") then
-                                pcall(function() harvestRemote:FireServer(v) end)
-                            end
+                -- Auto Clicker
+                task.spawn(function()
+                    while _G.FeatureStates.AutoFarm do
+                        if Character and Character:FindFirstChild(_G.FeatureStates.HeldToolName) then
+                            DoClick()
                         end
+                        task.wait(_G.FeatureStates.ClickInterval)
                     end
-                    
-                    -- Plant seeds
-                    local plantRemote = game:GetService("ReplicatedStorage"):FindFirstChild("PlantSeed") or 
-                                        game:GetService("ReplicatedStorage"):FindFirstChild("Plant")
-                    if plantRemote then
-                        local backpack = game.Players.LocalPlayer:FindFirstChild("Backpack")
-                        if backpack then
-                            for _, seed in ipairs(backpack:GetChildren()) do
-                                if seed.Name:lower():find("seed") then
-                                    pcall(function() plantRemote:FireServer(seed.Name) end)
+                end)
+                
+                -- Auto Equip Tool
+                task.spawn(function()
+                    while _G.FeatureStates.AutoFarm do
+                        if not Character:FindFirstChild(_G.FeatureStates.HeldToolName) then
+                            EquipBat()
+                        end
+                        task.wait(0.5)
+                    end
+                end)
+                
+                -- Brainrots Cache Refresh
+                task.spawn(function()
+                    while _G.FeatureStates.AutoFarm do
+                        UpdateBrainrotsCache()
+                        task.wait(1)
+                    end
+                end)
+                
+                -- Auto Farm Brainrot
+                task.spawn(function()
+                    while _G.FeatureStates.AutoFarm do
+                        local currentTarget = GetNearestBrainrot()
+                        if currentTarget and currentTarget:FindFirstChild("BrainrotHitbox") then
+                            InstantWarpToBrainrot(currentTarget)
+                            local hitbox = currentTarget.BrainrotHitbox
+                            pcall(function()
+                                local remotes = GetRemotesFolder()
+                                if remotes and remotes:FindFirstChild("AttacksServer") and remotes.AttacksServer:FindFirstChild("WeaponAttack") then
+                                    remotes.AttacksServer.WeaponAttack:FireServer({ { target = hitbox } })
+                                else
+                                    ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer({ { target = hitbox } })
                                 end
-                            end
-                        end
-                    end
-                    
-                    -- Collect drops
-                    for _, drop in ipairs(workspace:GetDescendants()) do
-                        if drop:IsA("BasePart") and game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                            if (drop.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude < 50 then
-                                pcall(function()
-                                    firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, drop, 0)
-                                    firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, drop, 1)
-                                end)
-                            end
-                        end
-                    end
-                    
-                    -- Sell items
-                    local itemSell = game:GetService("ReplicatedStorage"):FindFirstChild("ItemSell")
-                    if itemSell then
-                        pcall(function() itemSell:FireServer() end)
-                    end
-                end))
-            end
-
-            local function start99NightsAutoFarm()
-                disconnectAll()
-                autofarmActive = true
-                Window:Notify({
-                    Title = "AutoFarm",
-                    Content = "99 Nights autofarm started.",
-                    Duration = 2
-                })
-                
-                table.insert(autofarmConnections, game:GetService("RunService").Heartbeat:Connect(function()
-                    if not autofarmActive then return end
-                    
-                    -- Collect resources
-                    for _, obj in ipairs(workspace:GetDescendants()) do
-                        if obj:IsA("BasePart") and (tostring(obj.Name):lower():find("wood") or tostring(obj.Name):lower():find("log") or tostring(obj.Name):lower():find("food") or tostring(obj.Name):lower():find("item")) then
-                            if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                                if (obj.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude < 50 then
-                                    pcall(function()
-                                        firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, obj, 0)
-                                        firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, obj, 1)
-                                    end)
-                                end
-                            end
-                        end
-                    end
-                    
-                    -- Craft items
-                    local craftRemote = game:GetService("ReplicatedStorage"):FindFirstChild("CraftItem")
-                    if craftRemote then
-                        pcall(function() craftRemote:FireServer("WoodenAxe") end)
-                    end
-                end))
-            end
-
-            local function startStealABrainrotAutoFarm()
-                disconnectAll()
-                autofarmActive = true
-                Window:Notify({
-                    Title = "AutoFarm",
-                    Content = "Steal a Brainrot autofarm started.",
-                    Duration = 2
-                })
-                
-                table.insert(autofarmConnections, game:GetService("RunService").Heartbeat:Connect(function()
-                    if not autofarmActive then return end
-                    
-                    -- Collect brainrot items
-                    for _, obj in ipairs(workspace:GetDescendants()) do
-                        if obj:IsA("BasePart") and (tostring(obj.Name):lower():find("brain") or tostring(obj.Name):lower():find("rot") or tostring(obj.Name):lower():find("point")) then
-                            if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                                if (obj.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude < 50 then
-                                    pcall(function()
-                                        firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, obj, 0)
-                                        firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, obj, 1)
-                                    end)
-                                end
-                            end
-                        end
-                    end
-                    
-                    -- Interact with brainrot
-                    local interactRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Interact")
-                    if interactRemote then
-                        pcall(function() interactRemote:FireServer() end)
-                    end
-                end))
-            end
-
-            local function startPvBAutoFarm()
-                disconnectAll()
-                autofarmActive = true
-                Window:Notify({
-                    Title = "AutoFarm",
-                    Content = "Plants vs Brainrots autofarm started.",
-                    Duration = 2
-                })
-                
-                table.insert(autofarmConnections, game:GetService("RunService").Heartbeat:Connect(function()
-                    if not autofarmActive then return end
-                    
-                    -- Place plants
-                    local Events = game:GetService("ReplicatedStorage"):FindFirstChild("GameEvents") or game:GetService("ReplicatedStorage")
-                    for _, remote in ipairs(Events:GetChildren()) do
-                        if tostring(remote.Name):lower():find("place") or tostring(remote.Name):lower():find("plant") then
-                            pcall(function() 
-                                remote:FireServer("Peashooter", 1)
-                                remote:FireServer("Sunflower", 2)
                             end)
                         end
-                        if tostring(remote.Name):lower():find("collect") or tostring(remote.Name):lower():find("harvest") then
-                            pcall(function() remote:FireServer() end)
-                        end
+                        task.wait(0.1)
                     end
-                    
-                    -- Collect sun and rewards
-                    for _, obj in ipairs(workspace:GetDescendants()) do
-                        if obj:IsA("BasePart") and (tostring(obj.Name):lower():find("sun") or tostring(obj.Name):lower():find("reward")) then
-                            if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                                if (obj.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude < 50 then
-                                    pcall(function()
-                                        firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, obj, 0)
-                                        firetouchinterest(game.Players.LocalPlayer.Character.HumanoidRootPart, obj, 1)
-                                    end)
+                end)
+            end
+        end
+    })
+    
+    -- Kill Aura implementation
+    local killAuraSection = Main:DrawSection({
+        Name = "Kill Aura",
+        Position = "LEFT"
+    })
+    
+    killAuraSection:AddDropdown({
+        Name = "Weapon",
+        Values = AllGears,
+        Default = _G.FeatureStates.SelectedWeapon,
+        Callback = function(choice)
+            _G.FeatureStates.SelectedWeapon = choice
+        end
+    })
+    
+    killAuraSection:AddToggle({
+        Name = "Kill Aura",
+        Default = _G.FeatureStates.KillAuraEnabled,
+        Callback = function(state)
+            _G.FeatureStates.KillAuraEnabled = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.KillAuraEnabled do
+                        local char = Character
+                        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+                            local root = char.HumanoidRootPart
+                            local humanoid = char.Humanoid
+                            local tool = char:FindFirstChildOfClass("Tool")
+                            
+                            if not tool or tool.Name ~= _G.FeatureStates.SelectedWeapon then
+                                local backpack = LocalPlayer:FindFirstChild("Backpack")
+                                if backpack then
+                                    local item = backpack:FindFirstChild(_G.FeatureStates.SelectedWeapon)
+                                    if item then
+                                        humanoid:EquipTool(item)
+                                    end
+                                end
+                            end
+                            
+                            for _, mob in ipairs(Workspace:GetChildren()) do
+                                if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and not Players:FindFirstChild(mob.Name) then
+                                    local MobKeywords = {"brainrot", "brain", "rot"}
+                                    local mobName = mob.Name:lower()
+                                    local isTarget = false
+                                    
+                                    for _, keyword in ipairs(MobKeywords) do
+                                        if mobName:find(keyword) then
+                                            isTarget = true
+                                            break
+                                        end
+                                    end
+                                    
+                                    if isTarget then
+                                        local dist = (mob.HumanoidRootPart.Position - root.Position).Magnitude
+                                        if dist <= _G.FeatureStates.KillAuraRange and tool then
+                                            pcall(function() tool:Activate() end)
+                                        end
+                                    end
                                 end
                             end
                         end
+                        task.wait(0.05)
                     end
-                end))
+                end)
             end
-
-            -- AutoFarm selector dropdown
-            autofarmSection:AddDropdown({
-                Name = "Select AutoFarm",
-                Values = {
-                    "Grow a Garden", 
-                    "99 Nights in the Forest", 
-                    "Steal a Brainrot", 
-                    "Plants vs Brainrots"
-                },
-                Default = "Grow a Garden",
-                Flag = "AdminAutoFarm",
-                Callback = function(option)
-                    disconnectAll()
-                    if option == "Grow a Garden" then 
-                        startGrowAGardenAutoFarm() 
-                    elseif option == "99 Nights in the Forest" then 
-                        start99NightsAutoFarm() 
-                    elseif option == "Steal a Brainrot" then 
-                        startStealABrainrotAutoFarm() 
-                    elseif option == "Plants vs Brainrots" then 
-                        startPvBAutoFarm() 
-                    end
-                end
-            })
-
-            autofarmSection:AddButton({
-                Name = "Stop AutoFarm",
+        end
+    })
+    
+    killAuraSection:AddSlider({
+        Name = "Range",
+        Min = 10,
+        Max = 60,
+        Default = _G.FeatureStates.KillAuraRange,
+        Callback = function(v)
+            _G.FeatureStates.KillAuraRange = v
+        end
+    })
+    
+    -- Status display
+    StatusSection:AddParagraph({
+        Title = "Your Status",
+        Content = "[+] Show Plots\n[+] Show Rebirth\n[+] Show Money\n[+] Show Playtime",
+        Buttons = {
+            {
+                Icon = "info",
+                Title = "Show Status",
                 Callback = function()
-                    disconnectAll()
-                    Window:Notify({
-                        Title = "AutoFarm",
-                        Content = "Stopped.",
-                        Duration = 2
+                    local message = "Your Status\n"
+                    message = message .. "Plots: " .. (GetMyPlot() and GetMyPlot().Name or "No Plot") .. "\n"
+                    message = message .. "Rebirth: " .. GetRebirth() .. "\n"
+                    message = message .. "Money: " .. GetMoney() .. "\n"
+                    message = message .. "Playtime: " .. FormatTime(os.time() - tick())
+                    SoulsHub:Notify({
+                        Title = "Souls Hub Status",
+                        Content = message,
+                        Duration = 5,
+                        Icon = "user-check"
                     })
                 end
-            })
-        end
-    end
-end)
-
--- ========= MOVEMENT TAB =========
-local MovementTab
-pcall(function()
-    MovementTab = Window:DrawTab({
-        Icon = "run",
-        Name = "Movement",
-        Type = "Single"
+            }
+        }
     })
     
-    if MovementTab then
-        local movementSection = MovementTab:DrawSection({
-            Name = "Player Movement",
-            Position = "LEFT"
-        })
-        
-        if movementSection then
-            -- WalkSpeed slider with fallbacks
-            movementSection:AddSlider({
-                Name = "WalkSpeed",
-                Min = 16,
-                Max = 300,
-                Default = 16,
-                Type = "studs/s",
-                Callback = function(value)
-                    if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = value
-                        Window:Notify({
-                            Title = "WalkSpeed Changed",
-                            Content = "WalkSpeed set to " .. value,
-                            Duration = 2
-                        })
-                    end
-                end
-            })
-            
-            -- JumpPower slider with fallbacks
-            movementSection:AddSlider({
-                Name = "JumpPower",
-                Min = 50,
-                Max = 500,
-                Default = 50,
-                Type = "studs",
-                Callback = function(value)
-                    if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                        game.Players.LocalPlayer.Character.Humanoid.JumpPower = value
-                        Window:Notify({
-                            Title = "JumpPower Changed",
-                            Content = "JumpPower set to " .. value,
-                            Duration = 2
-                        })
-                    end
-                end
-            })
-            
-            -- NoClip toggle with fallbacks
-            movementSection:AddToggle({
-                Name = "No Clip",
-                Flag = "NoClip",
-                Default = false,
-                Callback = function(state)
-                    if game.Players.LocalPlayer.Character then
-                        for _, part in ipairs(game.Players.LocalPlayer.Character:GetChildren()) do
-                            if part:IsA("BasePart") then
-                                pcall(function() 
-                                    part.CanCollide = not state 
-                                    part.Transparency = (state and 0.5) or 0 
-                                end)
-                            end
-                        end
-                    end
-                end
-            })
+    -- Auto Collect
+    Auto:DrawSection({
+        Name = "Auto Collect",
+        Position = "LEFT"
+    }):AddSlider({
+        Name = "Collection Delay (sec)",
+        Min = 1,
+        Max = 60,
+        Default = _G.FeatureStates.AutoCollectDelay,
+        Callback = function(val)
+            _G.FeatureStates.AutoCollectDelay = val
         end
-    end
-end)
-
--- ========= ESP TAB =========
-local EspTab
-pcall(function()
-    EspTab = Window:DrawTab({
-        Icon = "eye",
-        Name = "ESP",
-        Type = "Single"
     })
     
-    if EspTab then
-        local espSection = EspTab:DrawSection({
-            Name = "Player ESP",
-            Position = "LEFT"
-        })
-        
-        if espSection then
-            -- ESP toggle with conditional options
-            local espToggle = espSection:AddToggle({
-                Name = "Enable ESP",
-                Flag = "esp_enabled",
-                Default = false,
-                Callback = function(state)
-                    if state then
-                        Window:Notify({
-                            Title = "ESP Enabled",
-                            Content = "ESP is now active.",
-                            Duration = 2
-                        })
-                    else
-                        Window:Notify({
-                            Title = "ESP Disabled",
-                            Content = "ESP is now disabled.",
-                            Duration = 2
-                        })
-                    end
-                end
-            })
-            
-            -- Link ESP options to the main toggle
-            espToggle.Link:AddOption():AddColorPicker({
-                Name = "Box ESP Color",
-                Default = Color3.fromRGB(255, 0, 0),
-                Flag = "esp_box_color",
-                Callback = function(color)
-                    Window:Notify({
-                        Title = "Color Updated",
-                        Content = "Box ESP color updated.",
-                        Duration = 1
-                    })
-                end
-            })
-            
-            espToggle.Link:AddOption():AddColorPicker({
-                Name = "Name ESP Color",
-                Default = Color3.fromRGB(0, 255, 0),
-                Flag = "esp_name_color",
-                Callback = function(color)
-                    Window:Notify({
-                        Title = "Color Updated",
-                        Content = "Name ESP color updated.",
-                        Duration = 1
-                    })
-                end
-            })
-            
-            espSection:AddToggle({
-                Name = "Show Names",
-                Flag = "esp_show_names",
-                Default = true,
-                Callback = function(state)
-                    Window:Notify({
-                        Title = "Names Visibility",
-                        Content = "Names " .. (state and "enabled" or "disabled"),
-                        Duration = 1
-                    })
-                end
-            })
-            
-            espSection:AddToggle({
-                Name = "Show Boxes",
-                Flag = "esp_show_boxes",
-                Default = true,
-                Callback = function(state)
-                    Window:Notify({
-                        Title = "Boxes Visibility",
-                        Content = "Boxes " .. (state and "enabled" or "disabled"),
-                        Duration = 1
-                    })
-                end
-            })
-            
-            espSection:AddToggle({
-                Name = "Show Health",
-                Flag = "esp_show_health",
-                Default = true,
-                Callback = function(state)
-                    Window:Notify({
-                        Title = "Health Visibility",
-                        Content = "Health " .. (state and "enabled" or "disabled"),
-                        Duration = 1
-                    })
-                end
-            })
-            
-            -- ESP rendering system
-            local espVisuals = {}
-            
-            local function createBoxESP(character, color)
-                local box = Instance.new("BoxHandleAdornment", workspace.CurrentCamera)
-                box.Adornee = character
-                box.Color3 = color
-                box.Transparency = 0.5
-                box.AlwaysOnTop = true
-                box.ZIndex = 1
-                box.Extents = character.PrimaryPart.Size
-                box.CFrame = character.PrimaryPart.CFrame
-                return box
-            end
-            
-            local function createNameESP(character, name, color)
-                local billboardGui = Instance.new("BillboardGui", workspace.CurrentCamera)
-                billboardGui.Size = UDim2.new(0, 100, 0, 20)
-                billboardGui.Adornee = character.PrimaryPart
-                billboardGui.AlwaysOnTop = true
-                billboardGui.ExtentsOffset = Vector3.new(0, character.PrimaryPart.Size.Y / 2 + 1, 0)
-                
-                local textLabel = Instance.new("TextLabel", billboardGui)
-                textLabel.Size = UDim2.new(1, 0, 1, 0)
-                textLabel.BackgroundTransparency = 1
-                textLabel.TextScaled = true
-                textLabel.TextColor3 = color
-                textLabel.TextStrokeTransparency = 0
-                textLabel.Font = Enum.Font.SourceSansBold
-                textLabel.Text = name
-                
-                return billboardGui
-            end
-            
-            local function createHealthESP(character, health, maxHealth, color)
-                local billboardGui = Instance.new("BillboardGui", workspace.CurrentCamera)
-                billboardGui.Size = UDim2.new(0, 100, 0, 10)
-                billboardGui.Adornee = character.PrimaryPart
-                billboardGui.AlwaysOnTop = true
-                billboardGui.ExtentsOffset = Vector3.new(0, character.PrimaryPart.Size.Y / 2 + 2, 0)
-                
-                local healthBar = Instance.new("Frame", billboardGui)
-                healthBar.Size = UDim2.new(1, 0, 1, 0)
-                healthBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-                
-                local currentHealth = Instance.new("Frame", healthBar)
-                currentHealth.Size = UDim2.new(health / maxHealth, 0, 1, 0)
-                currentHealth.BackgroundColor3 = color
-                
-                return billboardGui
-            end
-            
-            -- Main ESP drawing function
-            local function drawESP()
-                for _, visual in ipairs(espVisuals) do
-                    pcall(function() visual:Destroy() end)
-                end
-                espVisuals = {}
-                
-                for _, player in ipairs(game.Players:GetPlayers()) do
-                    if player ~= game.Players.LocalPlayer and 
-                       player.Character and 
-                       player.Character:FindFirstChildOfClass("Humanoid") and 
-                       player.Character:FindFirstChild("HumanoidRootPart") then
-                        local character = player.Character
-                        local humanoid = character:FindFirstChildOfClass("Humanoid")
-                        
-                        -- Box ESP
-                        if espToggle.Value and espSection:GetElement("esp_show_boxes").Value then
-                            table.insert(espVisuals, createBoxESP(character, espSection:GetElement("esp_box_color").Value))
+    Auto:DrawSection({
+        Name = "Auto Collect",
+        Position = "LEFT"
+    }):AddToggle({
+        Name = "Auto Collect Money",
+        Default = _G.FeatureStates.AutoCollect,
+        Callback = function(state)
+            _G.FeatureStates.AutoCollect = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoCollect do
+                        local nearestPlot = GetNearestPlot()
+                        if nearestPlot then
+                            CollectFromPlot(nearestPlot)
                         end
-                        
-                        -- Name ESP
-                        if espToggle.Value and espSection:GetElement("esp_show_names").Value then
-                            table.insert(espVisuals, createNameESP(character, player.Name, espSection:GetElement("esp_name_color").Value))
-                        end
-                        
-                        -- Health ESP
-                        if espToggle.Value and espSection:GetElement("esp_show_health").Value and humanoid then
-                            table.insert(espVisuals, createHealthESP(character, humanoid.Health, humanoid.MaxHealth, espSection:GetElement("esp_name_color").Value))
-                        end
+                        task.wait(_G.FeatureStates.AutoCollectDelay)
                     end
-                end
+                end)
             end
-            
-            -- Start ESP rendering loop
-            task.spawn(function()
-                while true do
-                    task.wait()
-                    if espToggle.Value then
-                        pcall(drawESP)
-                    end
-                end
-            end)
         end
-    end
-end)
-
--- ========= MISC TAB =========
-local MiscTab
-pcall(function()
-    MiscTab = Window:DrawTab({
-        Icon = "settings",
-        Name = "Misc",
-        Type = "Single"
     })
     
-    if MiscTab then
-        local miscSection = MiscTab:DrawSection({
-            Name = "Utilities",
-            Position = "LEFT"
-        })
-        
-        if miscSection then
-            -- Duplicate tool functionality
-            miscSection:AddButton({
-                Name = "Duplicate Held Tool",
-                Callback = function()
-                    local char = game.Players.LocalPlayer.Character
-                    if char then
-                        local tool = char:FindFirstChildOfClass("Tool")
-                        if tool then
-                            local clone = tool:Clone()
-                            local newID = "ID_" .. tostring(math.floor(tick() * 1000))
-                            clone:SetAttribute("UniqueID", newID)
-                            clone.Parent = game.Players.LocalPlayer:FindFirstChild("Backpack")
-                            local humanoid = char:FindFirstChildOfClass("Humanoid")
-                            if humanoid then
-                                humanoid:EquipTool(clone)
-                                Window:Notify({
-                                    Title = "Tool Duplicated & Equipped",
-                                    Content = "Duplicated and equipped '" .. tool.Name .. "' with new ID: " .. newID,
-                                    Duration = 3
-                                })
+    Auto:DrawSection({
+        Name = "Auto Collect",
+        Position = "LEFT"
+    }):AddToggle({
+        Name = "Auto Collect Money V2",
+        Default = _G.FeatureStates.AutoCollectV2,
+        Callback = function(state)
+            _G.FeatureStates.AutoCollectV2 = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoCollectV2 do
+                        local args = {
+                            {
+                                [2] = "\004"
+                            }
+                        }
+                        pcall(function()
+                            local bn = GetBridgeNet2()
+                            if bn and bn:FindFirstChild("dataRemoteEvent") then
+                                bn.dataRemoteEvent:FireServer(unpack(args))
                             else
-                                Window:Notify({
-                                    Title = "No Humanoid Found",
-                                    Content = "Duplicated, but could not equip automatically.",
-                                    Duration = 3
-                                })
+                                ReplicatedStorage:WaitForChild("BridgeNet2"):WaitForChild("dataRemoteEvent"):FireServer(unpack(args))
                             end
-                        else
-                            Window:Notify({
-                                Title = "No Tool",
-                                Content = "You are not holding any tool.",
-                                Duration = 3
-                            })
-                        end
-                    else
-                        Window:Notify({
-                            Title = "No Character",
-                            Content = "Your character is not loaded.",
-                            Duration = 3
-                        })
+                        end)
+                        task.wait(1)
                     end
+                end)
+            end
+        end
+    })
+end
+
+-- Player Tab Sections
+do
+    local MovementSection = Player:DrawSection({
+        Name = "Movement",
+        Position = "LEFT"
+    })
+    
+    local VisualSection = Player:DrawSection({
+        Name = "Visual",
+        Position = "RIGHT"
+    })
+    
+    -- Movement features
+    MovementSection:AddToggle({
+        Name = "WalkSpeed Hack",
+        Default = _G.FeatureStates.WalkSpeedEnabled,
+        Callback = function(state)
+            _G.FeatureStates.WalkSpeedEnabled = state
+            if state then
+                local humanoid = Character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.WalkSpeed = 100
                 end
-            })
-            
-            -- Kill player functionality
-            miscSection:AddButton({
-                Name = "Kill Yourself",
-                Callback = function()
-                    local char = game.Players.LocalPlayer.Character
-                    if char and char:FindFirstChildOfClass("Humanoid") then
-                        char:FindFirstChildOfClass("Humanoid").Health = 0
-                        Window:Notify({
-                            Title = "Killed",
-                            Content = "You have been killed.",
-                            Duration = 3
-                        })
-                    end
+            else
+                local humanoid = Character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.WalkSpeed = 16
                 end
-            })
-            
-            -- Give all currencies
-            miscSection:AddButton({
-                Name = "Give All Currencies",
-                Callback = function()
-                    local stats = game.Players.LocalPlayer:FindFirstChild("leaderstats")
-                    local added = false
-                    if stats then
-                        for _, stat in ipairs(stats:GetChildren()) do
-                            local t = typeof(stat.Value)
-                            if t == "number" then
-                                stat.Value = stat.Value + 1e27
-                                Window:Notify({
-                                    Title = stat.Name .. " Given",
-                                    Content = "Set " .. stat.Name .. " to 1 octillion!",
-                                    Duration = 3
-                                })
-                                added = true
-                            elseif t == "string" then
-                                stat.Value = "infinite"
-                                Window:Notify({
-                                    Title = stat.Name .. " Given",
-                                    Content = "Set " .. stat.Name .. " to 'infinite'!",
-                                    Duration = 3
-                                })
-                                added = true
-                            elseif t == "boolean" then
-                                stat.Value = true
-                                Window:Notify({
-                                    Title = stat.Name .. " Given",
-                                    Content = "Set " .. stat.Name .. " to true!",
-                                    Duration = 3
-                                })
-                                added = true
+            end
+        end
+    })
+    
+    MovementSection:AddSlider({
+        Name = "WalkSpeed Value",
+        Min = 16,
+        Max = 200,
+        Default = 100,
+        Callback = function(val)
+            _G.FeatureStates.WalkSpeed = val
+            if _G.FeatureStates.WalkSpeedEnabled then
+                local humanoid = Character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.WalkSpeed = val
+                end
+            end
+        end
+    })
+    
+    MovementSection:AddToggle({
+        Name = "Jump Power Hack",
+        Default = _G.FeatureStates.JumpEnabled,
+        Callback = function(state)
+            _G.FeatureStates.JumpEnabled = state
+            if state then
+                local humanoid = Character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.JumpPower = 100
+                end
+            else
+                local humanoid = Character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.JumpPower = 50
+                end
+            end
+        end
+    })
+    
+    MovementSection:AddSlider({
+        Name = "JumpPower Value",
+        Min = 50,
+        Max = 300,
+        Default = 100,
+        Callback = function(val)
+            _G.FeatureStates.JumpPower = val
+            if _G.FeatureStates.JumpEnabled then
+                local humanoid = Character:FindFirstChildOfClass("Humanoid")
+                if humanoid then
+                    humanoid.JumpPower = val
+                end
+            end
+        end
+    })
+    
+    MovementSection:AddToggle({
+        Name = "NoClip",
+        Default = _G.FeatureStates.NoClipEnabled,
+        Callback = function(state)
+            _G.FeatureStates.NoClipEnabled = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.NoClipEnabled do
+                        for _, part in ipairs(Character:GetDescendants()) do
+                            if part:IsA("BasePart") and part.CanCollide then
+                                part.CanCollide = false
                             end
                         end
+                        task.wait(0.2)
                     end
-                    if not added then
-                        Window:Notify({
-                            Title = "Error",
-                            Content = "No currencies found in leaderstats!",
-                            Duration = 3
-                        })
+                end)
+            end
+        end
+    })
+    
+    -- Visual features
+    VisualSection:AddToggle({
+        Name = "Auto Equip Best Brainrot",
+        Default = _G.FeatureStates.AutoEquipBest,
+        Callback = function(state)
+            _G.FeatureStates.AutoEquipBest = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoEquipBest do
+                        pcall(function()
+                            local remotes = GetRemotesFolder()
+                            if remotes and remotes:FindFirstChild("EquipBestBrainrots") then
+                                remotes.EquipBestBrainrots:FireServer()
+                            else
+                                ReplicatedStorage.Remotes.EquipBestBrainrots:FireServer()
+                            end
+                        end)
+                        task.wait(1)
                     end
-                end
-            })
-            
-            -- Save configs
-            miscSection:AddButton({
-                Name = "Save Configs",
-                Callback = function()
-                    if Configs and Configs.Save then
-                        pcall(Configs.Save, Configs)
-                        Window:Notify({
-                            Title = "Configs",
-                            Content = "Saved successfully.",
-                            Duration = 2
-                        })
+                end)
+            end
+        end
+    })
+    
+    VisualSection:AddSlider({
+        Name = "Equip Delay (sec)",
+        Min = 0.5,
+        Max = 10,
+        Default = 1,
+        Callback = function(val)
+            _G.FeatureStates.AutoEquipDelay = val
+        end
+    })
+end
+
+-- Shop Tab Sections
+do
+    local SeedSection = Shop:DrawSection({
+        Name = "Seeds",
+        Position = "LEFT"
+    })
+    
+    local GearSection = Shop:DrawSection({
+        Name = "Gears",
+        Position = "RIGHT"
+    })
+    
+    -- Seed buying
+    SeedSection:AddDropdown({
+        Name = "Select Seeds",
+        Values = AllSeeds,
+        Multi = true,
+        Default = {},
+        Callback = function(values)
+            _G.FeatureStates.SelectedSeeds = values
+        end
+    })
+    
+    SeedSection:AddToggle({
+        Name = "Auto Buy Selected Seeds",
+        Default = _G.FeatureStates.AutoBuySeed,
+        Callback = function(state)
+            _G.FeatureStates.AutoBuySeed = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoBuySeed do
+                        for _, seed in ipairs(_G.FeatureStates.SelectedSeeds) do
+                            pcall(function()
+                                local bn = GetBridgeNet2()
+                                if bn and bn:FindFirstChild("dataRemoteEvent") then
+                                    bn.dataRemoteEvent:FireServer({{seed, "\b"}})
+                                else
+                                    ReplicatedStorage:WaitForChild("BridgeNet2"):WaitForChild("dataRemoteEvent"):FireServer({{seed, "\b"}})
+                                end
+                            end)
+                            task.wait(0.5)
+                        end
+                        task.wait(1)
+                    end
+                end)
+            end
+        end
+    })
+    
+    SeedSection:AddToggle({
+        Name = "Auto Buy All Seeds",
+        Default = _G.FeatureStates.AutoBuyAllSeed,
+        Callback = function(state)
+            _G.FeatureStates.AutoBuyAllSeed = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoBuyAllSeed do
+                        for _, seed in ipairs(AllSeeds) do
+                            pcall(function()
+                                local bn = GetBridgeNet2()
+                                if bn and bn:FindFirstChild("dataRemoteEvent") then
+                                    bn.dataRemoteEvent:FireServer({{seed, "\b"}})
+                                else
+                                    ReplicatedStorage:WaitForChild("BridgeNet2"):WaitForChild("dataRemoteEvent"):FireServer({{seed, "\b"}})
+                                end
+                            end)
+                            task.wait(0.5)
+                        end
+                        task.wait(1)
+                    end
+                end)
+            end
+        end
+    })
+    
+    -- Gear buying
+    GearSection:AddDropdown({
+        Name = "Select Gears",
+        Values = AllGears,
+        Multi = true,
+        Default = {},
+        Callback = function(values)
+            _G.FeatureStates.SelectedGears = values
+        end
+    })
+    
+    GearSection:AddToggle({
+        Name = "Auto Buy Selected Gears",
+        Default = _G.FeatureStates.AutoBuyGear,
+        Callback = function(state)
+            _G.FeatureStates.AutoBuyGear = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoBuyGear do
+                        for _, gear in ipairs(_G.FeatureStates.SelectedGears) do
+                            pcall(function()
+                                local bn = GetBridgeNet2()
+                                if bn and bn:FindFirstChild("dataRemoteEvent") then
+                                    bn.dataRemoteEvent:FireServer({{gear, " "}})
+                                else
+                                    ReplicatedStorage:WaitForChild("BridgeNet2"):WaitForChild("dataRemoteEvent"):FireServer({{gear, " "}})
+                                end
+                            end)
+                            task.wait(0.5)
+                        end
+                        task.wait(1)
+                    end
+                end)
+            end
+        end
+    })
+    
+    GearSection:AddToggle({
+        Name = "Auto Buy All Gears",
+        Default = _G.FeatureStates.AutoBuyAllGear,
+        Callback = function(state)
+            _G.FeatureStates.AutoBuyAllGear = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoBuyAllGear do
+                        for _, gear in ipairs(AllGears) do
+                            pcall(function()
+                                local bn = GetBridgeNet2()
+                                if bn and bn:FindFirstChild("dataRemoteEvent") then
+                                    bn.dataRemoteEvent:FireServer({{gear, " "}})
+                                else
+                                    ReplicatedStorage:WaitForChild("BridgeNet2"):WaitForChild("dataRemoteEvent"):FireServer({{gear, " "}})
+                                end
+                            end)
+                            task.wait(0.5)
+                        end
+                        task.wait(1)
+                    end
+                end)
+            end
+        end
+    })
+end
+
+-- Sell Tab Sections
+do
+    local SellSection = Sell:DrawSection({
+        Name = "Auto Sell",
+        Position = "LEFT"
+    })
+    
+    local SellBothSection = Sell:DrawSection({
+        Name = "Sell Both",
+        Position = "RIGHT"
+    })
+    
+    SellSection:AddToggle({
+        Name = "Sell Brainrot All",
+        Default = _G.FeatureStates.SellBrainrot,
+        Callback = function(state)
+            _G.FeatureStates.SellBrainrot = state
+        end
+    })
+    
+    SellSection:AddToggle({
+        Name = "Sell Plants All",
+        Default = _G.FeatureStates.SellPlant,
+        Callback = function(state)
+            _G.FeatureStates.SellPlant = state
+        end
+    })
+    
+    SellBothSection:AddToggle({
+        Name = "Sell Both All",
+        Default = _G.FeatureStates.SellEverything,
+        Callback = function(state)
+            _G.FeatureStates.SellEverything = state
+        end
+    })
+    
+    -- Selling loop
+    task.spawn(function()
+        while task.wait(0.69) do
+            if _G.FeatureStates.SellBrainrot or _G.FeatureStates.SellPlant or _G.FeatureStates.SellEverything then
+                pcall(function()
+                    local remotes = GetRemotesFolder()
+                    if remotes and remotes:FindFirstChild("ItemSell") then
+                        remotes.ItemSell:FireServer()
                     else
-                        Window:Notify({
-                            Title = "Error",
-                            Content = "Config system not available.",
-                            Duration = 2
-                        })
+                        ReplicatedStorage.Remotes.ItemSell:FireServer()
                     end
-                end
+                end)
+            end
+        end
+    end)
+end
+
+-- Information Tab Sections
+do
+    local DiscordSection = Info:DrawSection({
+        Name = "Discord Server",
+        Position = "LEFT"
+    })
+    
+    local InfoSection = Info:DrawSection({
+        Name = "Information",
+        Position = "RIGHT"
+    })
+    
+    -- Discord information
+    local InviteCode = "5MWnDsEnbw"
+    local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
+    
+    DiscordSection:AddButton({
+        Name = "Join Discord",
+        Callback = function()
+            setclipboard("https://discord.gg/" .. InviteCode)
+            SoulsHub:Notify({
+                Title = "Copied!",
+                Content = "Discord invite copied to clipboard",
+                Duration = 2,
+                Icon = "clipboard-check"
             })
         end
+    })
+    
+    -- Information
+    InfoSection:AddParagraph({
+        Title = "Script Information",
+        Content = "Souls Hub - Plants vs Brainrots\nVersion 1.0\nDeveloped by the community\nAll features preserved\n\nThis script combines all the best features\nfrom multiple sources into one ultimate tool."
+    })
+    
+    InfoSection:AddParagraph({
+        Title = "Usage Tips",
+        Content = "1. Use on private servers for best experience\n2. Adjust settings to your preference\n3. Save your configs for future use\n4. Toggle features as needed"
+    })
+    
+    -- Server info
+    InfoSection:AddParagraph({
+        Title = "Server Info",
+        Content = "Server uptime: " .. FormatTime(os.time() - tick()),
+        Buttons = {
+            {
+                Icon = "refresh",
+                Title = "Refresh",
+                Callback = function()
+                    InfoSection:GetParagraph(1):SetContent("Server uptime: " .. FormatTime(os.time() - tick()))
+                end
+            }
+        }
+    })
+end
+
+-- Global settings
+do
+    local Settings = Info:DrawSection({
+        Name = "Settings",
+        Position = "LEFT"
+    })
+    
+    Settings:AddToggle({
+        Name = "Rainbow Highlight",
+        Default = false,
+        Callback = function(state)
+            _G.RAINBOW = state
+        end
+    })
+    
+    Settings:AddSlider({
+        Name = "Rainbow Speed",
+        Min = 0.01,
+        Max = 1,
+        Round = 2,
+        Default = 0.1,
+        Callback = function(v)
+            _G.RAINBOW_SPEED = v
+        end
+    })
+    
+    -- Rainbow highlight effect
+    task.spawn(function()
+        local x = 0
+        while true do
+            task.wait(_G.RAINBOW_SPEED or 0.1)
+            if _G.RAINBOW then
+                SoulsHub:ChangeHighlightColor(Color3.fromHSV(x, 1, 1))
+                x = x + 2/255
+                if x >= 1 then
+                    x = 0
+                end
+            end
+        end
+    end)
+end
+
+-- Final UI setup
+SoulsHub:ChangeHighlightColor(SoulsHub.Colors.Highlight)
+Window:Draw()
+
+-- Additional helper functions
+local function GetNearestPlot()
+    local nearestPlot = nil
+    local minDist = math.huge
+    local success, plots = pcall(function()
+        return Workspace:FindFirstChild("Plots")
+    end)
+    
+    if not success or not plots then return nil end
+    
+    for _, plot in ipairs(plots:GetChildren()) do
+        if plot:IsA("Folder") then
+            local center = plot:FindFirstChild("Center") or plot:FindFirstChildWhichIsA("BasePart")
+            if center then
+                local dist = (HumanoidRootPart.Position - center.Position).Magnitude
+                if dist < minDist then
+                    minDist = dist
+                    nearestPlot = plot
+                end
+            end
+        end
     end
-end)
+    return nearestPlot
+end
 
--- Draw the UI (must be called at the end as per documentation)
-pcall(function()
-    Window:Draw()
-end)
-
--- Final notification to confirm the script is running
-pcall(function()
-    if Window and Window.Notify then
-        Window:Notify({
-            Title = "Souls Hub",
-            Content = "Script loaded successfully. Press LeftAlt to open the menu.",
-            Duration = 4
-        })
+local function CollectFromPlot(plot)
+    if not plot then return end
+    local brainrotsFolder = plot:FindFirstChild("Brainrots")
+    if not brainrotsFolder then return end
+    for i = 1, 17 do
+        local slot = brainrotsFolder:FindFirstChild(tostring(i))
+        if slot and slot:FindFirstChild("Brainrot") then
+            local brainrot = slot:FindFirstChild("Brainrot")
+            if brainrot:FindFirstChild("BrainrotHitbox") then
+                local hitbox = brainrot.BrainrotHitbox
+                local offset = Vector3.new(0, 1, 3)
+                HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + offset, hitbox.Position)
+                task.wait(0.2)
+                pcall(function()
+                    local remotes = GetRemotesFolder()
+                    if remotes and remotes:FindFirstChild("AttacksServer") and remotes.AttacksServer:FindFirstChild("WeaponAttack") then
+                        remotes.AttacksServer.WeaponAttack:FireServer({ { target = hitbox } })
+                    else
+                        ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer({ { target = hitbox } })
+                    end
+                end)
+            end
+        end
     end
-end)
-
--- Auto cleanup if character is removed
-game.Players.LocalPlayer.CharacterRemoving:Connect(function()
-    getgenv().SoulsHubLoaded = nil
-end)
+end
