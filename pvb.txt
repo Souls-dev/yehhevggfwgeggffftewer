@@ -1,218 +1,57 @@
--- [[ Souls Hub - Ultimate Game Automation - FIXED VERSION ]]
--- [[ No more "attempt to call a nil value" errors ]]
+-- Clean Souls Hub UI Test Script
+-- This is a minimal script to test only the UI framework
 
--- Prevent multiple executions
-if getgenv().SoulsHubLoaded then return end
-getgenv().SoulsHubLoaded = true
+-- Load the library with error handling
+local success, SoulsHub = pcall(function()
+    return loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
+end)
 
--- Services
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local HttpService = game:GetService("HttpService")
-local LocalPlayer = Players.LocalPlayer
-local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-
--- Safe function call wrapper
-local function safeCall(func, ...)
-    if type(func) == "function" then
-        local success, err = pcall(func, ...)
-        if not success then
-            warn("Function call failed:", err)
-        end
-    end
-end
-
--- Load Souls Hub UI library with multiple fallbacks
-local SoulsHub
-local function loadSoulsHub()
-    local urls = {
-        "https://pandadevelopment.net/virtual/file/e7f388d3c065df7a",
-        "https://raw.githubusercontent.com/SomeGitHubUser/SoulsHub/main/library.lua",
-        "https://raw.githubusercontent.com/AnotherUser/SoulsHub/main/library.lua"
-    }
-    
-    for _, url in ipairs(urls) do
-        local success, result = pcall(function()
-            return loadstring(game:HttpGet(url))()
-        end)
-        
-        if success and result and type(result) == "table" then
-            return result
-        end
-    end
-    
-    return nil
-end
-
-SoulsHub = loadSoulsHub()
-
-if not SoulsHub then
-    warn("Failed to load SoulsHub library. Script cannot continue.")
+if not success or not SoulsHub then
+    warn("Failed to load SoulsHub library")
     return
 end
 
--- Critical fix: Wait for the library to initialize properly
+-- Wait for library initialization (critical)
 task.wait(1)
 
--- Critical fix: Call the loader directly without conditionals
+-- Call the loader (as per documentation)
 if SoulsHub.Loader then
-    safeCall(function() SoulsHub:Loader(nil, 1).yield() end)
-else
-    warn("SoulsHub.Loader is not available. Continuing without loader.")
+    pcall(function() SoulsHub:Loader(nil, 1).yield() end)
 end
 
--- Create main window with fallbacks
+-- Create the window (simplified)
 local Window
-safeCall(function()
-    Window = SoulsHub.new({ Keybind = "LeftAlt" })
-    if Window then
-        Window.Username = tostring(LocalPlayer.Name or "Player")
-    end
+pcall(function()
+    Window = SoulsHub.new({
+        Keybind = "LeftAlt"
+    })
 end)
 
 if not Window then
-    warn("Failed to create SoulsHub window. Check library compatibility.")
+    warn("Failed to create window")
     return
 end
 
--- Watermark setup with error handling
-local watermark
-safeCall(function()
-    watermark = Window:Watermark()
-    if watermark then
-        watermark:AddText({ Icon = "skull", Text = "Souls Hub" })
-        watermark:AddText({ Icon = "clock", Text = SoulsHub:GetTimeNow() })
-    end
-end)
+-- Set up basic UI
+Window:Watermark()
+Window.Username = game.Players.LocalPlayer.Name
 
--- Config manager with fallbacks
-local FileWatcher
-safeCall(function()
-    FileWatcher = SoulsHub:ConfigManager({ 
-        Directory = "SoulsHub", 
-        Config = "Default" 
-    })
-end)
+-- Add a simple tab and section
+local MainTab = Window:DrawTab({
+    Icon = "info",
+    Name = "Test",
+    Type = "Single"
+})
 
-local Configs
-safeCall(function()
-    Configs = Window:DrawConfig({ 
-        Name = "Configs", 
-        Icon = "folder", 
-        Config = FileWatcher 
-    })
-    if Configs and Configs.Init then
-        safeCall(Configs.Init)
-    end
-end)
+local section = MainTab:DrawSection({
+    Name = "Basic Test",
+    Position = "LEFT"
+})
 
--- Utility functions for safe remote calls
-local function SafeFire(remote, ...)
-    if not remote or type(remote.FireServer) ~= "function" then 
-        return false 
-    end
-    
-    local success, err = pcall(function() remote:FireServer(...) end)
-    if not success then
-        warn("Remote fire failed:", err)
-        return false
-    end
-    return true
-end
+section:AddParagraph({
+    Title = "UI Test",
+    Content = "If you see this, the UI framework is working correctly."
+})
 
-local function FindRemote(...)
-    local names = { ... }
-    local repStorage = game:GetService("ReplicatedStorage")
-    
-    for _, name in ipairs(names) do
-        if repStorage:FindFirstChild(name) then 
-            return repStorage[name] 
-        end
-        
-        if repStorage:FindFirstChild("Remotes") and repStorage.Remotes:FindFirstChild(name) then 
-            return repStorage.Remotes[name] 
-        end
-        
-        if repStorage:FindFirstChild("GameEvents") and repStorage.GameEvents:FindFirstChild(name) then 
-            return repStorage.GameEvents[name] 
-        end
-        
-        if repStorage:FindFirstChild("Events") and repStorage.Events:FindFirstChild(name) then 
-            return repStorage.Events[name] 
-        end
-    end
-    return nil
-end
-
--- Game-specific remotes with better fallbacks
-local itemSell = FindRemote("ItemSell", "Sell", "SellAll", "SellItems")
-local buyItem = FindRemote("BuyItem", "BuySeed", "PlantSeed", "Buy")
-local equipBest = FindRemote("EquipBestBrainrots", "EquipBest", "EquipBestItem")
-local harvestRemote = FindRemote("HarvestCrop", "Harvest", "CollectCrop")
-local plantRemote = FindRemote("PlantSeed", "Plant", "PlaceSeed")
-local craftRemote = FindRemote("CraftItem", "Craft")
-local interactRemote = FindRemote("Interact", "Use", "Trigger")
-
--- ========= UI SETUP =========
-local InfoTab, PvBTab, VynTab, AutoFarmTab, MovementTab, EspTab, MiscTab
-
--- Create tabs with error handling
-safeCall(function()
-    InfoTab = Window:DrawTab({ Icon = "info", Name = "Information", Type = "Single" })
-    PvBTab = Window:DrawTab({ Icon = "leaf", Name = "Plants v Brainrots", Type = "Double" })
-    VynTab = Window:DrawTab({ Icon = "home", Name = "VynHub", Type = "Double" })
-    AutoFarmTab = Window:DrawTab({ Icon = "zap", Name = "AutoFarm", Type = "Single" })
-    MovementTab = Window:DrawTab({ Icon = "run", Name = "Movement", Type = "Single" })
-    EspTab = Window:DrawTab({ Icon = "eye", Name = "ESP", Type = "Single" })
-    MiscTab = Window:DrawTab({ Icon = "settings", Name = "Misc", Type = "Single" })
-end)
-
--- ========= INFORMATION TAB =========
-local infoSection
-safeCall(function()
-    if InfoTab then
-        infoSection = InfoTab:DrawSection({ Name = "About", Position = 'LEFT' })
-        if infoSection then
-            infoSection:AddParagraph({ 
-                Title = "Souls Hub - Ultimate", 
-                Content = "Merged: PvB automation, VynHub utilities, multi-game autofarms, movement, and ESP. No key system. Use responsibly." 
-            })
-            infoSection:AddParagraph({ 
-                Title = "Credits", 
-                Content = "Adapted from multiple scripts and merged into SoulsHub UI." 
-            })
-        end
-    end
-end)
-
--- ========= PLANTS vs BRAINROTS TAB =========
--- The rest of the code remains similar but with enhanced error handling
--- ... [rest of the code continues with similar error handling]
-
--- Final safe setup
-safeCall(function()
-    Window:Update({
-        ExpireDate = SoulsHub:GetDate(tick() + 84000)
-    })
-    
-    -- Draw the UI only if everything is properly initialized
-    if Window and Window.Draw then
-        Window:Draw()
-    end
-end)
-
--- Add a notification to confirm the script is running
-safeCall(function()
-    if Window and Window.Notify then
-        Window:Notify({
-            Title = "Souls Hub",
-            Content = "Script loaded successfully. Press LeftAlt to open the menu.",
-            Duration = 4
-        })
-    end
-end)
-
--- Auto cleanup if character is removed
-LocalPlayer.CharacterRemoving:Connect(function()
-    getgenv().SoulsHubLoaded = nil
-end)
+-- Draw the UI (must be called at the end)
+Window:Draw()
