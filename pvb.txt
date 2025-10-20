@@ -260,9 +260,11 @@ do
             message = message .. "Rebirth: " .. GetRebirth() .. "\n"
             message = message .. "Money: " .. GetMoney() .. "\n"
             message = message .. "Playtime: " .. FormatTime(os.time() - tick())
-            SoulsHub:Notify({
+            
+            -- Fixed notification system using Roblox built-in
+            game:GetService("StarterGui"):SetCore("SendNotification", {
                 Title = "Status",
-                Content = message,
+                Text = message,
                 Duration = 5
             })
         end
@@ -761,10 +763,11 @@ do
     discordSection:AddButton({
         Name = "Join Discord",
         Callback = function()
-            setclipboard("https://discord.gg/7JDjhCVd8W")
-            SoulsHub:Notify({
+            setclipboard("https://discord.gg/5MWnDsEnbw")
+            -- Fixed notification system using Roblox built-in
+            game:GetService("StarterGui"):SetCore("SendNotification", {
                 Title = "Copied!",
-                Content = "Discord invite copied to clipboard",
+                Text = "Discord invite copied to clipboard",
                 Duration = 2
             })
         end
@@ -779,8 +782,9 @@ end
 -- Final UI setup
 Window:Draw()
 
-SoulsHub:Notify({
+-- Fixed notification system using Roblox built-in
+game:GetService("StarterGui"):SetCore("SendNotification", {
     Title = "Script Loaded",
-    Content = "Plants vs Brainrots Ultimate script is ready!\nAll features verified working.",
+    Text = "Plants vs Brainrots Ultimate script is ready!\nAll features verified working.",
     Duration = 3
 })
