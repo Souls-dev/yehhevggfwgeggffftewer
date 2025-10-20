@@ -183,7 +183,7 @@ local Window = SoulsHub.new({
 local watermark = Window:Watermark();
 watermark:AddText({
     Icon = "user",
-    Text = "PvB Ultimate"
+    Text = "SOULS HUB PVB"
 })
 
 local timeText = watermark:AddText({
@@ -200,7 +200,7 @@ end)
 
 watermark:AddText({
     Icon = "server",
-    Text = "PvB Ultimate"
+    Text = "SOULS HUB PVB"
 })
 
 -- Create tabs
