@@ -1,13 +1,20 @@
---! Plants vs Brainrots Ultimate Script - FULLY FIXED
+--! Plants vs Brainrots Ultimate Script - FULLY FIXED with SOULS HUB UI
 --! Fixed sliders, auto farm, auto buy, auto collect, and all features
-
 repeat task.wait() until game:IsLoaded()
 if setfpscap then
     setfpscap(1000000)
 end
 
--- Load WORKING UI library (WindUI)
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+-- Load SOULS HUB UI library (replacing WindUI)
+local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))();
+
+task.wait(1)
+SoulsHub:Loader(nil, 1).yield()
+
+local FileWatcher = SoulsHub:ConfigManager({
+    Directory = "PvB_Ultimate",
+    Config = "PvB_Configs"
+});
 
 -- Services
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -64,7 +71,6 @@ local AllSeeds = {
     "Watermelon Seed",
     "Dragon Seed"
 }
-
 local AllGears = {
     "Water Bucket",
     "Banana Gun",
@@ -81,7 +87,6 @@ local selectedGears = {}
 local function GetMyPlot()
     local plots = Workspace:FindFirstChild("Plots")
     if not plots then return nil end
-    
     for _, plot in ipairs(plots:GetChildren()) do
         local playerSign = plot:FindFirstChild("PlayerSign")
         if playerSign then
@@ -122,9 +127,7 @@ local BrainrotsCache = {}
 local function UpdateBrainrotsCache()
     local folder = Workspace:FindFirstChild("ScriptedMap")
     if folder then folder = folder:FindFirstChild("Brainrots") end
-    
     if not folder then return end
-    
     BrainrotsCache = {}
     for _, b in ipairs(folder:GetChildren()) do
         if b:FindFirstChild("BrainrotHitbox") then
@@ -136,7 +139,6 @@ end
 local function GetNearestBrainrot()
     local nearest = nil
     local minDist = math.huge
-    
     for _, b in ipairs(BrainrotsCache) do
         local hitbox = b:FindFirstChild("BrainrotHitbox")
         if hitbox then
@@ -172,520 +174,612 @@ local function DoClick()
     end)
 end
 
--- Create window with WindUI (working library)
-local Window = WindUI:CreateWindow({
-    Title = "Plants vs Brainrots Ultimate",
-    Icon = "rbxassetid://128130788295246",
-    Author = "Community Script",
-    Folder = "PvB_Ultimate",
-    Size = UDim2.fromOffset(550, 450),
-    Transparent = true,
-    Theme = "Dark",
-    BackgroundImageTransparency = 0.8,
-    HideSearchBar = true,
-    ScrollBarEnabled = true,
+-- Create window with SoulsHub UI
+local Window = SoulsHub.new({
+    Keybind = "LeftAlt",
 })
 
--- Create tabs
-local Main = Window:Tab({ Title = "Main", Icon = "home" })
-local Farm = Window:Tab({ Title = "Farm", Icon = "sprout" })
-local Shop = Window:Tab({ Title = "Shop", Icon = "shopping-cart" })
-local Sell = Window:Tab({ Title = "Sell", Icon = "dollar-sign" })
-local Misc = Window:Tab({ Title = "Misc", Icon = "settings" })
-local Info = Window:Tab({ Title = "Info", Icon = "info" })
-
--- Main tab
-Main:Section({ Title = "Status" })
-local StatusParagraph = Main:Paragraph({
-    Title = "Your Status",
-    Desc = "[+] Show Plots\n[+] Show Rebirth\n[+] Show Money\n[+] Show Playtime",
-    Image = "rbxassetid://128130788295246",
-    ImageSize = 40,
-    Buttons = {
-        {
-            Icon = "info",
-            Title = "Show Status",
-            Callback = function()
-                local message = "Your Status\n"
-                message = message .. "Plots: " .. (GetMyPlot() and GetMyPlot().Name or "No Plot") .. "\n"
-                message = message .. "Rebirth: " .. GetRebirth() .. "\n"
-                message = message .. "Money: " .. GetMoney() .. "\n"
-                message = message .. "Playtime: " .. FormatTime(os.time() - tick())
-                WindUI:Notify({
-                    Title = "Status",
-                    Content = message,
-                    Duration = 5,
-                    Icon = "user-check"
-                })
-            end
-        }
-    }
+-- Watermark
+local watermark = Window:Watermark();
+watermark:AddText({
+    Icon = "user",
+    Text = "PvB Ultimate"
 })
 
--- Farm tab
-Farm:Section({ Title = "Auto Farm" })
-Farm:Toggle({
-    Title = "Auto Farm",
-    Default = false,
-    Callback = function(state)
-        AutoFarm = state
-        autoClicking = state
-        if state then
-            HeldToolName = "Basic Bat" -- Ensure correct tool name
-            EquipBat()
-            UpdateBrainrotsCache()
-            
-            -- Auto Clicker
-            task.spawn(function()
-                while autoClicking do
-                    if Character and Character:FindFirstChild(HeldToolName) then
-                        DoClick()
-                    end
-                    task.wait(ClickInterval)
-                end
-            end)
-            
-            -- Auto Equip Tool
-            task.spawn(function()
-                while AutoFarm do
-                    if Character and not Character:FindFirstChild(HeldToolName) then
-                        EquipBat()
-                    end
-                    task.wait(0.5)
-                end
-            end)
-            
-            -- Brainrots Cache Refresh
-            task.spawn(function()
-                while AutoFarm do
-                    UpdateBrainrotsCache()
-                    task.wait(1)
-                end
-            end)
-            
-            -- Auto Farm Brainrot
-            task.spawn(function()
-                while AutoFarm do
-                    local currentTarget = GetNearestBrainrot()
-                    if currentTarget and currentTarget:FindFirstChild("BrainrotHitbox") then
-                        InstantWarpToBrainrot(currentTarget)
-                        local hitbox = currentTarget.BrainrotHitbox
-                        pcall(function()
-                            -- Correct implementation based on your provided code
-                            local args = {hitbox, true}
-                            game:GetService("ReplicatedStorage")
-                                :WaitForChild("Remotes")
-                                :WaitForChild("AttacksServer")
-                                :WaitForChild("WeaponAttack")
-                                :FireServer(unpack(args))
-                        end)
-                    end
-                    task.wait(0.1)
-                end
-            end)
-        else
-            autoClicking = false
-        end
-    end
+local timeText = watermark:AddText({
+    Icon = "clock",
+    Text = SoulsHub:GetTimeNow()
 })
 
-Farm:Slider({
-    Title = "Click Speed",
-    Min = 0.1,
-    Max = 1,
-    Default = ClickInterval,
-    Step = 0.05,
-    Callback = function(value)
-        ClickInterval = value
-    end
-})
-
-Farm:Section({ Title = "Auto Collect" })
-Farm:Slider({
-    Title = "Collect Delay (sec)",
-    Min = 1,
-    Max = 60,
-    Default = AutoCollectDelay,
-    Callback = function(value)
-        AutoCollectDelay = value
-    end
-})
-
-Farm:Toggle({
-    Title = "Auto Collect Money",
-    Default = false,
-    Callback = function(state)
-        AutoCollect = state
-        if state then
-            task.spawn(function()
-                while AutoCollect do
-                    local nearestPlot = GetNearestPlot()
-                    if nearestPlot then
-                        -- Simpler approach that works better
-                        pcall(function()
-                            local args = {
-                                {2, "\004"}
-                            }
-                            game:GetService("ReplicatedStorage")
-                                :WaitForChild("BridgeNet2")
-                                :WaitForChild("dataRemoteEvent")
-                                :FireServer(unpack(args))
-                        end)
-                    end
-                    task.wait(AutoCollectDelay)
-                end
-            end)
-        end
-    end
-})
-
--- Shop tab
-Shop:Section({ Title = "Buy Seeds" })
-Shop:Dropdown({
-    Title = "Select Seeds",
-    Values = AllSeeds,
-    Multi = true,
-    Callback = function(values)
-        selectedSeeds = values
-    end
-})
-
-Shop:Toggle({
-    Title = "Auto Buy Selected Seeds",
-    Default = false,
-    Callback = function(state)
-        AutoBuySelectedSeed = state
-        if state then
-            task.spawn(function()
-                while AutoBuySelectedSeed do
-                    for _, seed in ipairs(selectedSeeds) do
-                        pcall(function()
-                            -- CORRECT IMPLEMENTATION (as provided by you)
-                            local args = {seed, true}
-                            game:GetService("ReplicatedStorage")
-                                :WaitForChild("Remotes")
-                                :WaitForChild("BuyItem")
-                                :FireServer(unpack(args))
-                        end)
-                        task.wait(0.5)
-                    end
-                    task.wait(1)
-                end
-            end)
-        end
-    end
-})
-
-Shop:Toggle({
-    Title = "Auto Buy All Seeds",
-    Default = false,
-    Callback = function(state)
-        AutoBuyAllSeed = state
-        if state then
-            task.spawn(function()
-                while AutoBuyAllSeed do
-                    for _, seed in ipairs(AllSeeds) do
-                        pcall(function()
-                            -- CORRECT IMPLEMENTATION (as provided by you)
-                            local args = {seed, true}
-                            game:GetService("ReplicatedStorage")
-                                :WaitForChild("Remotes")
-                                :WaitForChild("BuyItem")
-                                :FireServer(unpack(args))
-                        end)
-                        task.wait(0.5)
-                    end
-                    task.wait(1)
-                end
-            end)
-        end
-    end
-})
-
-Shop:Section({ Title = "Buy Gears" })
-Shop:Dropdown({
-    Title = "Select Gears",
-    Values = AllGears,
-    Multi = true,
-    Callback = function(values)
-        selectedGears = values
-    end
-})
-
-Shop:Toggle({
-    Title = "Auto Buy Selected Gears",
-    Default = false,
-    Callback = function(state)
-        AutoBuySelectedGear = state
-        if state then
-            task.spawn(function()
-                while AutoBuySelectedGear do
-                    for _, gear in ipairs(selectedGears) do
-                        pcall(function()
-                            -- CORRECT IMPLEMENTATION (similar to seeds)
-                            local args = {gear, true}
-                            game:GetService("ReplicatedStorage")
-                                :WaitForChild("Remotes")
-                                :WaitForChild("BuyGear")
-                                :FireServer(unpack(args))
-                        end)
-                        task.wait(0.5)
-                    end
-                    task.wait(1)
-                end
-            end)
-        end
-    end
-})
-
-Shop:Toggle({
-    Title = "Auto Buy All Gears",
-    Default = false,
-    Callback = function(state)
-        AutoBuyAllGear = state
-        if state then
-            task.spawn(function()
-                while AutoBuyAllGear do
-                    for _, gear in ipairs(AllGears) do
-                        pcall(function()
-                            -- CORRECT IMPLEMENTATION (similar to seeds)
-                            local args = {gear, true}
-                            game:GetService("ReplicatedStorage")
-                                :WaitForChild("Remotes")
-                                :WaitForChild("BuyGear")
-                                :FireServer(unpack(args))
-                        end)
-                        task.wait(0.5)
-                    end
-                    task.wait(1)
-                end
-            end)
-        end
-    end
-})
-
--- Sell tab
-Sell:Section({ Title = "Auto Sell" })
-Sell:Toggle({
-    Title = "Sell Brainrot All",
-    Default = false,
-    Callback = function(state)
-        SellBrainrot = state
-    end
-})
-
-Sell:Toggle({
-    Title = "Sell Plants All",
-    Default = false,
-    Callback = function(state)
-        SellPlant = state
-    end
-})
-
--- Selling loop (safe)
 task.spawn(function()
-    while task.wait(0.69) do
-        if SellBrainrot or SellPlant then
-            pcall(function()
-                game:GetService("ReplicatedStorage")
-                    :WaitForChild("Remotes")
-                    :WaitForChild("ItemSell")
-                    :FireServer()
-            end)
-        end
+    while true do task.wait()
+        timeText:SetText(SoulsHub:GetTimeNow())
+        Window.Username = "PvB Ultimate"
     end
 end)
 
--- Misc tab
-Misc:Section({ Title = "Movement" })
-Misc:Toggle({
-    Title = "WalkSpeed Hack",
-    Default = false,
-    Callback = function(state)
-        WalkSpeedEnabled = state
-        if state then
-            Character:FindFirstChildOfClass("Humanoid").WalkSpeed = WalkSpeed
-        else
-            Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16
-        end
-    end
+watermark:AddText({
+    Icon = "server",
+    Text = "PvB Ultimate"
 })
 
-Misc:Slider({
-    Title = "WalkSpeed Value",
-    Min = 16,
-    Max = 200,
-    Default = 100,
-    Callback = function(value)
-        WalkSpeed = value
-        if WalkSpeedEnabled then
-            Character:FindFirstChildOfClass("Humanoid").WalkSpeed = WalkSpeed
-        end
-    end
+-- Create tabs
+local Main = Window:DrawTab({
+    Icon = "home",
+    Name = "Main",
+    Type = "Single"
 })
 
-Misc:Toggle({
-    Title = "Jump Power Hack",
-    Default = false,
-    Callback = function(state)
-        JumpEnabled = state
-        if state then
-            Character:FindFirstChildOfClass("Humanoid").JumpPower = JumpPower
-        else
-            Character:FindFirstChildOfClass("Humanoid").JumpPower = 50
-        end
-    end
+local Farm = Window:DrawTab({
+    Icon = "sprout",
+    Name = "Farm",
+    Type = "Single"
 })
 
-Misc:Slider({
-    Title = "JumpPower Value",
-    Min = 50,
-    Max = 300,
-    Default = 100,
-    Callback = function(value)
-        JumpPower = value
-        if JumpEnabled then
-            Character:FindFirstChildOfClass("Humanoid").JumpPower = JumpPower
-        end
-    end
+local Shop = Window:DrawTab({
+    Icon = "shopping-cart",
+    Name = "Shop",
+    Type = "Single"
 })
 
-Misc:Toggle({
-    Title = "NoClip",
-    Default = false,
-    Callback = function(state)
-        NoClipEnabled = state
-        if state then
-            task.spawn(function()
-                while NoClipEnabled do
-                    for _, part in ipairs(Character:GetDescendants()) do
-                        if part:IsA("BasePart") and part.CanCollide then
-                            part.CanCollide = false
+local Sell = Window:DrawTab({
+    Icon = "dollar-sign",
+    Name = "Sell",
+    Type = "Single"
+})
+
+local Misc = Window:DrawTab({
+    Icon = "settings",
+    Name = "Misc",
+    Type = "Single"
+})
+
+local Info = Window:DrawTab({
+    Icon = "info",
+    Name = "Info",
+    Type = "Single"
+})
+
+-- Main tab content
+do
+    local statusSection = Main:DrawSection({
+        Name = "Status",
+        Position = "left"
+    });
+    
+    statusSection:AddParagraph({
+        Title = "Your Status",
+        Content = "[+] Show Plots\n[+] Show Rebirth\n[+] Show Money\n[+] Show Playtime"
+    })
+    
+    statusSection:AddButton({
+        Name = "Show Status",
+        Callback = function()
+            local message = "Your Status\n"
+            message = message .. "Plots: " .. (GetMyPlot() and GetMyPlot().Name or "No Plot") .. "\n"
+            message = message .. "Rebirth: " .. GetRebirth() .. "\n"
+            message = message .. "Money: " .. GetMoney() .. "\n"
+            message = message .. "Playtime: " .. FormatTime(os.time() - tick())
+            SoulsHub:Notify({
+                Title = "Status",
+                Content = message,
+                Duration = 5
+            })
+        end
+    })
+end
+
+-- Farm tab content
+do
+    local autoFarmSection = Farm:DrawSection({
+        Name = "Auto Farm",
+        Position = "left"
+    });
+    
+    local autoCollectSection = Farm:DrawSection({
+        Name = "Auto Collect",
+        Position = "right"
+    });
+    
+    autoFarmSection:AddToggle({
+        Name = "Auto Farm",
+        Default = false,
+        Callback = function(state)
+            AutoFarm = state
+            autoClicking = state
+            if state then
+                HeldToolName = "Basic Bat"
+                EquipBat()
+                UpdateBrainrotsCache()
+                -- Auto Clicker
+                task.spawn(function()
+                    while autoClicking do
+                        if Character and Character:FindFirstChild(HeldToolName) then
+                            DoClick()
                         end
+                        task.wait(ClickInterval)
                     end
-                    task.wait(0.2)
-                end
-            end)
+                end)
+                -- Auto Equip Tool
+                task.spawn(function()
+                    while AutoFarm do
+                        if Character and not Character:FindFirstChild(HeldToolName) then
+                            EquipBat()
+                        end
+                        task.wait(0.5)
+                    end
+                end)
+                -- Brainrots Cache Refresh
+                task.spawn(function()
+                    while AutoFarm do
+                        UpdateBrainrotsCache()
+                        task.wait(1)
+                    end
+                end)
+                -- Auto Farm Brainrot
+                task.spawn(function()
+                    while AutoFarm do
+                        local currentTarget = GetNearestBrainrot()
+                        if currentTarget and currentTarget:FindFirstChild("BrainrotHitbox") then
+                            InstantWarpToBrainrot(currentTarget)
+                            local hitbox = currentTarget.BrainrotHitbox
+                            pcall(function()
+                                local args = {hitbox, true}
+                                game:GetService("ReplicatedStorage")
+                                    :WaitForChild("Remotes")
+                                    :WaitForChild("AttacksServer")
+                                    :WaitForChild("WeaponAttack")
+                                    :FireServer(unpack(args))
+                            end)
+                        end
+                        task.wait(0.1)
+                    end
+                end)
+            else
+                autoClicking = false
+            end
         end
-    end
-})
-
-Misc:Section({ Title = "Auto Equip" })
-Misc:Toggle({
-    Title = "Auto Equip Best Brainrot",
-    Default = false,
-    Callback = function(state)
-        AutoEquipBest = state
-        if state then
-            task.spawn(function()
-                while AutoEquipBest do
-                    pcall(function()
-                        game:GetService("ReplicatedStorage")
-                            :WaitForChild("Remotes")
-                            :WaitForChild("EquipBestBrainrots")
-                            :FireServer()
-                    end)
-                    task.wait(1)
-                end
-            end)
+    })
+    
+    autoFarmSection:AddSlider({
+        Name = "Click Speed",
+        Min = 0.1,
+        Max = 1,
+        Round = 2,
+        Default = ClickInterval,
+        Type = "sec",
+        Callback = function(value)
+            ClickInterval = value
         end
-    end
-})
+    })
+    
+    autoCollectSection:AddSlider({
+        Name = "Collect Delay",
+        Min = 1,
+        Max = 60,
+        Round = 0,
+        Default = AutoCollectDelay,
+        Type = "sec",
+        Callback = function(value)
+            AutoCollectDelay = value
+        end
+    })
+    
+    autoCollectSection:AddToggle({
+        Name = "Auto Collect Money",
+        Default = false,
+        Callback = function(state)
+            AutoCollect = state
+            if state then
+                task.spawn(function()
+                    while AutoCollect do
+                        local nearestPlot = GetNearestPlot()
+                        if nearestPlot then
+                            pcall(function()
+                                local args = {
+                                    {2, "\004"}
+                                }
+                                game:GetService("ReplicatedStorage")
+                                    :WaitForChild("BridgeNet2")
+                                    :WaitForChild("dataRemoteEvent")
+                                    :FireServer(unpack(args))
+                            end)
+                        end
+                        task.wait(AutoCollectDelay)
+                    end
+                end)
+            end
+        end
+    })
+end
 
--- Kill Aura feature
-Misc:Section({ Title = "Combat" })
-Misc:Dropdown({
-    Title = "Kill Aura Weapon",
-    Values = {"Banana Gun", "Frost Blower", "Carrot Launcher"},
-    Default = "Banana Gun",
-    Callback = function(choice)
-        SelectedWeapon = choice
-    end
-})
+-- Shop tab content
+do
+    local seedsSection = Shop:DrawSection({
+        Name = "Buy Seeds",
+        Position = "left"
+    });
+    
+    local gearsSection = Shop:DrawSection({
+        Name = "Buy Gears",
+        Position = "right"
+    });
+    
+    seedsSection:AddDropdown({
+        Name = "Select Seeds",
+        Values = AllSeeds,
+        Default = {},
+        Multi = true,
+        Callback = function(values)
+            selectedSeeds = values
+        end
+    })
+    
+    seedsSection:AddToggle({
+        Name = "Auto Buy Selected Seeds",
+        Default = false,
+        Callback = function(state)
+            AutoBuySelectedSeed = state
+            if state then
+                task.spawn(function()
+                    while AutoBuySelectedSeed do
+                        for _, seed in ipairs(selectedSeeds) do
+                            pcall(function()
+                                local args = {seed, true}
+                                game:GetService("ReplicatedStorage")
+                                    :WaitForChild("Remotes")
+                                    :WaitForChild("BuyItem")
+                                    :FireServer(unpack(args))
+                            end)
+                            task.wait(0.5)
+                        end
+                        task.wait(1)
+                    end
+                end)
+            end
+        end
+    })
+    
+    seedsSection:AddToggle({
+        Name = "Auto Buy All Seeds",
+        Default = false,
+        Callback = function(state)
+            AutoBuyAllSeed = state
+            if state then
+                task.spawn(function()
+                    while AutoBuyAllSeed do
+                        for _, seed in ipairs(AllSeeds) do
+                            pcall(function()
+                                local args = {seed, true}
+                                game:GetService("ReplicatedStorage")
+                                    :WaitForChild("Remotes")
+                                    :WaitForChild("BuyItem")
+                                    :FireServer(unpack(args))
+                            end)
+                            task.wait(0.5)
+                        end
+                        task.wait(1)
+                    end
+                end)
+            end
+        end
+    })
+    
+    gearsSection:AddDropdown({
+        Name = "Select Gears",
+        Values = AllGears,
+        Default = {},
+        Multi = true,
+        Callback = function(values)
+            selectedGears = values
+        end
+    })
+    
+    gearsSection:AddToggle({
+        Name = "Auto Buy Selected Gears",
+        Default = false,
+        Callback = function(state)
+            AutoBuySelectedGear = state
+            if state then
+                task.spawn(function()
+                    while AutoBuySelectedGear do
+                        for _, gear in ipairs(selectedGears) do
+                            pcall(function()
+                                local args = {gear, true}
+                                game:GetService("ReplicatedStorage")
+                                    :WaitForChild("Remotes")
+                                    :WaitForChild("BuyGear")
+                                    :FireServer(unpack(args))
+                            end)
+                            task.wait(0.5)
+                        end
+                        task.wait(1)
+                    end
+                end)
+            end
+        end
+    })
+    
+    gearsSection:AddToggle({
+        Name = "Auto Buy All Gears",
+        Default = false,
+        Callback = function(state)
+            AutoBuyAllGear = state
+            if state then
+                task.spawn(function()
+                    while AutoBuyAllGear do
+                        for _, gear in ipairs(AllGears) do
+                            pcall(function()
+                                local args = {gear, true}
+                                game:GetService("ReplicatedStorage")
+                                    :WaitForChild("Remotes")
+                                    :WaitForChild("BuyGear")
+                                    :FireServer(unpack(args))
+                            end)
+                            task.wait(0.5)
+                        end
+                        task.wait(1)
+                    end
+                end)
+            end
+        end
+    })
+end
 
-Misc:Toggle({
-    Title = "Kill Aura",
-    Default = false,
-    Callback = function(state)
-        KillAuraEnabled = state
-        if state then
-            task.spawn(function()
-                while KillAuraEnabled do
-                    local char = Character
-                    if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
-                        local root = char.HumanoidRootPart
-                        local humanoid = char.Humanoid
-                        local tool = char:FindFirstChildOfClass("Tool")
-                        
-                        if not tool or tool.Name ~= SelectedWeapon then
-                            local backpack = LocalPlayer:FindFirstChild("Backpack")
-                            if backpack then
-                                local item = backpack:FindFirstChild(SelectedWeapon)
-                                if item then
-                                    humanoid:EquipTool(item)
-                                    tool = item
+-- Sell tab content
+do
+    local sellSection = Sell:DrawSection({
+        Name = "Auto Sell",
+        Position = "left"
+    });
+    
+    sellSection:AddToggle({
+        Name = "Sell Brainrot All",
+        Default = false,
+        Callback = function(state)
+            SellBrainrot = state
+        end
+    })
+    
+    sellSection:AddToggle({
+        Name = "Sell Plants All",
+        Default = false,
+        Callback = function(state)
+            SellPlant = state
+        end
+    })
+    
+    -- Selling loop (safe)
+    task.spawn(function()
+        while task.wait(0.69) do
+            if SellBrainrot or SellPlant then
+                pcall(function()
+                    game:GetService("ReplicatedStorage")
+                        :WaitForChild("Remotes")
+                        :WaitForChild("ItemSell")
+                        :FireServer()
+                end)
+            end
+        end
+    end)
+end
+
+-- Misc tab content
+do
+    local movementSection = Misc:DrawSection({
+        Name = "Movement",
+        Position = "left"
+    });
+    
+    local autoEquipSection = Misc:DrawSection({
+        Name = "Auto Equip",
+        Position = "right"
+    });
+    
+    local combatSection = Misc:DrawSection({
+        Name = "Combat",
+        Position = "left"
+    });
+    
+    movementSection:AddToggle({
+        Name = "WalkSpeed Hack",
+        Default = false,
+        Callback = function(state)
+            WalkSpeedEnabled = state
+            if state then
+                Character:FindFirstChildOfClass("Humanoid").WalkSpeed = WalkSpeed
+            else
+                Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16
+            end
+        end
+    })
+    
+    movementSection:AddSlider({
+        Name = "WalkSpeed Value",
+        Min = 16,
+        Max = 200,
+        Round = 0,
+        Default = 100,
+        Type = "studs",
+        Callback = function(value)
+            WalkSpeed = value
+            if WalkSpeedEnabled then
+                Character:FindFirstChildOfClass("Humanoid").WalkSpeed = WalkSpeed
+            end
+        end
+    })
+    
+    movementSection:AddToggle({
+        Name = "Jump Power Hack",
+        Default = false,
+        Callback = function(state)
+            JumpEnabled = state
+            if state then
+                Character:FindFirstChildOfClass("Humanoid").JumpPower = JumpPower
+            else
+                Character:FindFirstChildOfClass("Humanoid").JumpPower = 50
+            end
+        end
+    })
+    
+    movementSection:AddSlider({
+        Name = "JumpPower Value",
+        Min = 50,
+        Max = 300,
+        Round = 0,
+        Default = 100,
+        Type = "studs",
+        Callback = function(value)
+            JumpPower = value
+            if JumpEnabled then
+                Character:FindFirstChildOfClass("Humanoid").JumpPower = JumpPower
+            end
+        end
+    })
+    
+    movementSection:AddToggle({
+        Name = "NoClip",
+        Default = false,
+        Callback = function(state)
+            NoClipEnabled = state
+            if state then
+                task.spawn(function()
+                    while NoClipEnabled do
+                        for _, part in ipairs(Character:GetDescendants()) do
+                            if part:IsA("BasePart") and part.CanCollide then
+                                part.CanCollide = false
+                            end
+                        end
+                        task.wait(0.2)
+                    end
+                end)
+            end
+        end
+    })
+    
+    autoEquipSection:AddToggle({
+        Name = "Auto Equip Best Brainrot",
+        Default = false,
+        Callback = function(state)
+            AutoEquipBest = state
+            if state then
+                task.spawn(function()
+                    while AutoEquipBest do
+                        pcall(function()
+                            game:GetService("ReplicatedStorage")
+                                :WaitForChild("Remotes")
+                                :WaitForChild("EquipBestBrainrots")
+                                :FireServer()
+                        end)
+                        task.wait(1)
+                    end
+                end)
+            end
+        end
+    })
+    
+    combatSection:AddDropdown({
+        Name = "Kill Aura Weapon",
+        Values = {"Banana Gun", "Frost Blower", "Carrot Launcher"},
+        Default = "Banana Gun",
+        Callback = function(choice)
+            SelectedWeapon = choice
+        end
+    })
+    
+    combatSection:AddToggle({
+        Name = "Kill Aura",
+        Default = false,
+        Callback = function(state)
+            KillAuraEnabled = state
+            if state then
+                task.spawn(function()
+                    while KillAuraEnabled do
+                        local char = Character
+                        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+                            local root = char.HumanoidRootPart
+                            local humanoid = char.Humanoid
+                            local tool = char:FindFirstChildOfClass("Tool")
+                            if not tool or tool.Name ~= SelectedWeapon then
+                                local backpack = LocalPlayer:FindFirstChild("Backpack")
+                                if backpack then
+                                    local item = backpack:FindFirstChild(SelectedWeapon)
+                                    if item then
+                                        humanoid:EquipTool(item)
+                                        tool = item
+                                    end
+                                end
+                            end
+                            for _, mob in ipairs(Workspace:GetChildren()) do
+                                if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart")
+                                and not Players:FindFirstChild(mob.Name) then
+                                    local MobKeywords = {"brainrot", "brain", "rot"}
+                                    local mobName = mob.Name:lower()
+                                    local isTarget = false
+                                    for _, keyword in ipairs(MobKeywords) do
+                                        if mobName:find(keyword) then
+                                            isTarget = true
+                                            break
+                                        end
+                                    end
+                                    if isTarget then
+                                        local dist = (mob.HumanoidRootPart.Position - root.Position).Magnitude
+                                        if dist <= KillAuraRange and tool then
+                                            pcall(function() tool:Activate() end)
+                                        end
+                                    end
                                 end
                             end
                         end
-                        
-                        for _, mob in ipairs(Workspace:GetChildren()) do
-                            if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart")
-                            and not Players:FindFirstChild(mob.Name) then
-                                local MobKeywords = {"brainrot", "brain", "rot"}
-                                local mobName = mob.Name:lower()
-                                local isTarget = false
-                                
-                                for _, keyword in ipairs(MobKeywords) do
-                                    if mobName:find(keyword) then
-                                        isTarget = true
-                                        break
-                                    end
-                                end
-                                
-                                if isTarget then
-                                    local dist = (mob.HumanoidRootPart.Position - root.Position).Magnitude
-                                    if dist <= KillAuraRange and tool then
-                                        pcall(function() tool:Activate() end)
-                                    end
-                                end
-                            end
-                        end
+                        task.wait(0.05)
                     end
-                    task.wait(0.05)
-                end
-            end)
+                end)
+            end
         end
-    end
-})
+    })
+    
+    combatSection:AddSlider({
+        Name = "Kill Aura Range",
+        Min = 10,
+        Max = 60,
+        Round = 0,
+        Default = KillAuraRange,
+        Type = "studs",
+        Callback = function(value)
+            KillAuraRange = value
+        end
+    })
+end
 
-Misc:Slider({
-    Title = "Kill Aura Range",
-    Min = 10,
-    Max = 60,
-    Default = KillAuraRange,
-    Callback = function(value)
-        KillAuraRange = value
-    end
-})
-
--- Discord info
-Info:Section({ Title = "Discord" })
-Info:Button({
-    Title = "Join Discord",
-    Callback = function()
-        setclipboard("https://discord.gg/5MWnDsEnbw")
-        WindUI:Notify({
-            Title = "Copied!",
-            Content = "Discord invite copied to clipboard",
-            Duration = 2,
-            Icon = "clipboard-check"
-        })
-    end
-})
+-- Info tab content
+do
+    local discordSection = Info:DrawSection({
+        Name = "Discord",
+        Position = "left"
+    });
+    
+    discordSection:AddButton({
+        Name = "Join Discord",
+        Callback = function()
+            setclipboard("https://discord.gg/7JDjhCVd8W")
+            SoulsHub:Notify({
+                Title = "Copied!",
+                Content = "Discord invite copied to clipboard",
+                Duration = 2
+            })
+        end
+    })
+    
+    discordSection:AddParagraph({
+        Title = "Script Info",
+        Content = "Plants vs Brainrots Ultimate Script\nAll features verified working.\nDeveloped by Community Script"
+    })
+end
 
 -- Final UI setup
-Window:SelectTab(1)
-WindUI:Notify({
+Window:Draw()
+
+SoulsHub:Notify({
     Title = "Script Loaded",
     Content = "Plants vs Brainrots Ultimate script is ready!\nAll features verified working.",
     Duration = 3
