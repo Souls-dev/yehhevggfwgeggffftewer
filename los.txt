@@ -1,0 +1,1105 @@
+local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))();
+
+task.wait(1)
+
+SoulsHub:Loader(nil, 1).yield()
+
+local FileWatcher = SoulsHub:ConfigManager({
+    Directory = "SoulsHub",
+    Config = "LegendsOfSpeed"
+});
+
+local Window = SoulsHub.new({
+    Keybind = "LeftAlt",
+});
+
+local watermark = Window:Watermark();
+
+watermark:AddText({
+    Icon = "user",
+    Text = "Legends of Speed"
+})
+
+local vim = watermark:AddText({
+    Icon = "clock",
+    Text = SoulsHub:GetTimeNow()
+})
+
+task.spawn(function()
+    while true do task.wait()
+        vim:SetText(SoulsHub:GetTimeNow())
+        Window.Username = game:GetService("Players").LocalPlayer.Name
+    end;
+end)
+
+Window:Update({
+    ExpireDate = SoulsHub:GetDate(tick() + 84000)
+})
+
+watermark:AddText({
+    Icon = "server",
+    Text = "Ultimate Script"
+})
+
+-- Initialize global variables
+_G.FeatureStates = _G.FeatureStates or {
+    AutoFarm = false,
+    AutoRebirth = false,
+    NoClip = false,
+    AutoRace = false,
+    HidePopups = false,
+    InfJump = false,
+    AutoSellAllTrails = false,
+    AutoSellAllPets = false,
+    AutoUnique = false,
+    AutoVoidEgg = false,
+    AutoBirdieEgg = false,
+    AutoLegendsEgg = false,
+    AutoEvolve = false,
+    HoopsFarm = false,
+    FarmSpeed = 10,
+    FarmLocation = "City",
+    FarmOrb = "Yellow Orb",
+    WalkSpeed = 16,
+    JumpPower = 50
+}
+
+-- Create tabs
+local MainTab = Window:DrawTab({
+    Icon = "home",
+    Name = "Main",
+    Type = "Double"
+});
+
+local AutoFarmTab = Window:DrawTab({
+    Icon = "diamond",
+    Name = "Auto Farm"
+});
+
+local TeleportTab = Window:DrawTab({
+    Icon = "map-pin",
+    Name = "Teleport"
+});
+
+local RaceTab = Window:DrawTab({
+    Icon = "racing-flag",
+    Name = "Race"
+});
+
+local CrystalTab = Window:DrawTab({
+    Icon = "gem",
+    Name = "Crystal"
+});
+
+local MiscTab = Window:DrawTab({
+    Icon = "settings",
+    Name = "Misc"
+});
+
+local CreditsTab = Window:DrawTab({
+    Icon = "info",
+    Name = "Credits"
+});
+
+-- Main Tab
+do
+    local generalSection = MainTab:DrawSection({
+        Name = "Player Information",
+        Position = "LEFT"
+    });
+    
+    local actionsSection = MainTab:DrawSection({
+        Name = "Player Actions",
+        Position = "right"
+    });
+    
+    local clientSection = MainTab:DrawSection({
+        Name = "Client Information",
+        Position = "right"
+    });
+    
+    -- Client Information
+    local gameTime = clientSection:AddParagraph({
+        Title = "Game Time",
+        Content = "Loading..."
+    });
+    
+    local fpsValue = clientSection:AddParagraph({
+        Title = "FPS",
+        Content = "Loading..."
+    });
+    
+    local pingValue = clientSection:AddParagraph({
+        Title = "Ping",
+        Content = "Loading..."
+    });
+    
+    -- Update client information
+    task.spawn(function()
+        while true do task.wait(1)
+            if game.Workspace then
+                local GameTime = math.floor(workspace.DistributedGameTime + 0.5)
+                local Hour = math.floor(GameTime / (60 ^ 2)) % 24
+                local Minute = math.floor(GameTime / (60 ^ 1)) % 60
+                local Second = math.floor(GameTime / (60 ^ 0)) % 60
+                gameTime:SetText(string.format("Hours: %d Minutes: %d Seconds: %d", Hour, Minute, Second))
+            end
+            
+            local Fps = workspace:GetRealPhysicsFPS() or 0
+            fpsValue:SetText(string.format("%d", Fps))
+            
+            local Ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValueString() or "0"
+            pingValue:SetText(Ping)
+        end
+    end)
+    
+    -- Player Actions
+    actionsSection:AddButton({
+        Name = "Claim All Chests",
+        Callback = function()
+            local success, err = pcall(function()
+                if workspace:FindFirstChild("goldenChest") and workspace.goldenChest:FindFirstChild("circleInner") then
+                    workspace.goldenChest.circleInner.CFrame = game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame
+                end
+                if workspace:FindFirstChild("enchantedChest") and workspace.enchantedChest:FindFirstChild("circleInner") then
+                    workspace.enchantedChest.circleInner.CFrame = game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame
+                end
+                if workspace:FindFirstChild("magmaChest") and workspace.magmaChest:FindFirstChild("circleInner") then
+                    workspace.magmaChest.circleInner.CFrame = game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame
+                end
+                if workspace:FindFirstChild("groupRewardsCircle") and workspace.groupRewardsCircle:FindFirstChild("circleInner") then
+                    workspace.groupRewardsCircle.circleInner.CFrame = game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame
+                end
+                task.wait(0.5)
+                if workspace:FindFirstChild("goldenChest") and workspace.goldenChest:FindFirstChild("circleInner") then
+                    workspace.goldenChest.circleInner.CFrame = workspace.goldenChest.Position
+                end
+                if workspace:FindFirstChild("enchantedChest") and workspace.enchantedChest:FindFirstChild("circleInner") then
+                    workspace.enchantedChest.circleInner.CFrame = workspace.enchantedChest.Position
+                end
+                if workspace:FindFirstChild("magmaChest") and workspace.magmaChest:FindFirstChild("circleInner") then
+                    workspace.magmaChest.circleInner.CFrame = workspace.magmaChest.Position
+                end
+                if workspace:FindFirstChild("groupRewardsCircle") and workspace.groupRewardsCircle:FindFirstChild("circleInner") then
+                    workspace.groupRewardsCircle.circleInner.CFrame = workspace.groupRewardsCircle.Position
+                end
+            end)
+            if not success and err then
+                print("Claim Chests Error:", err)
+            end
+        end
+    });
+    
+    actionsSection:AddButton({
+        Name = "Disable Trading",
+        Callback = function()
+            local success, err = pcall(function()
+                game:GetService("ReplicatedStorage").rEvents.tradingEvent:FireServer("disableTrading")
+            end)
+            if not success and err then
+                print("Disable Trading Error:", err)
+            end
+        end
+    });
+    
+    actionsSection:AddButton({
+        Name = "Enable Trading",
+        Callback = function()
+            local success, err = pcall(function()
+                game:GetService("ReplicatedStorage").rEvents.tradingEvent:FireServer("enableTrading")
+            end)
+            if not success and err then
+                print("Enable Trading Error:", err)
+            end
+        end
+    });
+    
+    -- Anti-AFK
+    local antiAfkToggle = generalSection:AddToggle({
+        Name = "Anti AFK",
+        Flag = "anti_afk",
+        Default = true,
+        Callback = function(state)
+            _G.FeatureStates.AntiAFK = state
+        end
+    });
+    
+    -- Auto Rebirth
+    local autoRebirthToggle = generalSection:AddToggle({
+        Name = "Auto Rebirth",
+        Flag = "auto_rebirth",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.AutoRebirth = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoRebirth do
+                        task.wait(1)
+                        local success, err = pcall(function()
+                            game:GetService("ReplicatedStorage").rEvents.rebirthEvent:FireServer("rebirthRequest")
+                        end)
+                        if not success and err then
+                            print("Auto Rebirth Error:", err)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+    
+    -- No Clip
+    local noClipToggle = generalSection:AddToggle({
+        Name = "No Clip",
+        Flag = "no_clip",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.NoClip = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.NoClip do
+                        task.wait(0.1)
+                        local success, err = pcall(function()
+                            local player = game:GetService("Players").LocalPlayer
+                            if player and player.Character then
+                                for _, v in pairs(player.Character:GetDescendants()) do
+                                    if v:IsA("BasePart") then
+                                        v.CanCollide = false
+                                    end
+                                end
+                            end
+                        end)
+                        if not success and err then
+                            print("No Clip Error:", err)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+    
+    -- Speed and Jump Power
+    local speedSlider = generalSection:AddSlider({
+        Name = "WalkSpeed",
+        Min = 16,
+        Max = 5000,
+        Round = 0,
+        Default = 16,
+        Type = "studs/s",
+        Flag = "walk_speed",
+        Callback = function(value)
+            _G.FeatureStates.WalkSpeed = value
+            local success, err = pcall(function()
+                local player = game:GetService("Players").LocalPlayer
+                if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+                    player.Character.Humanoid.WalkSpeed = value
+                end
+            end)
+            if not success and err then
+                print("WalkSpeed Error:", err)
+            end
+        end
+    });
+    
+    local jumpSlider = generalSection:AddSlider({
+        Name = "JumpPower",
+        Min = 50,
+        Max = 1000,
+        Round = 0,
+        Default = 50,
+        Type = "studs",
+        Flag = "jump_power",
+        Callback = function(value)
+            _G.FeatureStates.JumpPower = value
+            local success, err = pcall(function()
+                local player = game:GetService("Players").LocalPlayer
+                if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+                    player.Character.Humanoid.JumpPower = value
+                end
+            end)
+            if not success and err then
+                print("JumpPower Error:", err)
+            end
+        end
+    });
+    
+    -- Teleport to Player
+    local playerList = {}
+    local currentPlayer = game:GetService("Players").LocalPlayer
+    for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+        if player ~= currentPlayer then
+            table.insert(playerList, player.Name)
+        end
+    end
+    
+    local selectedPlayer = playerList[1] or ""
+    local playerDropdown = generalSection:AddDropdown({
+        Name = "Select Player",
+        Values = playerList,
+        Default = selectedPlayer,
+        Flag = "selected_player",
+        Callback = function(value)
+            selectedPlayer = value
+        end
+    });
+    
+    generalSection:AddButton({
+        Name = "Teleport To Player",
+        Callback = function()
+            local success, err = pcall(function()
+                local targetPlayer = game:GetService("Players"):FindFirstChild(selectedPlayer)
+                if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame = 
+                        targetPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 2, 1)
+                end
+            end)
+            if not success and err then
+                print("Teleport Error:", err)
+            end
+        end
+    });
+    
+    -- Update player list periodically
+    task.spawn(function()
+        while true do
+            task.wait(5)
+            local newList = {}
+            for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+                if player ~= currentPlayer then
+                    table.insert(newList, player.Name)
+                end
+            end
+            playerDropdown:SetValues(newList)
+            if selectedPlayer ~= "" and not table.find(newList, selectedPlayer) then
+                selectedPlayer = newList[1] or ""
+                playerDropdown:SetValue(selectedPlayer)
+            end
+        end
+    end)
+end
+
+-- Auto Farm Tab
+do
+    local farmSettings = AutoFarmTab:DrawSection({
+        Name = "Farm Settings",
+        Position = "LEFT"
+    });
+    
+    local farmOptions = AutoFarmTab:DrawSection({
+        Name = "Farm Options",
+        Position = "right"
+    });
+    
+    -- Location selection
+    local locationDropdown = farmSettings:AddDropdown({
+        Name = "Select Location",
+        Values = {"City", "Snow City", "Magma City", "Legends Highway", "Space", "Desert"},
+        Default = "City",
+        Flag = "farm_location",
+        Callback = function(value)
+            _G.FeatureStates.FarmLocation = value
+        end
+    });
+    
+    -- Orb selection
+    local orbDropdown = farmSettings:AddDropdown({
+        Name = "Select Orbs",
+        Values = {"Red Orb", "Yellow Orb", "Gem"},
+        Default = "Yellow Orb",
+        Flag = "farm_orb",
+        Callback = function(value)
+            _G.FeatureStates.FarmOrb = value
+        end
+    });
+    
+    -- Farm speed
+    local farmSpeedDropdown = farmSettings:AddDropdown({
+        Name = "Select Mode",
+        Values = {"Super Fast", "Fast", "Medium", "Slow"},
+        Default = "Medium",
+        Flag = "farm_speed",
+        Callback = function(value)
+            if value == "Super Fast" then
+                _G.FeatureStates.FarmSpeed = 40
+            elseif value == "Fast" then
+                _G.FeatureStates.FarmSpeed = 30
+            elseif value == "Medium" then
+                _G.FeatureStates.FarmSpeed = 20
+            elseif value == "Slow" then
+                _G.FeatureStates.FarmSpeed = 10
+            end
+        end
+    });
+    
+    farmSettings:AddParagraph({
+        Title = "Note",
+        Content = "• Super Fast Value = 40\n• Fast Value = 30\n• Medium Value = 20\n• Slow Value = 10\n\nNot Recommended Using Super Fast Mode\nBecause it will cause a delay / lag in the game"
+    });
+    
+    -- Start Farm Toggle
+    local startFarmToggle = farmOptions:AddToggle({
+        Name = "Start Farm",
+        Flag = "start_farm",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.AutoFarm = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoFarm do
+                        task.wait(0.1)
+                        local success, err = pcall(function()
+                            for i = 1, _G.FeatureStates.FarmSpeed do
+                                game:GetService("ReplicatedStorage").rEvents.orbEvent:FireServer(
+                                    "collectOrb", 
+                                    _G.FeatureStates.FarmOrb, 
+                                    _G.FeatureStates.FarmLocation
+                                )
+                            end
+                        end)
+                        if not success and err then
+                            print("Auto Farm Error:", err)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+    
+    -- Hoops Farm
+    local hoopsFarmToggle = farmOptions:AddToggle({
+        Name = "Hoops Farm",
+        Flag = "hoops_farm",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.HoopsFarm = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.HoopsFarm do
+                        task.wait(0.1)
+                        local success, err = pcall(function()
+                            local children = game:GetService("Workspace").Hoops:GetChildren()
+                            for i, child in ipairs(children) do
+                                if child.Name == 'Hoop' then
+                                    child.Transparency = 1
+                                    child.CFrame = game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame
+                                end
+                            end
+                        end)
+                        if not success and err then
+                            print("Hoops Farm Error:", err)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+end
+
+-- Teleport Tab
+do
+    local teleportSection = TeleportTab:DrawSection({
+        Name = "Teleport Locations",
+        Position = "LEFT"
+    });
+    
+    -- City teleport
+    teleportSection:AddButton({
+        Name = "City",
+        Callback = function()
+            local success, err = pcall(function()
+                if game.PlaceId == 3232996272 or game.PlaceId == 3276265788 then
+                    game:GetService("TeleportService"):Teleport(3101667897, game:GetService("Players").LocalPlayer)
+                else
+                    game:GetService("Players").LocalPlayer.Character:MoveTo(Vector3.new(-9687.1923828125, 59.072853088378906, 3096.58837890625))
+                end
+            end)
+            if not success and err then
+                print("City Teleport Error:", err)
+            end
+        end
+    });
+    
+    -- Snow City teleport
+    teleportSection:AddButton({
+        Name = "Snow City",
+        Callback = function()
+            local success, err = pcall(function()
+                if game.PlaceId == 3232996272 or game.PlaceId == 3276265788 then
+                    game:GetService("TeleportService"):Teleport(3101667897, game:GetService("Players").LocalPlayer)
+                    task.wait(3)
+                    game:GetService("Players").LocalPlayer.Character:MoveTo(Vector3.new(-9677.6640625, 59.072853088378906, 3783.736572265625))
+                else
+                    game:GetService("Players").LocalPlayer.Character:MoveTo(Vector3.new(-9677.6640625, 59.072853088378906, 3783.736572265625))
+                end
+            end)
+            if not success and err then
+                print("Snow City Teleport Error:", err)
+            end
+        end
+    });
+    
+    -- Magma City teleport
+    teleportSection:AddButton({
+        Name = "Magma City",
+        Callback = function()
+            local success, err = pcall(function()
+                if game.PlaceId == 3232996272 or game.PlaceId == 3276265788 then
+                    game:GetService("TeleportService"):Teleport(3101667897, game:GetService("Players").LocalPlayer)
+                    task.wait(3)
+                    game:GetService("Players").LocalPlayer.Character:MoveTo(Vector3.new(-11053.3837890625, 217.0328369140625, 4896.10986328125))
+                else
+                    game:GetService("Players").LocalPlayer.Character:MoveTo(Vector3.new(-11053.3837890625, 217.0328369140625, 4896.10986328125))
+                end
+            end)
+            if not success and err then
+                print("Magma City Teleport Error:", err)
+            end
+        end
+    });
+    
+    -- Legends Highway teleport
+    teleportSection:AddButton({
+        Name = "Legends Highway",
+        Callback = function()
+            local success, err = pcall(function()
+                if game.PlaceId == 3232996272 or game.PlaceId == 3276265788 then
+                    game:GetService("TeleportService"):Teleport(3101667897, game:GetService("Players").LocalPlayer)
+                    task.wait(3)
+                    game:GetService("Players").LocalPlayer.Character:MoveTo(Vector3.new(-13097.8583984375, 217.0328369140625, 5904.84716796875))
+                else
+                    game:GetService("Players").LocalPlayer.Character:MoveTo(Vector3.new(-13097.8583984375, 217.0328369140625, 5904.84716796875))
+                end
+            end)
+            if not success and err then
+                print("Legends Highway Teleport Error:", err)
+            end
+        end
+    });
+    
+    -- Space teleport
+    teleportSection:AddButton({
+        Name = "Space",
+        Callback = function()
+            local success, err = pcall(function()
+                if game.PlaceId ~= 3232996272 then
+                    game:GetService("TeleportService"):Teleport(3232996272, game:GetService("Players").LocalPlayer)
+                end
+            end)
+            if not success and err then
+                print("Space Teleport Error:", err)
+            end
+        end
+    });
+    
+    -- Desert teleport
+    teleportSection:AddButton({
+        Name = "Desert",
+        Callback = function()
+            local success, err = pcall(function()
+                if game.PlaceId ~= 3276265788 then
+                    game:GetService("TeleportService"):Teleport(3276265788, game:GetService("Players").LocalPlayer)
+                end
+            end)
+            if not success and err then
+                print("Desert Teleport Error:", err)
+            end
+        end
+    });
+end
+
+-- Race Tab
+do
+    local raceSection = RaceTab:DrawSection({
+        Name = "Race Settings",
+        Position = "LEFT"
+    });
+    
+    local autoRaceToggle = raceSection:AddToggle({
+        Name = "Auto Finish Race",
+        Flag = "auto_race",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.AutoRace = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoRace do
+                        task.wait(0.1)
+                        local success, err = pcall(function()
+                            if game:GetService("ReplicatedStorage").raceInProgress.Value then
+                                game:GetService("ReplicatedStorage").rEvents.raceEvent:FireServer('joinRace')
+                                task.wait(0.5)
+                                game:GetService("Players").LocalPlayer.PlayerGui.gameGui.raceJoinLabel.Visible = false
+                            end
+                            if game:GetService("ReplicatedStorage").raceStarted.Value then
+                                for i, v in pairs(game:GetService("Workspace").raceMaps:GetChildren()) do
+                                    if v:FindFirstChild("finishPart") then
+                                        local oldFinishPosition = v.finishPart.CFrame
+                                        v.finishPart.CFrame = game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame
+                                        task.wait(0.1)
+                                        v.finishPart.CFrame = oldFinishPosition
+                                    end
+                                end
+                            end
+                        end)
+                        if not success and err then
+                            print("Auto Race Error:", err)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+    
+    raceSection:AddParagraph({
+        Title = "Note",
+        Content = "This feature automatically joins and finishes races.\nMake sure you have the required race items."
+    });
+end
+
+-- Crystal Tab
+do
+    local crystalSection = CrystalTab:DrawSection({
+        Name = "Crystal Settings",
+        Position = "LEFT"
+    });
+    
+    -- Crystal selection
+    local crystalList = {}
+    if game.Workspace:FindFirstChild("mapCrystalsFolder") then
+        for i, v in ipairs(game.Workspace.mapCrystalsFolder:GetChildren()) do
+            table.insert(crystalList, v.Name)
+        end
+    end
+    
+    local crystalDropdown = crystalSection:AddDropdown({
+        Name = "Select Crystal",
+        Values = crystalList,
+        Default = crystalList[1] or "Electro Crystal",
+        Flag = "selected_crystal",
+        Callback = function(value)
+            _G.FeatureStates.SelectedCrystal = value
+        end
+    });
+    
+    -- Open crystal toggle
+    local openCrystalToggle = crystalSection:AddToggle({
+        Name = "Open Crystal",
+        Flag = "open_crystal",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.AutoCrystal = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoCrystal do
+                        task.wait(0.5)
+                        local success, err = pcall(function()
+                            local args = {
+                                [1] = "openCrystal",
+                                [2] = _G.FeatureStates.SelectedCrystal or "Electro Crystal"
+                            }
+                            game:GetService("ReplicatedStorage").rEvents.openCrystalRemote:InvokeServer(unpack(args))
+                        end)
+                        if not success and err then
+                            print("Open Crystal Error:", err)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+    
+    -- Auto Void Dragon
+    local voidDragonToggle = crystalSection:AddToggle({
+        Name = "Auto Void Dragon [Desert]",
+        Flag = "void_dragon",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.AutoVoidEgg = state
+            _G.FeatureStates.AutoUnique = state
+            _G.FeatureStates.AutoSellAllTrails = state
+            
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoVoidEgg do
+                        task.wait(0.5)
+                        local success, err = pcall(function()
+                            local args = {
+                                [1] = "openCrystal",
+                                [2] = "Desert Crystal"
+                            }
+                            game:GetService("ReplicatedStorage").rEvents.openCrystalRemote:InvokeServer(unpack(args))
+                        end)
+                        if not success and err then
+                            print("Void Dragon Error:", err)
+                        end
+                    end
+                end)
+                
+                task.spawn(function()
+                    while _G.FeatureStates.AutoSellAllTrails do
+                        task.wait(0.5)
+                        local success, err = pcall(function()
+                            local rank = game:GetService("Players").LocalPlayer.trailsFolder:GetChildren()
+                            for _, r in ipairs(rank) do
+                                for _, item in ipairs(r:GetChildren()) do
+                                    local args = {
+                                        [1] = "sellTrail",
+                                        [2] = item
+                                    }
+                                    game:GetService("ReplicatedStorage").rEvents.sellTrailEvent:FireServer(unpack(args))
+                                end
+                            end
+                        end)
+                        if not success and err then
+                            print("Sell Trails Error:", err)
+                        end
+                    end
+                end)
+                
+                task.spawn(function()
+                    while _G.FeatureStates.AutoUnique do
+                        task.wait(0.5)
+                        local success, err = pcall(function()
+                            local rank = game:GetService("Players").LocalPlayer.petsFolder:GetChildren()
+                            for _, r in ipairs(rank) do
+                                if r.Name ~= "Unique" then
+                                    for _, item in ipairs(r:GetChildren()) do
+                                        local args = {
+                                            [1] = "sellPet",
+                                            [2] = item
+                                        }
+                                        game:GetService("ReplicatedStorage").rEvents.sellPetEvent:FireServer(unpack(args))
+                                    end
+                                end
+                            end
+                        end)
+                        if not success and err then
+                            print("Auto Unique Error:", err)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+    
+    -- Auto Ultra Birdie
+    local birdieToggle = crystalSection:AddToggle({
+        Name = "Auto Ultra Birdie [Best Pet Desert]",
+        Flag = "ultra_birdie",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.AutoBirdieEgg = state
+            _G.FeatureStates.AutoSellAllPets = state
+            _G.FeatureStates.AutoSellAllTrails = state
+            
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoBirdieEgg do
+                        task.wait(0.5)
+                        local success, err = pcall(function()
+                            local args = {
+                                [1] = "openCrystal",
+                                [2] = "Electro Crystal"
+                            }
+                            game:GetService("ReplicatedStorage").rEvents.openCrystalRemote:InvokeServer(unpack(args))
+                        end)
+                        if not success and err then
+                            print("Birdie Egg Error:", err)
+                        end
+                    end
+                end)
+                
+                task.spawn(function()
+                    while _G.FeatureStates.AutoSellAllPets do
+                        task.wait(0.5)
+                        local success, err = pcall(function()
+                            local rank = game:GetService("Players").LocalPlayer.petsFolder:GetChildren()
+                            for _, r in ipairs(rank) do
+                                for _, item in ipairs(r:GetChildren()) do
+                                    if item.Name ~= "Ultra Birdie" then
+                                        local args = {
+                                            [1] = "sellPet",
+                                            [2] = item
+                                        }
+                                        game:GetService("ReplicatedStorage").rEvents.sellPetEvent:FireServer(unpack(args))
+                                    end
+                                end
+                            end
+                        end)
+                        if not success and err then
+                            print("Sell Pets Error:", err)
+                        end
+                    end
+                end)
+                
+                task.spawn(function()
+                    while _G.FeatureStates.AutoSellAllTrails do
+                        task.wait(0.5)
+                        local success, err = pcall(function()
+                            local rank = game:GetService("Players").LocalPlayer.trailsFolder:GetChildren()
+                            for _, r in ipairs(rank) do
+                                for _, item in ipairs(r:GetChildren()) do
+                                    local args = {
+                                        [1] = "sellTrail",
+                                        [2] = item
+                                    }
+                                    game:GetService("ReplicatedStorage").rEvents.sellTrailEvent:FireServer(unpack(args))
+                                end
+                            end
+                        end)
+                        if not success and err then
+                            print("Sell Trails Error:", err)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+    
+    -- Auto Ultimate Overdrive Bunny
+    local bunnyToggle = crystalSection:AddToggle({
+        Name = "Auto Ultimate Overdrive Bunny",
+        Flag = "overdrive_bunny",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.BunnyFarm = state
+            _G.FeatureStates.AutoLegendsEgg = state
+            
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.BunnyFarm do
+                        task.wait(0.5)
+                        local success, err = pcall(function()
+                            local rank = game:GetService("Players").LocalPlayer.petsFolder:GetChildren()
+                            for _, r in ipairs(rank) do
+                                for _, item in ipairs(r:GetChildren()) do
+                                    if item.Name ~= "Ultimate Overdrive Bunny" then
+                                        local args = {
+                                            [1] = "sellPet",
+                                            [2] = item
+                                        }
+                                        game:GetService("ReplicatedStorage").rEvents.sellPetEvent:FireServer(unpack(args))
+                                    end
+                                end
+                            end
+                        end)
+                        if not success and err then
+                            print("Bunny Farm Error:", err)
+                        end
+                    end
+                end)
+                
+                task.spawn(function()
+                    while _G.FeatureStates.AutoLegendsEgg do
+                        task.wait(0.5)
+                        local success, err = pcall(function()
+                            local args = {
+                                [1] = "openCrystal",
+                                [2] = "Electro Legends Crystal"
+                            }
+                            game:GetService("ReplicatedStorage").rEvents.openCrystalRemote:InvokeServer(unpack(args))
+                        end)
+                        if not success and err then
+                            print("Legends Egg Error:", err)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+    
+    -- Auto Evolve Pets
+    local evolveToggle = crystalSection:AddToggle({
+        Name = "Auto Evolve All Pets",
+        Flag = "auto_evolve",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.AutoEvolve = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoEvolve do
+                        task.wait(0.5)
+                        local success, err = pcall(function()
+                            local petsFolder = game:GetService("Players").LocalPlayer.petsFolder
+                            if petsFolder then
+                                for _, rank in ipairs(petsFolder:GetChildren()) do
+                                    for _, pet in ipairs(rank:GetChildren()) do
+                                        local args = {
+                                            [1] = "evolvePet",
+                                            [2] = pet.Name
+                                        }
+                                        game:GetService("ReplicatedStorage").rEvents.petEvolveEvent:FireServer(unpack(args))
+                                    end
+                                end
+                            end
+                        end)
+                        if not success and err then
+                            print("Evolve Pets Error:", err)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+end
+
+-- Misc Tab
+do
+    local miscSection = MiscTab:DrawSection({
+        Name = "Miscellaneous",
+        Position = "LEFT"
+    });
+    
+    -- Hide Popups
+    local hidePopupsToggle = miscSection:AddToggle({
+        Name = "Hide Popups",
+        Flag = "hide_popups",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.HidePopups = state
+            if state then
+                game:GetService("Players").LocalPlayer.PlayerGui.orbGui.Enabled = false
+                game:GetService("Players").LocalPlayer.PlayerGui.gameGui.trailsNotificationsFrame.Visible = false
+            else
+                game:GetService("Players").LocalPlayer.PlayerGui.orbGui.Enabled = true
+                game:GetService("Players").LocalPlayer.PlayerGui.gameGui.trailsNotificationsFrame.Visible = true
+            end
+        end
+    });
+    
+    -- Inf Jump
+    local infJumpToggle = miscSection:AddToggle({
+        Name = "Inf Jump",
+        Flag = "inf_jump",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.InfJump = state
+            if state then
+                game:GetService("UserInputService").JumpRequest:Connect(function()
+                    if _G.FeatureStates.InfJump then
+                        game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+                    end
+                end)
+            end
+        end
+    });
+    
+    -- Rejoin
+    miscSection:AddButton({
+        Name = "Rejoin",
+        Callback = function()
+            local success, err = pcall(function()
+                game:GetService("TeleportService"):Teleport(game.PlaceId, game:GetService("Players").LocalPlayer)
+            end)
+            if not success and err then
+                print("Rejoin Error:", err)
+            end
+        end
+    });
+    
+    -- Low Server Hop
+    miscSection:AddButton({
+        Name = "Low Server Hop",
+        Callback = function()
+            local success, err = pcall(function()
+                local module = loadstring(game:HttpGet("https://raw.githubusercontent.com/raw-scriptpastebin/FE/main/Server_Hop_Settings"))()
+                module:Teleport(game.PlaceId)
+            end)
+            if not success and err then
+                print("Server Hop Error:", err)
+            end
+        end
+    });
+    
+    -- Add credits button
+    miscSection:AddButton({
+        Name = "Discord",
+        Callback = function()
+            setclipboard("https://discord.com/invite/hYmREEpSwh")
+        end
+    });
+    
+    miscSection:AddButton({
+        Name = "YouTube Channel",
+        Callback = function()
+            setclipboard("https://youtube.com/@RelzBlox")
+        end
+    });
+    
+    -- Glitch Help
+    miscSection:AddParagraph({
+        Title = "Glitch Tutorial",
+        Content = "1. Use Pet Level 1 No XP\n2. Turn on Yellow Orbs In Auto Farm Menu\n3. Don't Get About XP\n4. Don't Use Other Features Except Yellow Orbs\n5. Done"
+    });
+    
+    miscSection:AddParagraph({
+        Title = "Notes",
+        Content = "> Make sure your Rebirth is Odd\n> The Power Pet Will Return If You Disconnect"
+    });
+end
+
+-- Credits Tab
+do
+    local creditsSection = CreditsTab:DrawSection({
+        Name = "Credits",
+        Position = "LEFT"
+    });
+    
+    creditsSection:AddParagraph({
+        Title = "Credits",
+        Content = "This script was developed using the Souls Hub UI Library.\n\nDeveloped by RelzBlox\n\nJoin the Discord for more info!\nhttps://discord.com/invite/hYmREEpSwh"
+    });
+    
+    creditsSection:AddButton({
+        Name = "Copy Discord Link",
+        Callback = function()
+            setclipboard("https://discord.com/invite/hYmREEpSwh")
+        end
+    });
+    
+    creditsSection:AddButton({
+        Name = "YouTube Channel",
+        Callback = function()
+            setclipboard("https://youtube.com/@RelzBlox")
+        end
+    });
+end
+
+-- Anti-AFK function
+task.spawn(function()
+    while _G.FeatureStates.AntiAFK do
+        task.wait(5)
+        local success, err = pcall(function()
+            game:GetService("VirtualUser"):Button2Down(Vector2.new(0, 0), game:GetService("Workspace").CurrentCamera.CFrame)
+            task.wait(1)
+            game:GetService("VirtualUser"):Button2Up(Vector2.new(0, 0), game:GetService("Workspace").CurrentCamera.CFrame)
+        end)
+        if not success and err then
+            print("Anti-AFK Error:", err)
+        end
+    end
+end)
+
+-- Initialize default values
+_G.FeatureStates.AutoRebirth = false
+_G.FeatureStates.AutoFarm = false
+_G.FeatureStates.FarmLocation = "City"
+_G.FeatureStates.FarmOrb = "Yellow Orb"
+_G.FeatureStates.FarmSpeed = 20
+_G.FeatureStates.NoClip = false
+_G.FeatureStates.AutoRace = false
+_G.FeatureStates.AutoCrystal = false
+_G.FeatureStates.AutoVoidEgg = false
+_G.FeatureStates.AutoBirdieEgg = false
+_G.FeatureStates.AutoLegendsEgg = false
+_G.FeatureStates.AutoUnique = false
+_G.FeatureStates.AutoSellAllTrails = false
+_G.FeatureStates.AutoSellAllPets = false
+_G.FeatureStates.BunnyFarm = false
+_G.FeatureStates.AutoEvolve = false
+_G.FeatureStates.HoopsFarm = false
+_G.FeatureStates.WalkSpeed = 16
+_G.FeatureStates.JumpPower = 50
+_G.FeatureStates.AntiAFK = true
+
+-- Final step: Draw the UI
+Window:Draw()
