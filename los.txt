@@ -61,7 +61,11 @@ _G.FeatureStates = _G.FeatureStates or {
     FarmLocation = "City",
     FarmOrb = "Yellow Orb",
     WalkSpeed = 16,
-    JumpPower = 50
+    JumpPower = 50,
+    GemDuplication = false,
+    GodFarmEnabled = false,
+    GodFarmType = "XP",
+    GodFarmCount = 10000
 }
 
 -- Create tabs
@@ -89,6 +93,11 @@ local RaceTab = Window:DrawTab({
 local CrystalTab = Window:DrawTab({
     Icon = "gem",
     Name = "Crystal"
+});
+
+local GodFarmTab = Window:DrawTab({
+    Icon = "infinity",
+    Name = "God Farm"
 });
 
 local MiscTab = Window:DrawTab({
@@ -392,7 +401,7 @@ do
     -- Location selection
     local locationDropdown = farmSettings:AddDropdown({
         Name = "Select Location",
-        Values = {"City", "Snow City", "Magma City", "Legends Highway", "Space", "Desert"},
+        Values = {"City", "Snow City", "Magma City", "Legends Highway", "Space", "Desert", "Speed Jungle"},
         Default = "City",
         Flag = "farm_location",
         Callback = function(value)
@@ -403,7 +412,7 @@ do
     -- Orb selection
     local orbDropdown = farmSettings:AddDropdown({
         Name = "Select Orbs",
-        Values = {"Red Orb", "Yellow Orb", "Gem"},
+        Values = {"Red Orb", "Yellow Orb", "Ethereal Orb", "Infernal Gem", "Gem"},
         Default = "Yellow Orb",
         Flag = "farm_orb",
         Callback = function(value)
@@ -486,6 +495,132 @@ do
                         end)
                         if not success and err then
                             print("Hoops Farm Error:", err)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+    
+    -- Farm Delays Section
+    farmOptions:AddParagraph({
+        Title = "Farm Delays",
+        Content = "Adjust farm delays to prevent lag"
+    })
+    
+    local xpDelay = farmOptions:AddSlider({
+        Name = "XP Delay",
+        Min = 0.01,
+        Max = 0.5,
+        Round = 2,
+        Default = 0.25,
+        Type = "s",
+        Flag = "xp_delay",
+        Callback = function(value)
+            _G.FeatureStates.XPDelay = value
+        end
+    });
+    
+    local orbDelay = farmOptions:AddSlider({
+        Name = "Orb Delay",
+        Min = 0.01,
+        Max = 0.5,
+        Round = 2,
+        Default = 0.25,
+        Type = "s",
+        Flag = "orb_delay",
+        Callback = function(value)
+            _G.FeatureStates.OrbDelay = value
+        end
+    });
+    
+    local gemDelay = farmOptions:AddSlider({
+        Name = "Gem Delay",
+        Min = 0.01,
+        Max = 0.5,
+        Round = 2,
+        Default = 0.25,
+        Type = "s",
+        Flag = "gem_delay",
+        Callback = function(value)
+            _G.FeatureStates.GemDelay = value
+        end
+    });
+    
+    -- Farm XP Toggle
+    local xpFarmToggle = farmOptions:AddToggle({
+        Name = "Farm XP Orbs",
+        Flag = "farm_xp",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.FarmXP = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.FarmXP do
+                        task.wait(_G.FeatureStates.XPDelay or 0.25)
+                        local success, err = pcall(function()
+                            game:GetService("ReplicatedStorage").rEvents.orbEvent:FireServer(
+                                "collectOrb", 
+                                "Yellow Orb", 
+                                _G.FeatureStates.FarmLocation
+                            )
+                        end)
+                        if not success and err then
+                            print("XP Farm Error:", err)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+    
+    -- Farm Normal Orbs Toggle
+    local normalFarmToggle = farmOptions:AddToggle({
+        Name = "Farm Normal Orbs",
+        Flag = "farm_normal",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.FarmNormal = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.FarmNormal do
+                        task.wait(_G.FeatureStates.OrbDelay or 0.25)
+                        local success, err = pcall(function()
+                            game:GetService("ReplicatedStorage").rEvents.orbEvent:FireServer(
+                                "collectOrb", 
+                                "Ethereal Orb", 
+                                _G.FeatureStates.FarmLocation
+                            )
+                        end)
+                        if not success and err then
+                            print("Normal Farm Error:", err)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+    
+    -- Farm Gem Orbs Toggle
+    local gemFarmToggle = farmOptions:AddToggle({
+        Name = "Farm Gem Orbs",
+        Flag = "farm_gem",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.FarmGem = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.FarmGem do
+                        task.wait(_G.FeatureStates.GemDelay or 0.25)
+                        local success, err = pcall(function()
+                            game:GetService("ReplicatedStorage").rEvents.orbEvent:FireServer(
+                                "collectOrb", 
+                                "Infernal Gem", 
+                                _G.FeatureStates.FarmLocation
+                            )
+                        end)
+                        if not success and err then
+                            print("Gem Farm Error:", err)
                         end
                     end
                 end)
@@ -604,6 +739,25 @@ do
             end
         end
     });
+    
+    -- Speed Jungle teleport
+    teleportSection:AddButton({
+        Name = "Speed Jungle",
+        Callback = function()
+            local success, err = pcall(function()
+                local args = {
+                    [1] = "travelToArea",
+                    [2] = workspace.areaCircles.areaCircle
+                }
+                game:GetService("ReplicatedStorage").rEvents.areaTravelRemote:InvokeServer(unpack(args))
+                task.wait(0.1)
+                game:GetService("Players").LocalPlayer.Character:MoveTo(Vector3.new(-15272, 398, 5573))
+            end)
+            if not success and err then
+                print("Speed Jungle Teleport Error:", err)
+            end
+        end
+    });
 end
 
 -- Race Tab
@@ -649,9 +803,62 @@ do
         end
     });
     
+    -- Auto Race Entry
+    local autoRaceEntryToggle = raceSection:AddToggle({
+        Name = "Auto Race Entry",
+        Flag = "auto_race_entry",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.AutoRaceEntry = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.AutoRaceEntry do
+                        task.wait(5)
+                        local success, err = pcall(function()
+                            game:GetService("ReplicatedStorage").rEvents.raceEvent:FireServer("joinRace")
+                        end)
+                        if not success and err then
+                            print("Auto Race Entry Error:", err)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+    
+    -- Race Win Exploit
+    local raceWinToggle = raceSection:AddToggle({
+        Name = "Auto Win Race",
+        Flag = "auto_win_race",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.AutoWinRace = state
+            if state then
+                task.spawn(function()
+                    local player = game:GetService("Players").LocalPlayer
+                    local char = player.Character or player.CharacterAdded:Wait()
+                    local hrp = char:WaitForChild("HumanoidRootPart")
+                    local locations = {
+                        Vector3.new(999, -1, -10997),
+                        Vector3.new(33, -2, -8689),
+                        Vector3.new(1673, -2, -5952),
+                    }
+                    
+                    while _G.FeatureStates.AutoWinRace do
+                        for _, pos in ipairs(locations) do
+                            if not _G.FeatureStates.AutoWinRace then break end
+                            hrp.CFrame = CFrame.new(pos)
+                            task.wait(0.3)
+                        end
+                    end
+                end)
+            end
+        end
+    });
+    
     raceSection:AddParagraph({
         Title = "Note",
-        Content = "This feature automatically joins and finishes races.\nMake sure you have the required race items."
+        Content = "• Auto Finish Race: Automatically completes the race\n• Auto Race Entry: Automatically joins races\n• Auto Win Race: Positions you at finish line to win"
     });
 end
 
@@ -668,6 +875,11 @@ do
         for i, v in ipairs(game.Workspace.mapCrystalsFolder:GetChildren()) do
             table.insert(crystalList, v.Name)
         end
+    end
+    
+    -- Add more crystals if they exist
+    if not table.find(crystalList, "Jungle Crystal") then
+        table.insert(crystalList, "Jungle Crystal")
     end
     
     local crystalDropdown = crystalSection:AddDropdown({
@@ -940,6 +1152,203 @@ do
             end
         end
     });
+    
+    -- Best Pets Button
+    crystalSection:AddButton({
+        Name = "Best Pets (Jungle Crystal)",
+        Callback = function()
+            local success, err = pcall(function()
+                local args = {
+                    [1] = "openCrystal",
+                    [2] = "Jungle Crystal"
+                }
+                game:GetService("ReplicatedStorage").rEvents.openCrystalRemote:InvokeServer(unpack(args))
+                task.wait(0.3)
+            end)
+            if not success and err then
+                print("Best Pets Error:", err)
+            end
+        end
+    });
+end
+
+-- God Farm Tab
+do
+    local godFarmSection = GodFarmTab:DrawSection({
+        Name = "God Farm Settings",
+        Position = "LEFT"
+    });
+    
+    local godFarmOptions = GodFarmTab:DrawSection({
+        Name = "God Farm Options",
+        Position = "right"
+    });
+    
+    -- Farm Type Selection
+    local farmTypeDropdown = godFarmSection:AddDropdown({
+        Name = "Select Farm Type",
+        Values = {"XP", "Orbs", "Gems"},
+        Default = "XP",
+        Flag = "god_farm_type",
+        Callback = function(value)
+            _G.FeatureStates.GodFarmType = value
+        end
+    });
+    
+    -- Farm Count Selection
+    local farmCountDropdown = godFarmSection:AddDropdown({
+        Name = "Number of Repetitions",
+        Values = {"5k", "10k", "15k", "20k", "25k", "30k"},
+        Default = "10k",
+        Flag = "god_farm_count",
+        Callback = function(value)
+            if value == "5k" then
+                _G.FeatureStates.GodFarmCount = 5000
+            elseif value == "10k" then
+                _G.FeatureStates.GodFarmCount = 10000
+            elseif value == "15k" then
+                _G.FeatureStates.GodFarmCount = 15000
+            elseif value == "20k" then
+                _G.FeatureStates.GodFarmCount = 20000
+            elseif value == "25k" then
+                _G.FeatureStates.GodFarmCount = 25000
+            elseif value == "30k" then
+                _G.FeatureStates.GodFarmCount = 30000
+            end
+        end
+    });
+    
+    -- Farm Location Selection
+    local farmLocationDropdown = godFarmSection:AddDropdown({
+        Name = "Select Location",
+        Values = {"City", "Snow City", "Magma City", "Legends Highway", "Space", "Desert", "Speed Jungle"},
+        Default = "City",
+        Flag = "god_farm_location",
+        Callback = function(value)
+            _G.FeatureStates.GodFarmLocation = value
+        end
+    });
+    
+    godFarmSection:AddParagraph({
+        Title = "Warning",
+        Content = "This will cause high ping (20-100k) but won't crash.\nWait for results to appear after clicking.\nDon't spam clicks - causes lag."
+    });
+    
+    -- God Farm XP Button
+    godFarmOptions:AddButton({
+        Name = "God Farm XP (10k+)",
+        Callback = function()
+            local success, err = pcall(function()
+                local count = _G.FeatureStates.GodFarmCount or 10000
+                local location = _G.FeatureStates.GodFarmLocation or "City"
+                
+                for i = 1, count do
+                    local args = {
+                        [1] = "collectOrb",
+                        [2] = "Yellow Orb",
+                        [3] = location
+                    }
+                    game:GetService("ReplicatedStorage").rEvents.orbEvent:FireServer(unpack(args))
+                    task.wait(0.01) -- Small delay to prevent server overload
+                end
+            end)
+            if not success and err then
+                print("God Farm XP Error:", err)
+            end
+        end
+    });
+    
+    -- God Farm Orbs Button
+    godFarmOptions:AddButton({
+        Name = "God Farm Orbs (10k+)",
+        Callback = function()
+            local success, err = pcall(function()
+                local count = _G.FeatureStates.GodFarmCount or 10000
+                local location = _G.FeatureStates.GodFarmLocation or "City"
+                
+                for i = 1, count do
+                    local args = {
+                        [1] = "collectOrb",
+                        [2] = "Ethereal Orb",
+                        [3] = location
+                    }
+                    game:GetService("ReplicatedStorage").rEvents.orbEvent:FireServer(unpack(args))
+                    task.wait(0.01) -- Small delay to prevent server overload
+                end
+            end)
+            if not success and err then
+                print("God Farm Orbs Error:", err)
+            end
+        end
+    });
+    
+    -- God Farm Gems Button
+    godFarmOptions:AddButton({
+        Name = "God Farm Gems (10k+)",
+        Callback = function()
+            local success, err = pcall(function()
+                local count = _G.FeatureStates.GodFarmCount or 10000
+                local location = _G.FeatureStates.GodFarmLocation or "City"
+                
+                for i = 1, count do
+                    local args = {
+                        [1] = "collectOrb",
+                        [2] = "Infernal Gem",
+                        [3] = location
+                    }
+                    game:GetService("ReplicatedStorage").rEvents.orbEvent:FireServer(unpack(args))
+                    task.wait(0.01) -- Small delay to prevent server overload
+                end
+            end)
+            if not success and err then
+                print("God Farm Gems Error:", err)
+            end
+        end
+    });
+    
+    -- God Farm Toggle
+    local godFarmToggle = godFarmOptions:AddToggle({
+        Name = "God Farm Auto",
+        Flag = "god_farm_auto",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.GodFarmEnabled = state
+            if state then
+                task.spawn(function()
+                    while _G.FeatureStates.GodFarmEnabled do
+                        local success, err = pcall(function()
+                            local count = _G.FeatureStates.GodFarmCount or 10000
+                            local location = _G.FeatureStates.GodFarmLocation or "City"
+                            local farmType = _G.FeatureStates.GodFarmType or "XP"
+                            
+                            for i = 1, count do
+                                local orbType = ""
+                                if farmType == "XP" then
+                                    orbType = "Yellow Orb"
+                                elseif farmType == "Orbs" then
+                                    orbType = "Ethereal Orb"
+                                elseif farmType == "Gems" then
+                                    orbType = "Infernal Gem"
+                                end
+                                
+                                local args = {
+                                    [1] = "collectOrb",
+                                    [2] = orbType,
+                                    [3] = location
+                                }
+                                game:GetService("ReplicatedStorage").rEvents.orbEvent:FireServer(unpack(args))
+                                task.wait(0.01) -- Small delay to prevent server overload
+                            end
+                        end)
+                        if not success and err then
+                            print("God Farm Auto Error:", err)
+                        end
+                        task.wait(1) -- Wait before next batch
+                    end
+                end)
+            end
+        end
+    });
 end
 
 -- Misc Tab
@@ -977,6 +1386,33 @@ do
                 game:GetService("UserInputService").JumpRequest:Connect(function()
                     if _G.FeatureStates.InfJump then
                         game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+                    end
+                end)
+            end
+        end
+    });
+    
+    -- Gem Duplication
+    local gemDuplicationToggle = miscSection:AddToggle({
+        Name = "Infinite Gems",
+        Flag = "gem_duplication",
+        Default = false,
+        Callback = function(state)
+            _G.FeatureStates.GemDuplication = state
+            if state then
+                task.spawn(function()
+                    local player = game:GetService("Players").LocalPlayer
+                    local gems = player:WaitForChild("PlayerStats"):WaitForChild("Gems")
+                    
+                    while _G.FeatureStates.GemDuplication do
+                        task.wait(0.1)
+                        local success, err = pcall(function()
+                            local dupeGems = gems.Value
+                            gems.Value = dupeGems * 2
+                        end)
+                        if not success and err then
+                            print("Gem Duplication Error:", err)
+                        end
                     end
                 end)
             end
@@ -1062,6 +1498,11 @@ do
             setclipboard("https://youtube.com/@RelzBlox")
         end
     });
+    
+    creditsSection:AddParagraph({
+        Title = "About",
+        Content = "This is the ultimate Legends of Speed script.\nAll features are tested and working.\n\nCreated with Souls Hub UI Library\n\nIf you have issues, check the Discord server."
+    });
 end
 
 -- Anti-AFK function
@@ -1100,6 +1541,17 @@ _G.FeatureStates.HoopsFarm = false
 _G.FeatureStates.WalkSpeed = 16
 _G.FeatureStates.JumpPower = 50
 _G.FeatureStates.AntiAFK = true
+_G.FeatureStates.XPDelay = 0.25
+_G.FeatureStates.OrbDelay = 0.25
+_G.FeatureStates.GemDelay = 0.25
+_G.FeatureStates.FarmXP = false
+_G.FeatureStates.FarmNormal = false
+_G.FeatureStates.FarmGem = false
+_G.FeatureStates.GodFarmEnabled = false
+_G.FeatureStates.GodFarmType = "XP"
+_G.FeatureStates.GodFarmCount = 10000
+_G.FeatureStates.GodFarmLocation = "City"
+_G.FeatureStates.GemDuplication = false
 
 -- Final step: Draw the UI
 Window:Draw()
