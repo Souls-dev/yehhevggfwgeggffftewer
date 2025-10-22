@@ -1457,7 +1457,7 @@ do
     miscSection:AddButton({
         Name = "YouTube Channel",
         Callback = function()
-            setclipboard("https://youtube.com/@RelzBlox")
+            setclipboard("https://youtube.com/@soulscripter?si=32ek-p7aUfHLemKw")
         end
     });
     
@@ -1482,13 +1482,13 @@ do
     
     creditsSection:AddParagraph({
         Title = "Credits",
-        Content = "This script was developed using the Souls Hub UI Library.\n\nDeveloped by RelzBlox\n\nJoin the Discord for more info!\nhttps://discord.com/invite/hYmREEpSwh"
+        Content = "yo.\n\nDeveloped by Souls\n\nJoin the Discord for more info!\nhttps://discord.gg/7JDjhCVd8W"
     });
     
     creditsSection:AddButton({
         Name = "Copy Discord Link",
         Callback = function()
-            setclipboard("https://discord.com/invite/hYmREEpSwh")
+            setclipboard("https://discord.gg/7JDjhCVd8W")
         end
     });
     
