@@ -38,7 +38,7 @@ Window:Update({
 
 watermark:AddText({
     Icon = "server",
-    Text = "Ultimate Script"
+    Text = "Legends Of Speed"
 })
 
 -- Initialize global variables
