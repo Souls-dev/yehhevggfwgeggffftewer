@@ -1,0 +1,1928 @@
+-- Souls Hub | made by soul & Celeron
+-- Merged with Azure Latch features and enhanced for maximum power
+-- This script is designed to be the ultimate game-changing experience
+
+local function secureLoad(url)
+    local success, result = pcall(function()
+        return game:HttpGet(url, true)
+    end)
+    
+    if success and result and result ~= "" then
+        return result
+    end
+    
+    -- Fallback to alternative source if primary fails
+    success, result = pcall(function()
+        return game:HttpGet("https://pastebin.com/raw/" .. string.match(url, "raw/([%w]+)"), true)
+    end)
+    
+    if success and result and result ~= "" then
+        return result
+    end
+    
+    return nil
+end
+
+-- Load Souls Hub library with multiple fallbacks
+local SoulsHub
+local libraryUrl = "https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"
+
+-- First attempt: direct URL
+local libraryCode = secureLoad(libraryUrl)
+
+-- Second attempt: if direct fails, try with slight modification
+if not libraryCode then
+    libraryCode = secureLoad(string.gsub(libraryUrl, "virtual", "v"))
+end
+
+-- Third attempt: try different domain
+if not libraryCode then
+    libraryCode = secureLoad("https://panda-development.net/virtual/file/e7f388d3c065df7a")
+end
+
+-- Compile the library code if we got it
+if libraryCode then
+    local func, err = loadstring(libraryCode)
+    if func then
+        local success, lib = pcall(func)
+        if success and lib then
+            SoulsHub = lib
+        end
+    end
+end
+
+-- Fallback if all loading attempts fail
+if not SoulsHub then
+    -- Minimal UI library implementation for critical functionality
+    SoulsHub = {
+        new = function(config)
+            return {
+                DrawTab = function(tabConfig)
+                    return {
+                        DrawSection = function(sectionConfig)
+                            return {
+                                AddButton = function(buttonConfig)
+                                    return {
+                                        SetValue = function() end
+                                    }
+                                end,
+                                AddToggle = function(toggleConfig)
+                                    return {
+                                        SetValue = function() end,
+                                        Link = {
+                                            AddOption = function() return {
+                                                AddToggle = function() end,
+                                                AddSlider = function() end,
+                                                AddColorPicker = function() end
+                                            } end
+                                        }
+                                    }
+                                end,
+                                AddSlider = function(sliderConfig)
+                                    return {
+                                        SetValue = function() end
+                                    }
+                                end,
+                                AddDropdown = function(dropdownConfig)
+                                    return {
+                                        SetValue = function() end
+                                    }
+                                end,
+                                AddColorPicker = function(colorConfig)
+                                    return {
+                                        SetValue = function() end
+                                    }
+                                end,
+                                AddKeybind = function(keybindConfig)
+                                    return {
+                                        SetValue = function() end
+                                    }
+                                end,
+                                AddParagraph = function(paragraphConfig)
+                                    return {
+                                        SetValue = function() end
+                                    }
+                                end
+                            }
+                        end
+                    }
+                end,
+                ChangeHighlightColor = function() end,
+                GetDate = function()
+                    return os.date("%m/%d/%Y", tick() + 86400)
+                end,
+                GetTimeNow = function()
+                    return os.date("%H:%M:%S")
+                end,
+                Loader = function()
+                    return {
+                        yield = function() end
+                    }
+                end,
+                ConfigManager = function()
+                    return {
+                        Save = function() end,
+                        Load = function() end
+                    }
+                end
+            }
+        end,
+        Color = {
+            Colors = {
+                Highlight = Color3.fromRGB(255, 0, 128)
+            }
+        }
+    }
+end
+
+-- Initialize global state
+local _G = _G or {}
+_G.FeatureStates = _G.FeatureStates or {
+    ESP_Enabled = false,
+    WalkSpeed = 16,
+    JumpPower = 50,
+    NoClip = false,
+    MasterVisuals = true,
+    AutoGoal = false,
+    AlwaysBall = false,
+    AutoQTE = false,
+    AutoDribble = false,
+    AutoCounter1 = false,
+    AutoCounter2 = false,
+    AutoCounter3 = false,
+    AutoCounter4 = false,
+    AutoCounter5 = false,
+    BallMagnet = false,
+    BallMagnetRange = 100,
+    NoRushCooldown = false,
+    NoSideDashCooldown = false,
+    HideAce = false,
+    SuppressNotifs = false
+}
+
+-- Core Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+local Debris = game:GetService("Debris")
+
+-- Safe accessor for services
+local function safeService(name)
+    local success, service = pcall(function()
+        return game:GetService(name)
+    end)
+    return success and service or nil
+end
+
+-- Safe notification function
+local function notify(title, text, duration)
+    if StarterGui and StarterGui.SetCore then
+        pcall(function()
+            StarterGui:SetCore("SendNotification", {
+                Title = title,
+                Text = text,
+                Duration = duration or 2
+            })
+        end)
+    end
+end
+
+-- Safe remote call
+local function safeRemote(remotePath, ...)
+    local remote
+    local success = pcall(function()
+        local parts = {}
+        for part in string.gmatch(remotePath, "[^%.]+") do
+            table.insert(parts, part)
+        end
+        
+        remote = game
+        for _, part in ipairs(parts) do
+            if not remote then break end
+            remote = remote[part]
+        end
+    end)
+    
+    if success and remote and typeof(remote) == "Instance" then
+        pcall(function()
+            if remote:IsA("RemoteEvent") then
+                remote:FireServer(...)
+            elseif remote:IsA("RemoteFunction") then
+                remote:InvokeServer(...)
+            end
+        end)
+    end
+end
+
+-- Initialize configuration system
+local FileWatcher = SoulsHub:ConfigManager({
+    Directory = "SoulsHub",
+    Config = "Default"
+})
+
+-- Create main window
+local Window = SoulsHub.new({
+    Keybind = "LeftAlt",
+})
+
+-- Set up watermark
+local watermark = Window:Watermark()
+
+watermark:AddText({
+    Icon = "user",
+    Text = "Battleye"
+})
+
+local clockText = watermark:AddText({
+    Icon = "clock",
+    Text = SoulsHub:GetTimeNow()
+})
+
+task.spawn(function()
+    while true do
+        task.wait()
+        clockText:SetText(SoulsHub:GetTimeNow())
+        Window.Username = "Souls Hub | made by soul"
+    end
+end)
+
+-- Update window properties
+Window:Update({
+    Title = "Souls Hub | Ultimate Game Changer",
+    ExpireDate = SoulsHub:GetDate(tick() + 86400 * 365) -- 365 days
+})
+
+watermark:AddText({
+    Icon = "server",
+    Text = "Owner"
+})
+
+-- Create tabs
+local tabBlatant = Window:DrawTab({
+    Icon = "skull",
+    Name = "Blatant"
+})
+
+local tabSilent = Window:DrawTab({
+    Icon = "eye",
+    Name = "Silent"
+})
+
+local tabMoves = Window:DrawTab({
+    Icon = "controller",
+    Name = "Movesets"
+})
+
+local tabEmotes = Window:DrawTab({
+    Icon = "music",
+    Name = "Emotes"
+})
+
+local tabTeleports = Window:DrawTab({
+    Icon = "map",
+    Name = "Teleports"
+})
+
+local tabMisc = Window:DrawTab({
+    Icon = "cog",
+    Name = "Others"
+})
+
+local tabInfo = Window:DrawTab({
+    Icon = "info",
+    Name = "Info"
+})
+
+-- Create sections
+local sectionBlatant = tabBlatant:DrawSection({
+    Name = "Main",
+    Position = "LEFT"
+})
+
+local sectionSilent = tabSilent:DrawSection({
+    Name = "Silent Features",
+    Position = "LEFT"
+})
+
+local sectionMoves = tabMoves:DrawSection({
+    Name = "Custom Moves",
+    Position = "LEFT"
+})
+
+local sectionEmotes = tabEmotes:DrawSection({
+    Name = "Emote Library",
+    Position = "LEFT"
+})
+
+local sectionTele = tabTeleports:DrawSection({
+    Name = "Map Teleports",
+    Position = "LEFT"
+})
+
+local sectionMisc = tabMisc:DrawSection({
+    Name = "Miscellaneous",
+    Position = "LEFT"
+})
+
+local sectionInfo = tabInfo:DrawSection({
+    Name = "Information & Controls",
+    Position = "LEFT"
+})
+
+-- Auto Goal functionality with multiple fallbacks
+local autoGoalActive = false
+local autoGoalConnection = nil
+
+function toggleAutoGoal()
+    autoGoalActive = not autoGoalActive
+    _G.FeatureStates.AutoGoal = autoGoalActive
+    notify("Auto Goal", autoGoalActive and "Enabled" or "Disabled")
+    
+    if autoGoalConnection then
+        autoGoalConnection:Disconnect()
+        autoGoalConnection = nil
+    end
+    
+    if autoGoalActive then
+        autoGoalConnection = RunService.Heartbeat:Connect(function()
+            pcall(function()
+                local LocalPlayer = Players.LocalPlayer
+                if not LocalPlayer or not LocalPlayer.Character then return end
+                
+                local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if not root then return end
+                
+                -- Find the ball
+                local ball = workspace:FindFirstChild("Ball") or 
+                            (workspace.Terrain and workspace.Terrain:FindFirstChild("Ball")) or
+                            (workspace:FindFirstChild("map") and workspace.map:FindFirstChild("Ball"))
+                
+                if not ball then
+                    -- Try to find ball attached to other players
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        if player ~= LocalPlayer and player.Character then
+                            local ball = player.Character:FindFirstChild("Ball")
+                            if ball then
+                                root.CFrame = ball.CFrame
+                                safeRemote("ReplicatedStorage.ByteNetReliable", buffer and buffer.fromstring and buffer.fromstring("\b\001") or "\b\001", {{"tackle"}})
+                                break
+                            end
+                        end
+                    end
+                    return
+                end
+                
+                -- Move to ball position
+                root.CFrame = CFrame.new(ball.Position.X, 0, ball.Position.Z)
+                
+                -- Check if we have the ball
+                local hasBall = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Ball")
+                if hasBall then
+                    -- Find goal
+                    local mapFolder = workspace:FindFirstChild("map")
+                    local AGoal = mapFolder and mapFolder:FindFirstChild("Agoal")
+                    local BGoal = mapFolder and mapFolder:FindFirstChild("Bgoal")
+                    
+                    if not AGoal or not BGoal then return end
+                    
+                    local goal = LocalPlayer.Team and LocalPlayer.Team.Name == "A" and BGoal or AGoal
+                    if goal then
+                        root.CFrame = goal.CFrame
+                        task.wait(0.2)
+                        safeRemote("ReplicatedStorage.ByteNetReliable", buffer and buffer.fromstring and buffer.fromstring("\b\001") or "\b\001", {{"kick", 20, false, {0,1,0}}})
+                    end
+                end
+            end)
+        end)
+    end
+end
+
+-- Always Ball functionality with multiple fallbacks
+local alwaysBallActive = false
+local alwaysBallConnection = nil
+
+function toggleAlwaysBall()
+    alwaysBallActive = not alwaysBallActive
+    _G.FeatureStates.AlwaysBall = alwaysBallActive
+    notify("Always Ball", alwaysBallActive and "Enabled" or "Disabled")
+    
+    if alwaysBallConnection then
+        alwaysBallConnection:Disconnect()
+        alwaysBallConnection = nil
+    end
+    
+    if alwaysBallActive then
+        pcall(function() workspace.Gravity = 0 end)
+        
+        alwaysBallConnection = RunService.Heartbeat:Connect(function()
+            pcall(function()
+                local LocalPlayer = Players.LocalPlayer
+                if not LocalPlayer or not LocalPlayer.Character then return end
+                
+                local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if not root then return end
+                
+                -- Find the ball
+                local ball = workspace:FindFirstChild("Ball") or 
+                            (workspace.Terrain and workspace.Terrain:FindFirstChild("Ball")) or
+                            (workspace:FindFirstChild("map") and workspace.map:FindFirstChild("Ball"))
+                
+                if not ball then
+                    -- Try to find ball attached to other players
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        if player ~= LocalPlayer and player.Character then
+                            local ball = player.Character:FindFirstChild("Ball")
+                            if ball then
+                                root.CFrame = ball.CFrame
+                                safeRemote("ReplicatedStorage.ByteNetReliable", buffer and buffer.fromstring and buffer.fromstring("\b\001") or "\b\001", {{"tackle"}})
+                                break
+                            end
+                        end
+                    end
+                    return
+                end
+                
+                root.CFrame = CFrame.new(ball.Position)
+            end)
+        end)
+    else
+        pcall(function() workspace.Gravity = 196.2 end)
+    end
+end
+
+-- Auto-QTE functionality
+local autoQTEActive = false
+local autoQTEConnection = nil
+
+function toggleAutoQTE()
+    autoQTEActive = not autoQTEActive
+    _G.FeatureStates.AutoQTE = autoQTEActive
+    notify("Auto QTE", autoQTEActive and "Enabled" or "Disabled")
+    
+    if autoQTEConnection then
+        autoQTEConnection:Disconnect()
+        autoQTEConnection = nil
+    end
+    
+    if autoQTEActive then
+        autoQTEConnection = RunService.Heartbeat:Connect(function()
+            pcall(function()
+                local player = Players.LocalPlayer
+                if not player or not player:FindFirstChild("PlayerGui") then return end
+                
+                local qteGui = player.PlayerGui:FindFirstChild("Qte")
+                if qteGui and qteGui:FindFirstChild("QTE") and qteGui.QTE:FindFirstChild("Frame") then
+                    local qteFrame = qteGui.QTE.Frame
+                    if qteFrame.Size.X.Scale <= 0.74 and qteFrame.Size.X.Scale >= 0.72 and
+                       qteFrame.Size.Y.Scale <= 0.75 and qteFrame.Size.Y.Scale >= 0.72 then
+                       
+                        local textLabels = {}
+                        for _, descendant in ipairs(qteGui.QTE:GetDescendants()) do
+                            if descendant:IsA("TextLabel") then
+                                table.insert(textLabels, descendant)
+                            end
+                        end
+                        
+                        for _, label in ipairs(textLabels) do
+                            local keyText = label.Text
+                            local keyName = string.upper(keyText)
+                            local keyCode = Enum.KeyCode[keyName] or Enum.KeyCode[keyText]
+                            
+                            if keyCode then
+                                pcall(function()
+                                    VirtualInputManager:SendKeyEvent(true, keyCode, false, game)
+                                    VirtualInputManager:SendKeyEvent(false, keyCode, false, game)
+                                end)
+                            end
+                        end
+                    end
+                end
+            end)
+        end)
+    end
+end
+
+-- Auto Counter functionality
+local autoCounterFunctions = {
+    ["dribble"] = function()
+        safeRemote("ReplicatedStorage.ByteNetReliable", buffer and buffer.fromstring and buffer.fromstring("\b\001") or "\b\001", {{"dribble", false}})
+    end,
+    ["skill1"] = function()
+        safeRemote("ReplicatedStorage.ByteNetReliable", buffer and buffer.fromstring and buffer.fromstring("\b\001") or "\b\001", {{"skill1"}})
+    end,
+    ["skill2"] = function()
+        safeRemote("ReplicatedStorage.ByteNetReliable", buffer and buffer.fromstring and buffer.fromstring("\b\001") or "\b\001", {{"skill2"}})
+    end,
+    ["skill3"] = function()
+        safeRemote("ReplicatedStorage.ByteNetReliable", buffer and buffer.fromstring and buffer.fromstring("\b\001") or "\b\001", {{"skill3"}})
+    end,
+    ["skill4"] = function()
+        safeRemote("ReplicatedStorage.ByteNetReliable", buffer and buffer.fromstring and buffer.fromstring("\b\001") or "\b\001", {{"skill4"}})
+    end,
+    ["skill5"] = function()
+        safeRemote("ReplicatedStorage.ByteNetReliable", buffer and buffer.fromstring and buffer.fromstring("\b\001") or "\b\001", {{"skill5"}})
+    end
+}
+
+local function setupAutoCounter(skillName, toggleFlag)
+    local connection = nil
+    local function handleAutoCounter()
+        if not _G.FeatureStates[toggleFlag] then
+            if connection then
+                connection:Disconnect()
+                connection = nil
+            end
+            return
+        end
+        
+        if not connection then
+            connection = RunService.Heartbeat:Connect(function()
+                pcall(function()
+                    local LocalPlayer = Players.LocalPlayer
+                    if not LocalPlayer or not LocalPlayer.Character then return end
+                    
+                    local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if not root then return end
+                    
+                    -- Check for opponents within range
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        if player ~= LocalPlayer and player.Team ~= LocalPlayer.Team and player.Character then
+                            local targetRoot = player.Character:FindFirstChild("HumanoidRootPart")
+                            if targetRoot then
+                                local distance = (root.Position - targetRoot.Position).Magnitude
+                                if distance <= 35 then
+                                    local targetHumanoid = player.Character:FindFirstChildOfClass("Humanoid")
+                                    local animator = targetHumanoid and targetHumanoid:FindFirstChildOfClass("Animator")
+                                    if animator then
+                                        for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+                                            if track.Animation and track.Animation.AnimationId == "rbxassetid://109744655458082" then
+                                                autoCounterFunctions[skillName]()
+                                                break
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+            end)
+        end
+    end
+    
+    -- Set up initial state and connection handling
+    _G.FeatureStates[toggleFlag] = false
+    Players.PlayerAdded:Connect(function()
+        handleAutoCounter()
+    end)
+    Players.PlayerRemoving:Connect(function()
+        handleAutoCounter()
+    end)
+    
+    -- Character handling
+    LocalPlayer.CharacterAdded:Connect(function()
+        handleAutoCounter()
+    end)
+    if LocalPlayer.Character then
+        handleAutoCounter()
+    end
+    
+    return function()
+        _G.FeatureStates[toggleFlag] = not _G.FeatureStates[toggleFlag]
+        notify("Auto " .. skillName, _G.FeatureStates[toggleFlag] and "Enabled" or "Disabled")
+        handleAutoCounter()
+    end
+end
+
+-- Ball Magnet functionality
+local ballMagnetActive = false
+local ballMagnetRange = 100
+local ballMagnetConnection = nil
+
+function toggleBallMagnet()
+    ballMagnetActive = not ballMagnetActive
+    _G.FeatureStates.BallMagnet = ballMagnetActive
+    notify("Ball Magnet", ballMagnetActive and "Enabled" or "Disabled")
+    
+    if ballMagnetConnection then
+        ballMagnetConnection:Disconnect()
+        ballMagnetConnection = nil
+    end
+    
+    if ballMagnetActive then
+        ballMagnetConnection = RunService.Heartbeat:Connect(function()
+            pcall(function()
+                local LocalPlayer = Players.LocalPlayer
+                if not LocalPlayer or not LocalPlayer.Character then return end
+                
+                local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if not root then return end
+                
+                -- Find the ball
+                local ball = workspace:FindFirstChild("Ball") or 
+                            (workspace.Terrain and workspace.Terrain:FindFirstChild("Ball")) or
+                            (workspace:FindFirstChild("map") and workspace.map:FindFirstChild("Ball"))
+                
+                if not ball then
+                    -- Try to find ball attached to other players
+                    for _, player in ipairs(Players:GetPlayers()) do
+                        if player ~= LocalPlayer and player.Character then
+                            local ball = player.Character:FindFirstChild("Ball")
+                            if ball then
+                                if (root.Position - ball.Position).Magnitude <= ballMagnetRange then
+                                    safeRemote("ReplicatedStorage.ByteNetReliable", buffer and buffer.fromstring and buffer.fromstring("\016") or "\016")
+                                end
+                                break
+                            end
+                        end
+                    end
+                    return
+                end
+                
+                if (root.Position - ball.Position).Magnitude <= ballMagnetRange then
+                    safeRemote("ReplicatedStorage.ByteNetReliable", buffer and buffer.fromstring and buffer.fromstring("\016") or "\016")
+                end
+            end)
+        end)
+    end
+end
+
+-- No Rush Cooldown functionality
+local noRushCooldownActive = false
+local noRushConnection = nil
+
+function toggleNoRushCooldown()
+    noRushCooldownActive = not noRushCooldownActive
+    _G.FeatureStates.NoRushCooldown = noRushCooldownActive
+    notify("No Rush Cooldown", noRushCooldownActive and "Enabled" or "Disabled")
+    
+    if noRushConnection then
+        noRushConnection:Disconnect()
+        noRushConnection = nil
+    end
+    
+    if noRushCooldownActive then
+        noRushConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if input.KeyCode == Enum.KeyCode.F then
+                pcall(function()
+                    local LocalPlayer = Players.LocalPlayer
+                    if not LocalPlayer or not LocalPlayer.Character then return end
+                    
+                    local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if not root then return end
+                    
+                    -- Play animation
+                    local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+                        local animation = Instance.new("Animation")
+                        animation.AnimationId = "rbxassetid://79394729551302"
+                        local animationTrack = animator:LoadAnimation(animation)
+                        animationTrack:Play()
+                        
+                        -- Create sound
+                        pcall(function()
+                            local sound = Instance.new("Sound")
+                            sound.SoundId = "rbxassetid://105267293181745"
+                            sound.Parent = root
+                            sound:Play()
+                            Debris:AddItem(sound, 2)
+                        end)
+                    end
+                    
+                    -- Simulate movement
+                    local startPos = root.Position
+                    local endPos = startPos + root.CFrame.LookVector * 45
+                    local duration, elapsed = 0.5, 0
+                    
+                    local dashId = "ForwardRush_" .. tostring(os.clock())
+                    RunService:BindToRenderStep(dashId, Enum.RenderPriority.Character.Value, function(dt)
+                        if not root or not root.Parent then
+                            RunService:UnbindFromRenderStep(dashId)
+                            return
+                        end
+                        
+                        elapsed = elapsed + dt
+                        local alpha = math.clamp(elapsed / duration, 0, 1)
+                        local newPos = startPos:Lerp(endPos, alpha)
+                        root.CFrame = CFrame.new(newPos, newPos + root.CFrame.LookVector)
+                        
+                        if alpha >= 1 then
+                            RunService:UnbindFromRenderStep(dashId)
+                        end
+                    end)
+                end)
+            end
+        end)
+    end
+end
+
+-- No Side Dash Cooldown functionality
+local noSideDashCooldownActive = false
+local noSideDashConnection = nil
+
+function toggleNoSideDashCooldown()
+    noSideDashCooldownActive = not noSideDashCooldownActive
+    _G.FeatureStates.NoSideDashCooldown = noSideDashCooldownActive
+    notify("No Side Dash Cooldown", noSideDashCooldownActive and "Enabled" or "Disabled")
+    
+    if noSideDashConnection then
+        noSideDashConnection:Disconnect()
+        noSideDashConnection = nil
+    end
+    
+    if noSideDashCooldownActive then
+        noSideDashConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if input.KeyCode == Enum.KeyCode.Q then
+                pcall(function()
+                    local isA = UserInputService:IsKeyDown(Enum.KeyCode.A)
+                    local isD = UserInputService:IsKeyDown(Enum.KeyCode.D)
+                    
+                    if isD or isA then
+                        local LocalPlayer = Players.LocalPlayer
+                        if not LocalPlayer or not LocalPlayer.Character then return end
+                        
+                        local root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if not root then return end
+                        
+                        local humanoid = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                        if not humanoid then return end
+                        
+                        -- Play animation
+                        local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+                        local animation = Instance.new("Animation")
+                        animation.AnimationId = isD and "rbxassetid://114016332539655" or "rbxassetid://100207093237932"
+                        local animationTrack = animator:LoadAnimation(animation)
+                        animationTrack:Play()
+                        
+                        -- Create sound
+                        pcall(function()
+                            local sound = Instance.new("Sound")
+                            sound.SoundId = "rbxassetid://71212694698006"
+                            sound.Parent = root
+                            sound:Play()
+                            Debris:AddItem(sound, 2)
+                        end)
+                        
+                        -- Simulate movement
+                        local offset = root.CFrame.RightVector * (isD and 25 or -25)
+                        local startPos = root.Position
+                        local endPos = startPos + offset
+                        local duration, elapsed = 0.55, 0
+                        
+                        local dashId = "SideDash_" .. tostring(os.clock())
+                        RunService:BindToRenderStep(dashId, Enum.RenderPriority.Character.Value, function(dt)
+                            if not root or not root.Parent then
+                                RunService:UnbindFromRenderStep(dashId)
+                                return
+                            end
+                            
+                            elapsed = elapsed + dt
+                            local alpha = math.clamp(elapsed / duration, 0, 1)
+                            local newPos = startPos:Lerp(endPos, alpha)
+                            root.CFrame = CFrame.new(newPos, newPos + root.CFrame.LookVector)
+                            
+                            if alpha >= 1 then
+                                RunService:UnbindFromRenderStep(dashId)
+                            end
+                        end)
+                    end
+                end)
+            end
+        end)
+    end
+end
+
+-- Hide Ace functionality
+local hideAceActive = false
+local hideAceConnection = nil
+
+function toggleHideAce()
+    hideAceActive = not hideAceActive
+    _G.FeatureStates.HideAce = hideAceActive
+    notify("Hide Ace", hideAceActive and "Enabled" or "Disabled")
+    
+    if hideAceConnection then
+        hideAceConnection:Disconnect()
+        hideAceConnection = nil
+    end
+    
+    if hideAceActive then
+        hideAceConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if gameProcessed then return end
+            if input.KeyCode == Enum.KeyCode.Five and Players.LocalPlayer:GetAttribute("style") == "donlorenzo" then
+                task.wait(0.1)
+                pcall(function()
+                    local char = Players.LocalPlayer.Character
+                    if char then
+                        for _, track in ipairs(char.Humanoid:GetPlayingAnimationTracks()) do
+                            if track.Animation.AnimationId == "rbxassetid://108103339994438" then
+                                track:Stop()
+                                break
+                            end
+                        end
+                    end
+                end)
+            end
+        end)
+    end
+end
+
+-- Teleport functions
+function teleportToPosition(position)
+    pcall(function()
+        local LocalPlayer = Players.LocalPlayer
+        if LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(position)
+        end
+    end)
+end
+
+function teleportToTeamGoal()
+    pcall(function()
+        local LocalPlayer = Players.LocalPlayer
+        if not LocalPlayer or not LocalPlayer.Team then return end
+        
+        if LocalPlayer.Team == game.Teams:FindFirstChild("A") then
+            teleportToPosition(Vector3.new(-538, 3, 1603))
+        elseif LocalPlayer.Team == game.Teams:FindFirstChild("B") then
+            teleportToPosition(Vector3.new(-535, 3, 946))
+        end
+    end)
+end
+
+function teleportToManualScore()
+    pcall(function()
+        local LocalPlayer = Players.LocalPlayer
+        if not LocalPlayer or not LocalPlayer.Team then return end
+        
+        if LocalPlayer.Team == game.Teams:FindFirstChild("A") then
+            teleportToPosition(Vector3.new(-552, 3, 1730))
+        elseif LocalPlayer.Team == game.Teams:FindFirstChild("B") then
+            teleportToPosition(Vector3.new(-549, 3, 818))
+        end
+    end)
+end
+
+function teleportToSpawn()
+    pcall(function()
+        local LocalPlayer = Players.LocalPlayer
+        if LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-269, 4, -1599)
+        end
+    end)
+end
+
+function teleportToMiddleField()
+    pcall(function()
+        local LocalPlayer = Players.LocalPlayer
+        if LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-540, 3, 1274)
+        end
+    end)
+end
+
+function teleportToGallery()
+    pcall(function()
+        local LocalPlayer = Players.LocalPlayer
+        if LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(109, 66, 3337)
+        end
+    end)
+end
+
+function teleportToGoalBoxA()
+    pcall(function()
+        local LocalPlayer = Players.LocalPlayer
+        if LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-537, 3, 1575)
+        end
+    end)
+end
+
+function teleportToGoalBoxB()
+    pcall(function()
+        local LocalPlayer = Players.LocalPlayer
+        if LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(-534, 3, 974)
+        end
+    end)
+end
+
+-- Add UI elements to the sections
+
+-- Blatant tab
+sectionBlatant:AddButton({
+    Name = "Auto Goal",
+    Callback = toggleAutoGoal
+})
+
+sectionBlatant:AddButton({
+    Name = "Always Ball",
+    Callback = toggleAlwaysBall
+})
+
+sectionBlatant:AddButton({
+    Name = "Auto QTE",
+    Callback = toggleAutoQTE
+})
+
+sectionBlatant:AddButton({
+    Name = "Manual Score",
+    Callback = teleportToManualScore
+})
+
+sectionBlatant:AddButton({
+    Name = "Break Ball (Player Method)",
+    Callback = function()
+        pcall(function()
+            local baseplatePosition = Vector3.new(-190, 14864566, 492)
+            local partSize = Vector3.new(10, 1, 10)
+            local gap = 0
+            
+            for x = 0, 2 do
+                for z = 0, 2 do
+                    local part = Instance.new("Part")
+                    part.Size = partSize
+                    part.Anchored = true
+                    part.Position = baseplatePosition + Vector3.new(x * (partSize.X + gap), 0, z * (partSize.Z + gap))
+                    part.Parent = workspace
+                end
+            end
+            
+            local player = Players.LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            character:WaitForChild("HumanoidRootPart").CFrame =
+                CFrame.new(baseplatePosition + Vector3.new(0, 100000000000000, 0))
+        end)
+    end
+})
+
+-- Silent tab
+sectionSilent:AddButton({
+    Name = "Auto-Dribble",
+    Callback = setupAutoCounter("dribble", "AutoDribble")
+})
+
+sectionSilent:AddButton({
+    Name = "Auto-Counter (Move 1)",
+    Callback = setupAutoCounter("skill1", "AutoCounter1")
+})
+
+sectionSilent:AddButton({
+    Name = "Auto-Counter (Move 2)",
+    Callback = setupAutoCounter("skill2", "AutoCounter2")
+})
+
+sectionSilent:AddButton({
+    Name = "Auto-Counter (Move 3)",
+    Callback = setupAutoCounter("skill3", "AutoCounter3")
+})
+
+sectionSilent:AddButton({
+    Name = "Auto-Counter (Move 4)",
+    Callback = setupAutoCounter("skill4", "AutoCounter4")
+})
+
+sectionSilent:AddButton({
+    Name = "Auto-Counter (Move 5)",
+    Callback = setupAutoCounter("skill5", "AutoCounter5")
+})
+
+sectionSilent:AddButton({
+    Name = "Ball Magnet",
+    Callback = toggleBallMagnet
+})
+
+sectionSilent:AddSlider({
+    Name = "Magnet Range",
+    Min = 10,
+    Max = 500,
+    Default = 100,
+    Round = 1,
+    Type = "studs",
+    Callback = function(value)
+        ballMagnetRange = value
+        _G.FeatureStates.BallMagnetRange = value
+    end
+})
+
+sectionSilent:AddButton({
+    Name = "No Rush Cooldown",
+    Callback = toggleNoRushCooldown
+})
+
+sectionSilent:AddButton({
+    Name = "No Side Dash Cooldown",
+    Callback = toggleNoSideDashCooldown
+})
+
+sectionSilent:AddButton({
+    Name = "Hide Ace",
+    Callback = toggleHideAce
+})
+
+sectionSilent:AddButton({
+    Name = "Suppress Notifications",
+    Callback = function()
+        _G.FeatureStates.SuppressNotifs = not _G.FeatureStates.SuppressNotifs
+        notify("Notifications", _G.FeatureStates.SuppressNotifs and "Suppressed" or "Enabled")
+    end
+})
+
+-- Movesets tab
+sectionMoves:AddButton({
+    Name = "Don Lorenzo (Nagi)",
+    Callback = function()
+        pcall(function()
+            local StarterGui = game:GetService("StarterGui")
+            StarterGui:SetCore("SendNotification", {
+                Title = "Credits",
+                Text = "brought to you by celeron!",
+                Duration = 5,
+                Button1 = "OK",
+            })
+            
+            local plr = game.Players.LocalPlayer
+            local char = plr.Character
+            local hum = char.Humanoid
+            local root = char.HumanoidRootPart
+            local UserInputService = game:GetService("UserInputService")
+            local VirtualInputManager = game:GetService("VirtualInputManager")
+            
+            -- Setup animations
+            local skill1Anim = Instance.new("Animation")
+            skill1Anim.AnimationId = "rbxassetid://102294508090597"
+            local dribble = hum:LoadAnimation(skill1Anim)
+            
+            local skill2Anim = Instance.new("Animation")
+            skill2Anim.AnimationId = "rbxassetid://90734196141468"
+            local controlJump = hum:LoadAnimation(skill2Anim)
+            
+            local skill2AnimVAR = Instance.new("Animation")
+            skill2AnimVAR.AnimationId = "rbxassetid://82371642989185"
+            local controlLand = hum:LoadAnimation(skill2AnimVAR)
+            
+            local skill3Anim = Instance.new("Animation")
+            skill3Anim.AnimationId = "rbxassetid://85862104307480"
+            local pass = hum:LoadAnimation(skill3Anim)
+            
+            -- Animation states
+            local s1db = false
+            local s2db = false
+            local s2dbVar = false
+            local s3db = false
+            
+            -- Ball check
+            local function haveBall()
+                local Football = char and char:FindFirstChild("Ball")
+                return Football ~= nil
+            end
+            
+            -- Key handler
+            local function onKeyPress(inputObject, gameProcessedEvent)
+                if not gameProcessedEvent then
+                    if inputObject.KeyCode == Enum.KeyCode.One then
+                        if not haveBall() then return end
+                        if s1db == false then
+                            s1db = true
+                            dribble:Play()
+                            local vel = Instance.new("BodyVelocity")
+                            vel.MaxForce = Vector3.new(1,0,1) * 30000
+                            vel.Name = "BodyVelocity" .. math.random(1,99999)
+                            vel.Velocity = root.CFrame.LookVector * 40
+                            vel.Parent = root
+                            Debris:AddItem(vel, 2.4)
+                            
+                            local sfx = game.ReplicatedStorage.Resources.donlorenzo.dribbletest:Clone()
+                            sfx.Parent = root
+                            sfx:Play()
+                            Debris:AddItem(sfx, 2.5)
+                            
+                            for _, v in pairs(game.ReplicatedStorage.Resources.donlorenzo.skill1movingpart:GetDescendants()) do
+                                if v.Name == "b" or v.Name == "p" then
+                                    local new = v:Clone()
+                                    new.Parent = root
+                                    new.Enabled = true
+                                    Debris:AddItem(new, 2.5)
+                                end
+                            end
+                            
+                            for _, v in pairs(char:GetChildren()) do
+                                if v.Name == "Torso" or v.Name == "Right Leg" or v.Name == "Right Arm" or v.Name == "Left Leg" or v.Name == "Left Arm" or v.Name == "Head" then
+                                    for _, g in pairs(game.ReplicatedStorage.Resources.donlorenzo.ult4aura:GetChildren()) do
+                                        if g.Name == "Fire" or g.Name == "Fog" or g.Name == "R. C. Fire" or g.Name == "mainfire" then
+                                            local new = g:Clone()
+                                            new.Parent = v
+                                            new.Enabled = true
+                                            new.LockedToPart = true
+                                            Debris:AddItem(new, 2.5)
+                                        end
+                                    end
+                                end
+                            end
+                            
+                            repeat
+                                task.wait()
+                                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+                                vel.Velocity = root.CFrame.LookVector * 40
+                            until not root:FindFirstChild(vel.Name)
+                            
+                            task.wait(21.6)
+                            for _, v in pairs(root:GetDescendants()) do
+                                if v.Name == "b" or v.Name == "p" then
+                                    v:Destroy()
+                                end
+                            end
+                            s1db = false
+                        end
+                    elseif inputObject.KeyCode == Enum.KeyCode.Two then
+                        if haveBall() then return end
+                        if s2db == false then
+                            s2db = true
+                            controlJump:Play()
+                            local did = false
+                            for i = 1, 2, 0.1 do
+                                if game.Workspace.CurrentCamera.CameraType == Enum.CameraType.Scriptable then
+                                    did = true
+                                    break
+                                end
+                                task.wait(0.1)
+                            end
+                            if did then
+                                controlJump:Stop()
+                                controlLand:Play()
+                                local sfx = game.ReplicatedStorage.Resources.donlorenzo.ult4:Clone()
+                                sfx.Parent = root
+                                sfx:Play()
+                                for _, v in pairs(game.ReplicatedStorage.Resources.donlorenzo.ult4vfx.rootlocation.skill4ballpartflashsteps:GetChildren()) do
+                                    local new = v:Clone()
+                                    new.Parent = char:FindFirstChild("Ball")
+                                    new.Enabled = true
+                                    new.LockedToPart = true
+                                    Debris:AddItem(new, 0.85)
+                                end
+                                for _, v in pairs(char:GetChildren()) do
+                                    if v.Name == "Torso" or v.Name == "Right Leg" or v.Name == "Right Arm" or v.Name == "Left Leg" or v.Name == "Left Arm" or v.Name == "Head" then
+                                        for _, g in pairs(game.ReplicatedStorage.Resources.donlorenzo.ult4aura:GetChildren()) do
+                                            if g.Name == "Fire" or g.Name == "Fog" or g.Name == "R. C. Fire" or g.Name == "mainfire" then
+                                                local new = g:Clone()
+                                                new.Parent = v
+                                                new.Enabled = true
+                                                new.LockedToPart = true
+                                                Debris:AddItem(new, 1)
+                                            end
+                                        end
+                                    end
+                                end
+                                task.wait(0.85)
+                                controlLand:Stop()
+                            end
+                            task.wait(20)
+                            s2db = false
+                        end
+                    elseif inputObject.KeyCode == Enum.KeyCode.Three then
+                        if not haveBall() then return end
+                        if s3db == false then
+                            s3db = true
+                            pass:Play()
+                            local sfx = game.ReplicatedStorage.Resources.donlorenzo.skill2:Clone()
+                            sfx.Parent = root
+                            sfx:Play()
+                            for _, v in pairs(char:GetChildren()) do
+                                if v.Name == "Torso" or v.Name == "Right Leg" or v.Name == "Right Arm" or v.Name == "Left Leg" or v.Name == "Left Arm" or v.Name == "Head" then
+                                    for _, g in pairs(game.ReplicatedStorage.Resources.donlorenzo.ult4aura:GetChildren()) do
+                                        if g.Name == "Fire" or g.Name == "Fog" or g.Name == "R. C. Fire" or g.Name == "mainfire" then
+                                            local new = g:Clone()
+                                            new.Parent = v
+                                            new.Enabled = true
+                                            new.LockedToPart = true
+                                            Debris:AddItem(new, 1)
+                                        end
+                                    end
+                                end
+                            end
+                            task.wait(25)
+                            s3db = false
+                        end
+                    end
+                end
+            end
+            
+            UserInputService.InputBegan:Connect(onKeyPress)
+        end)
+    end
+})
+
+sectionMoves:AddButton({
+    Name = "Ronaldo (Shidou)",
+    Callback = function()
+        pcall(function()
+            local StarterGui = game:GetService("StarterGui")
+            StarterGui:SetCore("SendNotification", {
+                Title = "Credits",
+                Text = "brought to you by celeron!",
+                Duration = 5,
+                Button1 = "OK",
+            })
+            
+            task.wait(1)
+            
+            local userInput = game:GetService("UserInputService")
+            local workspace = game:GetService("Workspace")
+            local players = game:GetService("Players")
+            local player = players.LocalPlayer
+            local char = player.Character
+            local hum = char:FindFirstChild("Humanoid")
+            local root = char:FindFirstChild("HumanoidRootPart")
+            
+            -- Setup animation
+            local specialAnim = Instance.new("Animation")
+            specialAnim.AnimationId = "rbxassetid://99863640587448"
+            
+            local function playSpecialAnimation()
+                if hum then
+                    local animator = hum:FindFirstChild("Animator") or Instance.new("Animator", hum)
+                    local track = animator:LoadAnimation(specialAnim)
+                    track.Priority = Enum.AnimationPriority.Action
+                    track:Play()
+                end
+            end
+            
+            -- Special animation trigger
+            userInput.InputBegan:Connect(function(input, processed)
+                if not processed and input.KeyCode == Enum.KeyCode.G then
+                    local stateFlow = workspace:FindFirstChild("characters") and 
+                                     workspace.characters:FindFirstChild(player.Name) and 
+                                     workspace.characters[player.Name]:FindFirstChild("state") and 
+                                     workspace.characters[player.Name].state:FindFirstChild("flow")
+                    if stateFlow and stateFlow.Value == 100 then
+                        wait(1)
+                        playSpecialAnimation()
+                    end
+                end
+            end)
+            
+            -- Apply aura effects
+            local aura = game:GetService("ReplicatedStorage"):FindFirstChild("Resources") and 
+                         game:GetService("ReplicatedStorage").Resources:FindFirstChild("ronaldo") and 
+                         game:GetService("ReplicatedStorage").Resources.ronaldo:FindFirstChild("Aura")
+            if aura and root then
+                local auraModel = Instance.new("Model")
+                auraModel.Name = "RonaldoAura"
+                auraModel.Parent = workspace
+                
+                local bodyParts = {
+                    char:FindFirstChild("HumanoidRootPart"),
+                    char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso"),
+                    char:FindFirstChild("LeftUpperArm") or char:FindFirstChild("Left Arm"),
+                    char:FindFirstChild("RightUpperArm") or char:FindFirstChild("Right Arm"),
+                    char:FindFirstChild("LeftUpperLeg") or char:FindFirstChild("Left Leg"),
+                    char:FindFirstChild("RightUpperLeg") or char:FindFirstChild("Right Leg"),
+                    char:FindFirstChild("Head")
+                }
+                
+                for _, particleEmitter in pairs(aura:GetDescendants()) do
+                    if particleEmitter:IsA("ParticleEmitter") then
+                        particleEmitter.Enabled = true
+                    end
+                end
+                
+                for _, bodyPart in pairs(bodyParts) do
+                    if bodyPart then
+                        local auraAttachment = aura:Clone()
+                        auraAttachment.Parent = auraModel
+                        auraAttachment.CFrame = bodyPart.CFrame
+                        local weld = Instance.new("WeldConstraint")
+                        weld.Part0 = bodyPart
+                        weld.Part1 = auraAttachment
+                        weld.Parent = bodyPart
+                    end
+                end
+            end
+            
+            -- Setup bike kick
+            local plr = game.Players.LocalPlayer
+            local char = plr.Character
+            local hum = char.Humanoid
+            local root = char.HumanoidRootPart
+            local UserInputService = game:GetService("UserInputService")
+            local VirtualInputManager = game:GetService("VirtualInputManager")
+            
+            local bicycle1 = Instance.new("Animation")
+            bicycle1.AnimationId = "rbxassetid://126734456236034"
+            local bicycle = hum:LoadAnimation(bicycle1)
+            local bicycleDB = false
+            
+            local dribble1 = Instance.new("Animation")
+            dribble1.AnimationId = "rbxassetid://95054281301535"
+            local dribble = hum:LoadAnimation(dribble1)
+            local dribbleDB = false
+            
+            local assets = game:GetService("ReplicatedStorage").Resources.ronaldo.bicyclekick
+            
+            local function haveBall()
+                local Football = char and char:FindFirstChild("Ball")
+                return Football ~= nil
+            end
+            
+            local function onKeyPress(inputObject, gameProcessedEvent)
+                if not gameProcessedEvent then
+                    if inputObject.KeyCode == Enum.KeyCode.Two then
+                        if not haveBall() then return end
+                        if bicycleDB == false then
+                            bicycleDB = true
+                            bicycle:Play()
+                            task.wait(0.7)
+                            local boom = assets.vfx2:Clone()
+                            boom.Parent = root
+                            boom.vfx2:FindFirstChild("RONALDO!!!!"):Emit(1)
+                            Debris:AddItem(boom, 3)
+                            task.wait(19)
+                            bicycleDB = false
+                        end
+                    end
+                end
+            end
+            
+            UserInputService.InputBegan:Connect(onKeyPress)
+            
+            -- Update tool names
+            local function updateToolName()
+                local gui = player:FindFirstChild("PlayerGui")
+                if gui then
+                    local hotbar = gui:FindFirstChild("Hotbar")
+                    if hotbar then
+                        local backpack = hotbar:FindFirstChild("Backpack")
+                        if backpack then
+                            local hotbarSkills = backpack:FindFirstChild("Hotbar")
+                            if hotbarSkills then
+                                local skill1 = hotbarSkills:FindFirstChild("skill1")
+                                local skill2 = hotbarSkills:FindFirstChild("skill2")
+                                if skill1 then
+                                    local base1 = skill1:FindFirstChild("Base")
+                                    if base1 then
+                                        local toolName1 = base1:FindFirstChild("ToolName")
+                                        if toolName1 and toolName1:IsA("TextLabel") then
+                                            toolName1.Text = "CR7 Dribble"
+                                        end
+                                        local reuse1 = base1:FindFirstChild("Reuse")
+                                        if reuse1 and reuse1:IsA("TextLabel") then
+                                            reuse1.Text = "Variant"
+                                        end
+                                    end
+                                end
+                                if skill2 then
+                                    local base2 = skill2:FindFirstChild("Base")
+                                    if base2 then
+                                        local toolName2 = base2:FindFirstChild("ToolName")
+                                        if toolName2 and toolName2:IsA("TextLabel") then
+                                            toolName2.Text = "Bicycle Kick"
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            -- Special activation
+            local function activate()
+                if not workspace.characters[player.Name]:FindFirstChild("Ball") then return end
+                local currentTime = tick()
+                local lastUseTime = 0
+                local cooldown = 7.5
+                
+                if currentTime - lastUseTime < cooldown then return end
+                lastUseTime = currentTime
+                
+                local anim = Instance.new("Animation")
+                anim.AnimationId = "rbxassetid://88322771999430"
+                local sound = Instance.new("Sound")
+                sound.SoundId = "rbxassetid://132960304435042"
+                sound.Volume = 1
+                sound.Parent = root
+                
+                local humanoid = workspace.characters[player.Name]:FindFirstChild("Humanoid")
+                if humanoid and root then
+                    local animator = humanoid:FindFirstChild("Animator") or Instance.new("Animator", humanoid)
+                    local track = animator:LoadAnimation(anim)
+                    sound:Play()
+                    track:Play()
+                    task.wait(1.5)
+                    
+                    local dist = 165
+                    local speed = 0.5
+                    local moved = 0
+                    local conn
+                    
+                    conn = game:GetService("RunService").RenderStepped:Connect(function(deltaTime)
+                        if moved >= dist then
+                            conn:Disconnect()
+                            local tweenService = game:GetService("TweenService")
+                            local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+                            local slideTween = tweenService:Create(root, tweenInfo, {CFrame = root.CFrame + (root.CFrame.LookVector * 25)})
+                            slideTween:Play()
+                            return
+                        end
+                        
+                        local forward = root.CFrame.LookVector
+                        root.CFrame = root.CFrame + (forward * speed)
+                        moved = moved + speed
+                    end)
+                end
+            end
+            
+            -- Connect keybinds
+            userInput.InputBegan:Connect(function(input, processed)
+                if not processed and input.KeyCode == Enum.KeyCode.One then
+                    activate()
+                end
+            end)
+            
+            updateToolName()
+        end)
+    end
+})
+
+sectionMoves:AddButton({
+    Name = "Trolling Moveset",
+    Callback = function()
+        pcall(function()
+            local char = game.Players.LocalPlayer.Character
+            local plr = game.Players.LocalPlayer
+            local hotbar = plr.PlayerGui.Hotbar
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            local animator = humanoid:FindFirstChildOfClass("Animator")
+            
+            -- Running animation
+            local runAnimation = Instance.new("Animation")
+            runAnimation.AnimationId = "rbxassetid://117921992582675"
+            local runTrack = animator:LoadAnimation(runAnimation)
+            
+            -- Walking animation
+            local walkAnimation = Instance.new("Animation")
+            walkAnimation.AnimationId = "rbxassetid://117921992582675"
+            local walkTrack = animator:LoadAnimation(walkAnimation)
+            
+            -- Animation handler
+            humanoid.Running:Connect(function(speed)
+                if speed > 8 then
+                    walkTrack:Stop()
+                    runTrack:Play()
+                elseif speed > 0 then
+                    runTrack:Stop()
+                    walkTrack:Play()
+                else
+                    walkTrack:Stop()
+                    runTrack:Stop()
+                end
+            end)
+            
+            -- Custom flow text
+            local flowTexts = {
+                ["nagi"] = "mcdonalds application",
+                ["isagi"] = "2 loving parents",
+                ["sae"] = "aura farm",
+                ["rin"] = "luke warm",
+                ["donlorenzo"] = "homeless person",
+                ["kaiser"] = "clown of isagi's story",
+                ["shidou"] = "saes #1 fan",
+                ["aiku"] = "dih snake",
+                ["barou"] = "barou barou kun",
+                ["bachira"] = "ball hog",
+                ["gagamaru"] = "team carrying goat"
+            }
+            
+            local style = plr:GetAttribute("style")
+            if flowTexts[style] then
+                hotbar.MagicHealth.TextLabel.Text = flowTexts[style]
+            else
+                hotbar.MagicHealth.TextLabel.Text = "you dont exist"
+            end
+            
+            hotbar.MagicHealth.ModeText.Text = ""
+            hotbar.MagicHealth.Health.Frame.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        end)
+    end
+})
+
+-- Emotes tab
+sectionEmotes:AddButton({
+    Name = "Toosie Slide",
+    Callback = function()
+        pcall(function()
+            local animationId = "rbxassetid://95959941666543"
+            local soundId = "rbxassetid://1845341094"
+            local player = game.Players.LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local animator = humanoid:FindFirstChildOfClass("Animator")
+            
+            local animation = Instance.new("Animation")
+            animation.AnimationId = animationId
+            local animationTrack = animator:LoadAnimation(animation)
+            
+            local sound = Instance.new("Sound")
+            sound.Name = "Toosie Slide"
+            sound.SoundId = soundId
+            sound.Looped = true
+            
+            local function toggleState()
+                local enabled = not animationTrack.IsPlaying
+                if enabled then
+                    animationTrack:Play()
+                    sound.Parent = game.SoundService
+                    sound:Play()
+                else
+                    animationTrack:Stop()
+                    sound:Stop()
+                    sound:Destroy()
+                end
+            end
+            
+            toggleState()
+        end)
+    end
+})
+
+sectionEmotes:AddButton({
+    Name = "Sae Pose",
+    Callback = function()
+        pcall(function()
+            local animationId = "rbxassetid://136812327261825"
+            local soundId = "rbxassetid://1843404009"
+            local player = game.Players.LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local animator = humanoid:FindFirstChildOfClass("Animator")
+            
+            local animation = Instance.new("Animation")
+            animation.AnimationId = animationId
+            local animationTrack = animator:LoadAnimation(animation)
+            
+            local sound = Instance.new("Sound")
+            sound.Name = "Sae Pose"
+            sound.SoundId = soundId
+            sound.Volume = 1
+            sound.Looped = true
+            
+            local function toggleState()
+                local enabled = not animationTrack.IsPlaying
+                if enabled then
+                    animationTrack:Play()
+                    sound.Parent = game.SoundService
+                    sound:Play()
+                else
+                    animationTrack:Stop()
+                    sound:Stop()
+                    sound:Destroy()
+                end
+            end
+            
+            toggleState()
+        end)
+    end
+})
+
+sectionEmotes:AddButton({
+    Name = "Akuma Taunt",
+    Callback = function()
+        pcall(function()
+            local animationId = "rbxassetid://111005363990501"
+            local soundId = "rbxassetid://133370927301258"
+            local player = game.Players.LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local animator = humanoid:FindFirstChildOfClass("Animator")
+            
+            local animation = Instance.new("Animation")
+            animation.AnimationId = animationId
+            local animationTrack = animator:LoadAnimation(animation)
+            
+            local sound = Instance.new("Sound")
+            sound.Name = "Akuma Taunt"
+            sound.SoundId = soundId
+            sound.Volume = 10
+            
+            animationTrack:Play()
+            sound.Parent = game.SoundService
+            sound:Play()
+            
+            sound.Ended:Connect(function()
+                sound:Destroy()
+            end)
+            
+            animationTrack.Stopped:Connect(function()
+                animationTrack:Stop()
+            end)
+        end)
+    end
+})
+
+sectionEmotes:AddButton({
+    Name = "Cartoon Fall",
+    Callback = function()
+        pcall(function()
+            local animationId = "rbxassetid://98064370044269"
+            local soundIds = {"rbxassetid://8663054927", "rbxassetid://4979513906"}
+            local player = game.Players.LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local animator = humanoid:FindFirstChildOfClass("Animator")
+            
+            local animation = Instance.new("Animation")
+            animation.AnimationId = animationId
+            local animationTrack = animator:LoadAnimation(animation)
+            
+            local sound = Instance.new("Sound")
+            sound.Name = "Ragdoll"
+            sound.Volume = 10
+            
+            local currentIndex = 1
+            
+            local function playNextSound()
+                if currentIndex <= #soundIds then
+                    sound.SoundId = soundIds[currentIndex]
+                    sound:Play()
+                    sound.Ended:Connect(function()
+                        currentIndex = currentIndex + 1
+                        playNextSound()
+                    end)
+                else
+                    sound:Destroy()
+                end
+            end
+            
+            animationTrack:Play()
+            playNextSound()
+        end)
+    end
+})
+
+sectionEmotes:AddButton({
+    Name = "Spit",
+    Callback = function()
+        pcall(function()
+            local animationId = "rbxassetid://97257010665720"
+            local soundId = "rbxassetid://18111052648"
+            local player = game.Players.LocalPlayer
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            local animator = humanoid:FindFirstChildOfClass("Animator")
+            
+            local animation = Instance.new("Animation")
+            animation.AnimationId = animationId
+            local animationTrack = animator:LoadAnimation(animation)
+            
+            local sound = Instance.new("Sound")
+            sound.Name = "Spit"
+            sound.SoundId = soundId
+            sound.Volume = 2
+            
+            animationTrack:Play()
+            sound.Parent = game.SoundService
+            sound:Play()
+            
+            sound.Ended:Connect(function()
+                sound:Destroy()
+            end)
+        end)
+    end
+})
+
+-- Teleports tab
+sectionTele:AddButton({
+    Name = "Spawn Area",
+    Callback = teleportToSpawn
+})
+
+sectionTele:AddButton({
+    Name = "Middle Field",
+    Callback = teleportToMiddleField
+})
+
+sectionTele:AddButton({
+    Name = "Gallery Area",
+    Callback = teleportToGallery
+})
+
+sectionTele:AddButton({
+    Name = "Goal Box (A)",
+    Callback = teleportToGoalBoxA
+})
+
+sectionTele:AddButton({
+    Name = "Goal Box (B)",
+    Callback = teleportToGoalBoxB
+})
+
+sectionTele:AddButton({
+    Name = "Team Goal (YOUR GOAL)",
+    Callback = teleportToTeamGoal
+})
+
+-- Miscellaneous tab
+sectionMisc:AddButton({
+    Name = "Mute Crowd (REJOIN TO FIX)",
+    Callback = function()
+        pcall(function()
+            while true do
+                task.wait(0.05)
+                local crowdSound = game:GetService("SoundService"):FindFirstChild("football-crowd-3-69245")
+                if crowdSound then
+                    crowdSound.Volume = 0
+                end
+            end
+        end)
+    end
+})
+
+sectionMisc:AddButton({
+    Name = "Overtime Cinematics",
+    Callback = function()
+        pcall(function()
+            local vals = game.ReplicatedStorage.workspace
+            local timer = vals.timer
+            local ingame = vals.roundstart
+            local music1Isagi = game:GetService("ReplicatedStorage").Resources.isagi["isagi themeover"]
+            local music2Sae = game:GetService("ReplicatedStorage").Resources.sae["sae one shot match theme"]
+            
+            local gui = Instance.new("ScreenGui")
+            gui.ScreenInsets = Enum.ScreenInsets.None
+            gui.Name = "overtimethang"
+            gui.Parent = game.Players.LocalPlayer.PlayerGui
+            
+            local image = Instance.new("ImageLabel")
+            image.AnchorPoint = Vector2.new(0.5, 0.5)
+            image.Position = UDim2.new(0.5, 0, 0.5, 0)
+            image.Size = UDim2.new(1.2, 0, 1.2, 0)
+            image.Image = "rbxassetid://11030033771"
+            image.ImageTransparency = 0.8
+            image.BackgroundTransparency = 1
+            image.Parent = gui
+            
+            local overtime = false
+            
+            task.spawn(function()
+                while task.wait(0.05) do
+                    image.Visible = overtime
+                    if overtime then
+                        if game.Workspace.CurrentCamera.CameraType == Enum.CameraType.Custom then
+                            game.TweenService:Create(game.Workspace.CurrentCamera, TweenInfo.new(0.2), {FieldOfView = 100}):Play()
+                        end
+                        if image.Rotation == 0 then
+                            image.Rotation = 180
+                        else
+                            image.Rotation = 0
+                        end
+                    end
+                end
+            end)
+            
+            timer.Changed:Connect(function()
+                if timer.Value == 0 and ingame.Value == true then
+                    overtime = true
+                    repeat
+                        music1Isagi:Play()
+                        for i = 1, 50 do
+                            task.wait(1)
+                            if ingame.Value == false then
+                                break
+                            end
+                        end
+                        music2Sae:Play()
+                        for i = 1, 58 do
+                            task.wait(1)
+                            if ingame.Value == false then
+                                break
+                            end
+                        end
+                    until ingame.Value == false
+                elseif ingame.Value == false then
+                    overtime = false
+                    music1Isagi:Stop()
+                    music2Sae:Stop()
+                    game.TweenService:Create(game.Workspace.CurrentCamera, TweenInfo.new(0.2), {FieldOfView = 70}):Play()
+                end
+            end)
+        end)
+    end
+})
+
+sectionMisc:AddButton({
+    Name = "Background Music",
+    Callback = function()
+        pcall(function()
+            local plr = game.Players.LocalPlayer
+            local char = plr.Character
+            local hum = char.Humanoid
+            
+            local music = {
+                "rbxassetid://126478006472705",
+                "rbxassetid://138210588552041",
+                "rbxassetid://137856744878500",
+                "rbxassetid://97581213878614",
+                "rbxassetid://71371939631022",
+                "rbxassetid://119592773299545",
+                "rbxassetid://134456641764445",
+                "rbxassetid://100509882059819",
+                "rbxassetid://128623853689708",
+                "rbxassetid://70979311703713",
+                "rbxassetid://92420662159372",
+                "rbxassetid://97837345641106",
+                "rbxassetid://102469310336986",
+                "rbxassetid://101851803743361",
+            }
+            
+            if game.SoundService:FindFirstChild("BGMusic") then
+                game.SoundService.BGMusic:Destroy()
+            end
+            
+            local sfx = Instance.new("Sound")
+            sfx.Name = "BGMusic"
+            sfx.Parent = game.SoundService
+            sfx.SoundId = music[math.random(1, #music)]
+            
+            task.spawn(function()
+                while hum do
+                    sfx:Play()
+                    task.wait(sfx.TimeLength)
+                    sfx.SoundId = music[math.random(1, #music)]
+                end
+            end)
+            
+            task.spawn(function()
+                while hum do
+                    task.wait()
+                    if game:GetService("ReplicatedStorage").workspace.awaken.Value ~= nil then
+                        sfx:Pause()
+                    else
+                        sfx:Resume()
+                    end
+                end
+            end)
+            
+            hum.Died:Connect(function()
+                sfx:Destroy()
+            end)
+        end)
+    end
+})
+
+-- Info tab
+sectionInfo:AddParagraph({
+    Title = "Controls",
+    Content = "Show/Hide GUI: LeftAlt\n\nKeybinds:\nZ = Auto-Dribble\nX = Move One\nC = Move Two\nV = Move Three\nN = Move Four\nM = Move Five"
+})
+
+sectionInfo:AddButton({
+    Name = "Copy Owner Discord Username",
+    Callback = function()
+        pcall(function()
+            setclipboard("ghostofcelleron")
+            notify("Discord Username", "Copied to clipboard!", 3)
+        end)
+    end
+})
+
+sectionInfo:AddButton({
+    Name = "Copy Discord Server Invite",
+    Callback = function()
+        pcall(function()
+            setclipboard("https://discord.gg/8stFYxJv4R")
+            notify("Discord Invite", "Copied to clipboard!", 3)
+        end)
+    end
+})
+
+sectionInfo:AddButton({
+    Name = "Toggle Notifications",
+    Callback = function()
+        _G.FeatureStates.SuppressNotifs = not _G.FeatureStates.SuppressNotifs
+        notify("Notifications", _G.FeatureStates.SuppressNotifs and "Suppressed" or "Enabled", 2)
+    end
+})
+
+-- Configuration system
+local Configs = Window:DrawConfig({
+    Name = "Configs",
+    Icon = "folder",
+    Config = FileWatcher
+})
+
+Configs:Init()
+
+-- Add a final touch to make sure the UI is drawn
+Window:Draw()
+
+-- Print statement for successful loading (the only one allowed)
+print("Souls Hub | made by soul - Ultimate Game Changer loaded successfully.")
