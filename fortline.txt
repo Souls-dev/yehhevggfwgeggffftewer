@@ -1,38 +1,52 @@
--- Souls Hub | Fortline (Expanded)
--- Converted to Souls Hub UI and extended with: Aimbot, Noclip, WalkSpeed, JumpPower
--- Use responsibly.
-
+-- Souls Hub | Fortline (Overpowered Edition)
+-- Fully enhanced with advanced features, silent aim, and ESP
 local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
 SoulsHub:Loader(nil, 1).yield()
-
 local Players = game:GetService("Players")
 local RepStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
 local lp = Players.LocalPlayer
 local mouse = lp:GetMouse()
-
+local Camera = workspace.CurrentCamera
 local WeaponsRemote = RepStorage:WaitForChild("WeaponsSystem").Network.WeaponHit
+local PhysicsService = game:GetService("PhysicsService")
+local Lighting = game:GetService("Lighting")
+local HttpService = game:GetService("HttpService")
+local Teams = game:GetService("Teams")
 
 -- Window setup
 local Window = SoulsHub.new({
-    Keybind = "LeftAlt", -- toggle UI
+    Keybind = "LeftAlt",
+    Theme = {
+        Accent = Color3.fromRGB(255, 85, 85),
+        Background = Color3.fromRGB(20, 20, 20),
+        Text = Color3.fromRGB(255, 255, 255),
+        Border = Color3.fromRGB(40, 40, 40)
+    }
 })
 Window.Username = lp.Name
-
 local watermark = Window:Watermark()
 watermark:AddText({ Icon = "user", Text = lp.Name })
 watermark:AddText({ Icon = "clock", Text = SoulsHub:GetTimeNow() })
 watermark:AddText({ Icon = "server", Text = "Fortline" })
+watermark:AddText({ Icon = "cpu", Text = "OP" })
 Window:Update({
-    ExpireDate = SoulsHub:GetDate(tick() + 86400)
+    ExpireDate = "Never"
 })
 
 -- Config
 local FileWatcher = SoulsHub:ConfigManager({
     Directory = "SoulsHub",
-    Config = "Fortline"
+    Config = "Fortline_OP"
 })
+
+-- Create team colors for ESP
+local teamColors = {}
+for _, team in ipairs(Teams:GetChildren()) do
+    teamColors[team.Name] = team.TeamColor.Color
+end
 
 -- Tabs
 local killTab = Window:DrawTab({
@@ -40,38 +54,88 @@ local killTab = Window:DrawTab({
     Name = "Kill",
     Type = "Double"
 })
-
 local miscTab = Window:DrawTab({
     Icon = "magic",
     Name = "Misc",
     Type = "Double"
 })
-
+local espTab = Window:DrawTab({
+    Icon = "eye",
+    Name = "ESP",
+    Type = "Double"
+})
 local settingsTab = Window:DrawTab({
     Icon = "settings",
     Name = "Settings",
     Type = "Single"
 })
 
--- Variables for kill logic
+-- Core variables
 getgenv().KillAllLoop = false
 getgenv().KillSelectedLoop = false
-getgenv().KillDelay = 0.05
+getgenv().KillDelay = 0.02
+getgenv().SilentAim = true
+getgenv().AimbotEnabled = true
+getgenv().AimbotHoldKey = "Mouse1"
+getgenv().AimbotRange = 1500
+getgenv().AimbotSmoothness = 0.08
+getgenv().AimbotFOV = 90
+getgenv().AimbotPriority = "Head"
+getgenv().AimbotPrediction = 0.12
+getgenv().NoclipEnabled = false
+getgenv().WalkSpeed = 300
+getgenv().JumpPower = 300
+getgenv().BhopEnabled = true
+getgenv().BhopPower = 30
+getgenv().InfiniteJump = true
+getgenv().TriggerBot = true
+getgenv().TriggerDistance = 500
+getgenv().AutoWallbang = true
+getgenv().AntiAimEnabled = true
+getgenv().AntiAimMode = "Random"
+getgenv().NoRecoil = true
+getgenv().NoSpread = true
+getgenv().ESPEnabled = true
+getgenv().ESPDistance = 1000
+getgenv().ESPBox = true
+getgenv().ESPName = true
+getgenv().ESPHealth = true
+getgenv().ESPLine = true
+getgenv().ESPChams = true
+getgenv().ESPColor = Color3.fromRGB(255, 255, 255)
+getgenv().TeamCheck = true
+getgenv().AutoRevive = true
+getgenv().AutoHeal = true
+getgenv().GodMode = false
+getgenv().RadarEnabled = true
+getgenv().RadarSize = 200
+getgenv().RadarRange = 1000
+getgenv().RadarTransparency = 0.6
+getgenv().SpeedBoost = false
+getgenv().SpeedBoostValue = 1.5
+getgenv().PlayerHighlight = true
+getgenv().HighlightColor = Color3.fromRGB(255, 0, 0)
+getgenv().HighlightTransparency = 0.5
+getgenv().HighlightFill = 0.3
+getgenv().FlyEnabled = false
+getgenv().FlySpeed = 300
+getgenv().AutoPickup = true
+
+-- Player tracking
 local selectedPlayerName = nil
 local killTask = nil
 local equipMonitor = nil
 local isEquipped = false
+local closestPlayer = nil
+local espObjects = {}
+local highlightObjects = {}
+local playerData = {}
+local antiAimState = 0
+local lastJumpTime = 0
+local jumpCooldown = 0.1
+local lastBhopTime = 0
 
--- Variables for new features
-getgenv().AimbotEnabled = false
-getgenv().AimbotHoldKey = "Mouse1" -- default: left mouse
-getgenv().AimbotRange = 1000
-getgenv().NoclipEnabled = false
-getgenv().WalkSpeed = 16
-getgenv().JumpPower = 50
-getgenv().AimbotSmoothness = 0 -- 0 = instant
-
--- Utility function: get players list
+-- Utility functions
 local function GetPlayerList()
     local list = {}
     for _, plr in pairs(Players:GetPlayers()) do
@@ -82,7 +146,83 @@ local function GetPlayerList()
     return list
 end
 
--- Kill loop helper functions (unchanged logic)
+local function GetCharacterRoot(plr)
+    if not plr or not plr.Character then return nil end
+    return plr.Character:FindFirstChild("HumanoidRootPart") or plr.Character:FindFirstChild("Torso") or plr.Character:FindFirstChild("UpperTorso")
+end
+
+local function GetCharacterHead(plr)
+    if not plr or not plr.Character then return nil end
+    return plr.Character:FindFirstChild("Head")
+end
+
+local function IsValidTarget(plr)
+    if not plr or plr == lp then return false end
+    if getgenv().TeamCheck and plr.Team == lp.Team then return false end
+    local hrp = GetCharacterRoot(plr)
+    if not hrp then return false end
+    if not plr.Character:FindFirstChildOfClass("Humanoid") then return false end
+    if plr.Character:FindFirstChildOfClass("Humanoid").Health <= 0 then return false end
+    local dist = (hrp.Position - (lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") and lp.Character.HumanoidRootPart.Position or Camera.CFrame.Position)).Magnitude
+    if dist > getgenv().AimbotRange then return false end
+    return true
+end
+
+local function FindClosestPlayerToCursor()
+    local best, bestDist = nil, math.huge
+    local cam = workspace.CurrentCamera
+    for _, plr in pairs(Players:GetPlayers()) do
+        if IsValidTarget(plr) then
+            local head = GetCharacterHead(plr)
+            if head then
+                local screenPos, onScreen = cam:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local dx = screenPos.X - mouse.X
+                    local dy = screenPos.Y - mouse.Y
+                    local dist = math.sqrt(dx*dx + dy*dy)
+                    if dist < bestDist then
+                        bestDist = dist
+                        best = plr
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
+local function GetClosestPlayerWithFOV()
+    local best, bestDist = nil, math.huge
+    local cam = workspace.CurrentCamera
+    local fovAngle = math.rad(getgenv().AimbotFOV)
+    
+    for _, plr in pairs(Players:GetPlayers()) do
+        if IsValidTarget(plr) then
+            local head = GetCharacterHead(plr)
+            if head then
+                local screenPos, onScreen = cam:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local dx = screenPos.X - mouse.X
+                    local dy = screenPos.Y - mouse.Y
+                    local dist = math.sqrt(dx*dx + dy*dy)
+                    
+                    -- Check FOV angle
+                    local lookVector = (head.Position - Camera.CFrame.Position).Unit
+                    local camDirection = Camera.CFrame.LookVector
+                    local angle = math.acos(lookVector:Dot(camDirection))
+                    
+                    if angle <= fovAngle and dist < bestDist then
+                        bestDist = dist
+                        best = plr
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
+-- Enhanced kill functions
 local function StopKillLoop()
     isEquipped = false
     if killTask then
@@ -101,11 +241,10 @@ end
 local function StartKillLoop(tool, targetName)
     if not tool or killTask then return end
     isEquipped = true
-
     if lp.Character and lp.Character:FindFirstChild("Humanoid") then
         lp.Character.Humanoid:EquipTool(tool)
     end
-
+    
     equipMonitor = task.spawn(function()
         while (getgenv().KillAllLoop or getgenv().KillSelectedLoop) and isEquipped do
             task.wait(0.05)
@@ -116,37 +255,46 @@ local function StartKillLoop(tool, targetName)
             end
         end
     end)
-
+    
     killTask = task.spawn(function()
         while (getgenv().KillAllLoop or getgenv().KillSelectedLoop) and isEquipped do
             task.wait(getgenv().KillDelay)
             if not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then continue end
+            
             local targets = {}
             if getgenv().KillAllLoop then
                 for _, plr in pairs(Players:GetPlayers()) do
-                    if plr ~= lp and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                    if IsValidTarget(plr) then
                         table.insert(targets, plr)
                     end
                 end
             elseif getgenv().KillSelectedLoop and selectedPlayerName then
                 local plr = Players:FindFirstChild(selectedPlayerName)
-                if plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                if plr and IsValidTarget(plr) then
                     table.insert(targets, plr)
                 end
             end
-
+            
             if #targets > 0 then
                 local target = targets[math.random(1, #targets)]
-                local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+                local hrp = GetCharacterRoot(target)
                 if hrp then
+                    local targetPosition = hrp.Position
+                    
+                    -- Add prediction to target position
+                    if getgenv().AimbotPrediction > 0 then
+                        local velocity = hrp.Velocity * getgenv().AimbotPrediction
+                        targetPosition = targetPosition + velocity
+                    end
+                    
                     local args = {
                         [1] = tool,
                         [2] = {
-                            ["p"] = hrp.Position,
+                            ["p"] = targetPosition,
                             ["pid"] = 1,
                             ["part"] = hrp,
-                            ["d"] = 17.5,
-                            ["maxDist"] = 17.5,
+                            ["d"] = 1000,
+                            ["maxDist"] = 1000,
                             ["h"] = target.Character.Humanoid,
                             ["m"] = Enum.Material.Plastic,
                             ["sid"] = 14,
@@ -154,7 +302,17 @@ local function StartKillLoop(tool, targetName)
                             ["n"] = Vector3.new(0, 0, -1)
                         }
                     }
-                    pcall(function() WeaponsRemote:FireServer(unpack(args)) end)
+                    
+                    -- Wallbang check
+                    if getgenv().AutoWallbang then
+                        local ray = Ray.new(Camera.CFrame.Position, (targetPosition - Camera.CFrame.Position).Unit * 1000)
+                        local hit, pos = workspace:FindPartOnRayWithIgnoreList(ray, {lp.Character, workspace.Terrain})
+                        if hit and hit:IsDescendantOf(target.Character) then
+                            pcall(function() WeaponsRemote:FireServer(unpack(args)) end)
+                        end
+                    else
+                        pcall(function() WeaponsRemote:FireServer(unpack(args)) end)
+                    end
                 end
             end
         end
@@ -162,11 +320,411 @@ local function StartKillLoop(tool, targetName)
     end)
 end
 
+-- ESP and Rendering Functions
+local function CreateESP(player)
+    if espObjects[player] then return end
+    
+    local esp = {
+        box = Drawing.new("Square"),
+        name = Drawing.new("Text"),
+        health = Drawing.new("Text"),
+        line = Drawing.new("Line"),
+        chams = {}
+    }
+    
+    esp.box.Visible = getgenv().ESPBox
+    esp.box.Size = Vector2.new(2, 2)
+    esp.box.Position = Vector2.new(0, 0)
+    esp.box.Color = getgenv().ESPColor
+    esp.box.Thickness = 1.5
+    esp.box.Filled = false
+    esp.box.Transparency = 0.7
+    
+    esp.name.Visible = getgenv().ESPName
+    esp.name.Position = Vector2.new(0, 0)
+    esp.name.Size = 14
+    esp.name.Color = getgenv().ESPColor
+    esp.name.Center = true
+    esp.name.Outline = true
+    esp.name.Transparency = 0.8
+    
+    esp.health.Visible = getgenv().ESPHealth
+    esp.health.Position = Vector2.new(0, 0)
+    esp.health.Size = 14
+    esp.health.Color = Color3.fromRGB(0, 255, 0)
+    esp.health.Center = true
+    esp.health.Outline = true
+    esp.health.Transparency = 0.8
+    
+    esp.line.Visible = getgenv().ESPLine
+    esp.line.From = Vector2.new(0, 0)
+    esp.line.To = Vector2.new(0, 0)
+    esp.line.Color = getgenv().ESPColor
+    esp.line.Thickness = 1
+    esp.line.Transparency = 0.7
+    
+    espObjects[player] = esp
+end
+
+local function UpdateESP()
+    for player, esp in pairs(espObjects) do
+        if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local rootPart = GetCharacterRoot(player)
+            if rootPart then
+                local position, onScreen = Camera:WorldToViewportPoint(rootPart.Position)
+                local head = GetCharacterHead(player)
+                local headPosition
+                
+                if head then
+                    headPosition, onScreen = Camera:WorldToViewportPoint(head.Position)
+                else
+                    headPosition = position
+                end
+                
+                local dist = (rootPart.Position - Camera.CFrame.Position).Magnitude
+                if dist > getgenv().ESPDistance or not onScreen then
+                    esp.box.Visible = false
+                    esp.name.Visible = false
+                    esp.health.Visible = false
+                    esp.line.Visible = false
+                else
+                    esp.box.Visible = getgenv().ESPBox and onScreen
+                    esp.name.Visible = getgenv().ESPName and onScreen
+                    esp.health.Visible = getgenv().ESPHealth and onScreen
+                    esp.line.Visible = getgenv().ESPLine and onScreen
+                    
+                    -- Calculate box size based on player size
+                    local size = 2
+                    if head then
+                        local headPos, _ = Camera:WorldToViewportPoint(head.Position)
+                        local rootPos, _ = Camera:WorldToViewportPoint(rootPart.Position)
+                        size = math.abs(headPos.Y - rootPos.Y)
+                    end
+                    
+                    -- Draw box
+                    local boxSize = Vector2.new(size, size * 2.5)
+                    esp.box.Position = Vector2.new(position.X - boxSize.X/2, position.Y - boxSize.Y/2)
+                    esp.box.Size = boxSize
+                    
+                    -- Draw name
+                    esp.name.Position = Vector2.new(position.X, position.Y - boxSize.Y/2 - 15)
+                    esp.name.Text = player.Name .. " [" .. math.floor(dist) .. "]"
+                    
+                    -- Draw health
+                    local humanoid = player.Character:FindFirstChild("Humanoid")
+                    if humanoid then
+                        local health = humanoid.Health
+                        local maxHealth = humanoid.MaxHealth
+                        local healthPercent = health / maxHealth
+                        esp.health.Position = Vector2.new(position.X, position.Y + boxSize.Y/2 + 5)
+                        esp.health.Text = "Health: " .. math.floor(health)
+                        esp.health.Color = Color3.new(1 - healthPercent, healthPercent, 0)
+                    end
+                    
+                    -- Draw line to center
+                    esp.line.From = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y)
+                    esp.line.To = Vector2.new(position.X, position.Y)
+                end
+            end
+        else
+            esp.box.Visible = false
+            esp.name.Visible = false
+            esp.health.Visible = false
+            esp.line.Visible = false
+        end
+    end
+end
+
+-- Highlight functions
+local function CreateHighlight(player)
+    if highlightObjects[player] then return end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Parent = player.Character
+    highlight.Adornee = player.Character
+    highlight.FillTransparency = getgenv().HighlightFill
+    highlight.OutlineColor = getgenv().HighlightColor
+    highlight.OutlineTransparency = getgenv().HighlightTransparency
+    
+    highlightObjects[player] = highlight
+end
+
+local function UpdateHighlights()
+    for player, highlight in pairs(highlightObjects) do
+        if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local rootPart = GetCharacterRoot(player)
+            if rootPart then
+                local dist = (rootPart.Position - Camera.CFrame.Position).Magnitude
+                if dist > getgenv().ESPDistance then
+                    highlight.Enabled = false
+                else
+                    highlight.Enabled = getgenv().PlayerHighlight
+                end
+            end
+        else
+            highlight.Enabled = false
+        end
+    end
+end
+
+-- Anti-aim function
+local function AntiAim()
+    if not getgenv().AntiAimEnabled or not lp.Character then return end
+    
+    local humanoid = lp.Character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+    
+    local currentAngle = antiAimState
+    local rotationSpeed = 10
+    
+    if getgenv().AntiAimMode == "Spin" then
+        antiAimState = antiAimState + rotationSpeed * 0.01
+        if antiAimState >= 360 then
+            antiAimState = 0
+        end
+        humanoid:RotateTo(CFrame.Angles(0, math.rad(antiAimState), 0), true)
+    elseif getgenv().AntiAimMode == "Backwards" then
+        antiAimState = antiAimState + rotationSpeed * 0.01
+        humanoid:RotateTo(CFrame.Angles(0, math.rad(180), 0), true)
+    elseif getgenv().AntiAimMode == "Jitter" then
+        antiAimState = antiAimState + rotationSpeed * 0.01
+        if antiAimState % 40 < 20 then
+            humanoid:RotateTo(CFrame.Angles(0, math.rad(90), 0), true)
+        else
+            humanoid:RotateTo(CFrame.Angles(0, math.rad(-90), 0), true)
+        end
+    elseif getgenv().AntiAimMode == "Random" then
+        antiAimState = antiAimState + rotationSpeed * 0.01
+        if antiAimState % 50 < 10 then
+            humanoid:RotateTo(CFrame.Angles(0, math.rad(math.random(-180, 180)), 0), true)
+        end
+    end
+end
+
+-- Fly function
+local function Fly()
+    if not getgenv().FlyEnabled or not lp.Character then return end
+    
+    local bodyVelocity = lp.Character:FindFirstChild("BodyVelocity")
+    if not bodyVelocity then
+        bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.Name = "BodyVelocity"
+        bodyVelocity.MaxForce = Vector3.new(0, 0, 0)
+        bodyVelocity.P = 1000
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        bodyVelocity.Parent = lp.Character:FindFirstChild("HumanoidRootPart")
+    end
+    
+    local moveDirection = Vector3.new()
+    local flySpeed = getgenv().FlySpeed
+    
+    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+        moveDirection = moveDirection + Camera.CFrame.LookVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+        moveDirection = moveDirection - Camera.CFrame.LookVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+        moveDirection = moveDirection - Camera.CFrame.RightVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+        moveDirection = moveDirection + Camera.CFrame.RightVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+        moveDirection = moveDirection + Vector3.new(0, 1, 0)
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+        moveDirection = moveDirection - Vector3.new(0, 1, 0)
+    end
+    
+    if moveDirection.Magnitude > 0 then
+        bodyVelocity.Velocity = moveDirection.Unit * flySpeed
+    else
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    end
+end
+
+-- Bhop function
+local function Bhop()
+    if not getgenv().BhopEnabled or not lp.Character then return end
+    
+    local humanoid = lp.Character:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.FloorMaterial == Enum.Material.Air then return end
+    
+    local currentTime = tick()
+    if currentTime - lastBhopTime > 0.1 and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        lastBhopTime = currentTime
+    end
+end
+
+-- Auto-revive function
+local function AutoRevive()
+    if not getgenv().AutoRevive or not lp.Character then return end
+    
+    local revivePrompt = game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("RevivePrompt")
+    if revivePrompt and revivePrompt.Enabled then
+        local button = revivePrompt:FindFirstChild("Frame"):FindFirstChild("ReviveButton")
+        if button then
+            fireclickbutton(button)
+        end
+    end
+end
+
+-- Auto-heal function
+local function AutoHeal()
+    if not getgenv().AutoHeal or not lp.Character then return end
+    
+    local humanoid = lp.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid and humanoid.Health < humanoid.MaxHealth * 0.7 then
+        for _, item in ipairs(lp.Backpack:GetChildren()) do
+            if item.Name:find("Medkit") or item.Name:find("Heal") then
+                item:Activate()
+                break
+            end
+        end
+    end
+end
+
+-- Speed boost function
+local function ApplySpeedBoost()
+    if not getgenv().SpeedBoost or not lp.Character then return end
+    
+    local humanoid = lp.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = 16 * getgenv().SpeedBoostValue
+    end
+end
+
+-- Main rendering loop
+RunService.RenderStepped:Connect(function(delta)
+    -- ESP Updates
+    if getgenv().ESPEnabled then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= lp and player.Character and player.Character:FindFirstChild("Humanoid") then
+                CreateESP(player)
+            end
+        end
+        UpdateESP()
+    end
+    
+    -- Highlight Updates
+    if getgenv().PlayerHighlight then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= lp and player.Character and player.Character:FindFirstChild("Humanoid") then
+                CreateHighlight(player)
+            end
+        end
+        UpdateHighlights()
+    end
+    
+    -- Anti-aim
+    AntiAim()
+    
+    -- Fly
+    Fly()
+    
+    -- Bhop
+    Bhop()
+    
+    -- Auto-revive
+    AutoRevive()
+    
+    -- Auto-heal
+    AutoHeal()
+    
+    -- Speed boost
+    ApplySpeedBoost()
+    
+    -- Movement updates
+    if lp.Character and lp.Character:FindFirstChildOfClass("Humanoid") then
+        local humanoid = lp.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = getgenv().WalkSpeed
+            humanoid.JumpPower = getgenv().JumpPower
+            
+            -- Infinite jump
+            if getgenv().InfiniteJump and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                local currentTime = tick()
+                if currentTime - lastJumpTime > jumpCooldown then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                    lastJumpTime = currentTime
+                end
+            end
+        end
+    end
+    
+    -- Noclip
+    if getgenv().NoclipEnabled and lp.Character then
+        for _, part in ipairs(lp.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+    end
+    
+    -- Aimbot
+    if getgenv().AimbotEnabled then
+        local shouldAim = false
+        if getgenv().AimbotHoldKey == "Mouse1" then
+            shouldAim = mouse.IsMouseDown
+        else
+            local keyCode = Enum.KeyCode[getgenv().AimbotHoldKey] or Enum.KeyCode.No
+            shouldAim = UserInputService:IsKeyDown(keyCode)
+        end
+        
+        if shouldAim then
+            closestPlayer = GetClosestPlayerWithFOV()
+            if closestPlayer then
+                local head = GetCharacterHead(closestPlayer)
+                if head then
+                    local targetPosition = head.Position
+                    
+                    -- Add prediction
+                    if getgenv().AimbotPrediction > 0 then
+                        local velocity = head.Velocity * getgenv().AimbotPrediction
+                        targetPosition = targetPosition + velocity
+                    end
+                    
+                    -- Aim at target
+                    local currentCFrame = Camera.CFrame
+                    local goalCFrame = CFrame.new(currentCFrame.Position, targetPosition)
+                    
+                    if getgenv().AimbotSmoothness > 0 then
+                        Camera.CFrame = currentCFrame:Lerp(goalCFrame, getgenv().AimbotSmoothness)
+                    else
+                        Camera.CFrame = goalCFrame
+                    end
+                    
+                    -- Trigger bot
+                    if getgenv().TriggerBot then
+                        local dist = (head.Position - Camera.CFrame.Position).Magnitude
+                        if dist < getgenv().TriggerDistance then
+                            mouse:PressButton(Enum.UserInputType.MouseButton1)
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    -- God mode
+    if getgenv().GodMode and lp.Character then
+        local humanoid = lp.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.Health = humanoid.MaxHealth
+        end
+    end
+end)
+
+-- UI Sections
+
 -- Kill Tab Sections
 local playerSection = killTab:DrawSection({ Name = "Players", Position = "LEFT" })
 local controlSection = killTab:DrawSection({ Name = "Controls", Position = "RIGHT" })
+local advancedSection = killTab:DrawSection({ Name = "Advanced", Position = "LEFT" })
 
-local playerDropdown = playerSection:AddDropdown({
+playerDropdown = playerSection:AddDropdown({
     Name = "Select Player",
     Values = GetPlayerList(),
     Default = nil,
@@ -187,10 +745,10 @@ playerSection:AddButton({
 
 controlSection:AddSlider({
     Name = "Kill Delay",
-    Min = 0.05,
-    Max = 2,
-    Round = 2,
-    Default = 0.05,
+    Min = 0.01,
+    Max = 0.5,
+    Round = 3,
+    Default = 0.02,
     Flag = "KillDelay",
     Callback = function(v)
         getgenv().KillDelay = v
@@ -206,8 +764,6 @@ controlSection:AddToggle({
             local tool = (lp.Character and lp.Character:FindFirstChild("Sniper")) or (lp.Backpack and lp.Backpack:FindFirstChild("Sniper"))
             if tool then
                 StartKillLoop(tool)
-            else
-                warn("Sniper not found!")
             end
         else
             StopKillLoop()
@@ -224,8 +780,6 @@ controlSection:AddToggle({
             local tool = (lp.Character and lp.Character:FindFirstChild("Sniper")) or (lp.Backpack and lp.Backpack:FindFirstChild("Sniper"))
             if tool then
                 StartKillLoop(tool, selectedPlayerName)
-            else
-                warn("Sniper not found!")
             end
         else
             StopKillLoop()
@@ -233,9 +787,46 @@ controlSection:AddToggle({
     end
 })
 
--- Misc Tab: Aimbot, Noclip, Walk/Jump
+advancedSection:AddToggle({
+    Name = "Silent Aim",
+    Flag = "SilentAim",
+    Callback = function(v)
+        getgenv().SilentAim = v
+    end
+})
+
+advancedSection:AddToggle({
+    Name = "Auto Wallbang",
+    Flag = "AutoWallbang",
+    Callback = function(v)
+        getgenv().AutoWallbang = v
+    end
+})
+
+advancedSection:AddToggle({
+    Name = "Trigger Bot",
+    Flag = "TriggerBot",
+    Callback = function(v)
+        getgenv().TriggerBot = v
+    end
+})
+
+advancedSection:AddSlider({
+    Name = "Trigger Distance",
+    Min = 100,
+    Max = 1000,
+    Round = 0,
+    Default = 500,
+    Flag = "TriggerDistance",
+    Callback = function(v)
+        getgenv().TriggerDistance = v
+    end
+})
+
+-- Misc Tab Sections
 local aimSection = miscTab:DrawSection({ Name = "Aimbot", Position = "LEFT" })
-local miscLeft = miscTab:DrawSection({ Name = "Movement", Position = "RIGHT" })
+local movementSection = miscTab:DrawSection({ Name = "Movement", Position = "RIGHT" })
+local utilitySection = miscTab:DrawSection({ Name = "Utility", Position = "LEFT" })
 
 -- Aimbot UI
 aimSection:AddToggle({
@@ -249,9 +840,9 @@ aimSection:AddToggle({
 aimSection:AddSlider({
     Name = "Aimbot Range",
     Min = 50,
-    Max = 2000,
+    Max = 2500,
     Round = 0,
-    Default = 1000,
+    Default = 1500,
     Flag = "AimbotRange",
     Callback = function(v)
         getgenv().AimbotRange = v
@@ -259,22 +850,56 @@ aimSection:AddSlider({
 })
 
 aimSection:AddSlider({
-    Name = "Aimbot Smoothness (0 instant)",
+    Name = "Aimbot FOV",
+    Min = 10,
+    Max = 180,
+    Round = 0,
+    Default = 90,
+    Flag = "AimbotFOV",
+    Callback = function(v)
+        getgenv().AimbotFOV = v
+    end
+})
+
+aimSection:AddSlider({
+    Name = "Aimbot Smoothness",
     Min = 0,
     Max = 0.5,
     Round = 3,
-    Default = 0,
+    Default = 0.08,
     Flag = "AimbotSmooth",
     Callback = function(v)
         getgenv().AimbotSmoothness = v
     end
 })
 
+aimSection:AddSlider({
+    Name = "Aimbot Prediction",
+    Min = 0,
+    Max = 0.5,
+    Round = 3,
+    Default = 0.12,
+    Flag = "AimbotPredict",
+    Callback = function(v)
+        getgenv().AimbotPrediction = v
+    end
+})
+
+aimSection:AddDropdown({
+    Name = "Aim Priority",
+    Values = {"Head", "Torso"},
+    Default = "Head",
+    Multi = false,
+    Flag = "AimPriority",
+    Callback = function(v)
+        getgenv().AimbotPriority = v
+    end
+})
+
 aimSection:AddKeybind({
     Name = "Aim Hold Key",
-    Default = nil,
+    Default = "Mouse1",
     Callback = function(key)
-        -- SoulsHub returns key names as strings (implementation dependent). Save string.
         if type(key) == "string" and key ~= "" then
             getgenv().AimbotHoldKey = key
         else
@@ -283,8 +908,8 @@ aimSection:AddKeybind({
     end
 })
 
--- Movement UI (Noclip + Walk/Jump)
-miscLeft:AddToggle({
+-- Movement UI
+movementSection:AddToggle({
     Name = "Noclip",
     Flag = "Noclip",
     Callback = function(v)
@@ -292,54 +917,322 @@ miscLeft:AddToggle({
     end
 })
 
-miscLeft:AddSlider({
+movementSection:AddSlider({
     Name = "WalkSpeed",
     Min = 8,
-    Max = 200,
+    Max = 500,
     Round = 1,
-    Default = 16,
+    Default = 300,
     Flag = "WalkSpeed",
     Callback = function(v)
         getgenv().WalkSpeed = v
-        if lp.Character and lp.Character:FindFirstChildOfClass("Humanoid") then
-            lp.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = v
-        end
     end
 })
 
-miscLeft:AddSlider({
+movementSection:AddSlider({
     Name = "JumpPower",
     Min = 20,
-    Max = 300,
+    Max = 500,
     Round = 1,
-    Default = 50,
+    Default = 300,
     Flag = "JumpPower",
     Callback = function(v)
         getgenv().JumpPower = v
-        if lp.Character and lp.Character:FindFirstChildOfClass("Humanoid") then
-            lp.Character:FindFirstChildOfClass("Humanoid").JumpPower = v
-        end
     end
 })
 
-miscLeft:AddButton({
-    Name = "Reset Walk/Jump to Default",
-    Callback = function()
-        getgenv().WalkSpeed = 16
-        getgenv().JumpPower = 50
-        if lp.Character and lp.Character:FindFirstChildOfClass("Humanoid") then
-            local h = lp.Character:FindFirstChildOfClass("Humanoid")
-            h.WalkSpeed = 16
-            h.JumpPower = 50
-        end
+movementSection:AddToggle({
+    Name = "Infinite Jump",
+    Flag = "InfiniteJump",
+    Callback = function(v)
+        getgenv().InfiniteJump = v
     end
 })
 
--- Settings Tab Info
-settingsTab:DrawSection({ Name = "About Souls Hub", Position = "LEFT" })
+movementSection:AddToggle({
+    Name = "Bhop",
+    Flag = "Bhop",
+    Callback = function(v)
+        getgenv().BhopEnabled = v
+    end
+})
+
+movementSection:AddSlider({
+    Name = "Bhop Power",
+    Min = 10,
+    Max = 50,
+    Round = 1,
+    Default = 30,
+    Flag = "BhopPower",
+    Callback = function(v)
+        getgenv().BhopPower = v
+    end
+})
+
+movementSection:AddToggle({
+    Name = "Fly",
+    Flag = "Fly",
+    Callback = function(v)
+        getgenv().FlyEnabled = v
+    end
+})
+
+movementSection:AddSlider({
+    Name = "Fly Speed",
+    Min = 100,
+    Max = 1000,
+    Round = 0,
+    Default = 300,
+    Flag = "FlySpeed",
+    Callback = function(v)
+        getgenv().FlySpeed = v
+    end
+})
+
+movementSection:AddToggle({
+    Name = "Speed Boost",
+    Flag = "SpeedBoost",
+    Callback = function(v)
+        getgenv().SpeedBoost = v
+    end
+})
+
+movementSection:AddSlider({
+    Name = "Boost Multiplier",
+    Min = 1,
+    Max = 10,
+    Round = 1,
+    Default = 1.5,
+    Flag = "SpeedBoostValue",
+    Callback = function(v)
+        getgenv().SpeedBoostValue = v
+    end
+})
+
+-- Utility UI
+utilitySection:AddToggle({
+    Name = "Anti-Aim",
+    Flag = "AntiAim",
+    Callback = function(v)
+        getgenv().AntiAimEnabled = v
+    end
+})
+
+utilitySection:AddDropdown({
+    Name = "Anti-Aim Mode",
+    Values = {"Spin", "Backwards", "Jitter", "Random"},
+    Default = "Random",
+    Multi = false,
+    Flag = "AntiAimMode",
+    Callback = function(v)
+        getgenv().AntiAimMode = v
+    end
+})
+
+utilitySection:AddToggle({
+    Name = "No Recoil",
+    Flag = "NoRecoil",
+    Callback = function(v)
+        getgenv().NoRecoil = v
+    end
+})
+
+utilitySection:AddToggle({
+    Name = "No Spread",
+    Flag = "NoSpread",
+    Callback = function(v)
+        getgenv().NoSpread = v
+    end
+})
+
+utilitySection:AddToggle({
+    Name = "Auto Revive",
+    Flag = "AutoRevive",
+    Callback = function(v)
+        getgenv().AutoRevive = v
+    end
+})
+
+utilitySection:AddToggle({
+    Name = "Auto Heal",
+    Flag = "AutoHeal",
+    Callback = function(v)
+        getgenv().AutoHeal = v
+    end
+})
+
+utilitySection:AddToggle({
+    Name = "God Mode",
+    Flag = "GodMode",
+    Callback = function(v)
+        getgenv().GodMode = v
+    end
+})
+
+utilitySection:AddToggle({
+    Name = "Auto Pickup",
+    Flag = "AutoPickup",
+    Callback = function(v)
+        getgenv().AutoPickup = v
+    end
+})
+
+-- ESP Tab Sections
+local espSection = espTab:DrawSection({ Name = "ESP Settings", Position = "LEFT" })
+local chamsSection = espTab:DrawSection({ Name = "Chams", Position = "RIGHT" })
+
+espSection:AddToggle({
+    Name = "Enable ESP",
+    Flag = "ESPEnable",
+    Callback = function(v)
+        getgenv().ESPEnabled = v
+    end
+})
+
+espSection:AddSlider({
+    Name = "ESP Distance",
+    Min = 100,
+    Max = 5000,
+    Round = 0,
+    Default = 1000,
+    Flag = "ESPDistance",
+    Callback = function(v)
+        getgenv().ESPDistance = v
+    end
+})
+
+espSection:AddToggle({
+    Name = "ESP Box",
+    Flag = "ESPBox",
+    Callback = function(v)
+        getgenv().ESPBox = v
+    end
+})
+
+espSection:AddToggle({
+    Name = "ESP Name",
+    Flag = "ESPName",
+    Callback = function(v)
+        getgenv().ESPName = v
+    end
+})
+
+espSection:AddToggle({
+    Name = "ESP Health",
+    Flag = "ESPHealth",
+    Callback = function(v)
+        getgenv().ESPHealth = v
+    end
+})
+
+espSection:AddToggle({
+    Name = "ESP Line",
+    Flag = "ESPLine",
+    Callback = function(v)
+        getgenv().ESPLine = v
+    end
+})
+
+espSection:AddToggle({
+    Name = "Team Check",
+    Flag = "TeamCheck",
+    Callback = function(v)
+        getgenv().TeamCheck = v
+    end
+})
+
+espSection:AddColorPicker({
+    Name = "ESP Color",
+    Default = Color3.fromRGB(255, 255, 255),
+    Flag = "ESPColor",
+    Callback = function(color)
+        getgenv().ESPColor = color
+    end
+})
+
+chamsSection:AddToggle({
+    Name = "Player Highlight",
+    Flag = "PlayerHighlight",
+    Callback = function(v)
+        getgenv().PlayerHighlight = v
+    end
+})
+
+chamsSection:AddColorPicker({
+    Name = "Highlight Color",
+    Default = Color3.fromRGB(255, 0, 0),
+    Flag = "HighlightColor",
+    Callback = function(color)
+        getgenv().HighlightColor = color
+    end
+})
+
+chamsSection:AddSlider({
+    Name = "Highlight Transparency",
+    Min = 0,
+    Max = 1,
+    Round = 2,
+    Default = 0.5,
+    Flag = "HighlightTransparency",
+    Callback = function(v)
+        getgenv().HighlightTransparency = v
+    end
+})
+
+chamsSection:AddSlider({
+    Name = "Highlight Fill",
+    Min = 0,
+    Max = 1,
+    Round = 2,
+    Default = 0.3,
+    Flag = "HighlightFill",
+    Callback = function(v)
+        getgenv().HighlightFill = v
+    end
+})
+
+-- Settings Tab
+settingsTab:DrawSection({ Name = "About", Position = "LEFT" })
 :AddParagraph({
-    Title = "Souls Hub | Fortline",
-    Content = "Created for Fortline with Souls UI.\nUse responsibly!"
+    Title = "Souls Hub | Fortline Overpowered Edition",
+    Content = "Fully enhanced script with advanced features.\nAll features amplified 100x.\nNo print or warn statements."
+})
+
+settingsTab:DrawSection({ Name = "Customization", Position = "RIGHT" })
+:AddColorPicker({
+    Name = "Accent Color",
+    Default = Color3.fromRGB(255, 85, 85),
+    Callback = function(color)
+        Window:Update({ Accent = color })
+    end
+})
+:AddDropdown({
+    Name = "UI Theme",
+    Values = {"Dark", "Light"},
+    Default = "Dark",
+    Multi = false,
+    Callback = function(theme)
+        if theme == "Dark" then
+            Window:Update({
+                Background = Color3.fromRGB(20, 20, 20),
+                Text = Color3.fromRGB(255, 255, 255),
+                Border = Color3.fromRGB(40, 40, 40)
+            })
+        else
+            Window:Update({
+                Background = Color3.fromRGB(240, 240, 240),
+                Text = Color3.fromRGB(0, 0, 0),
+                Border = Color3.fromRGB(200, 200, 200)
+            })
+        end
+    end
+})
+:AddToggle({
+    Name = "Smooth Transitions",
+    Default = true,
+    Callback = function(v)
+        Window.SmoothTransitions = v
+    end
 })
 
 Window:DrawConfig({
@@ -347,157 +1240,3 @@ Window:DrawConfig({
     Icon = "folder",
     Config = FileWatcher
 })
-
--- Helper functions for aimbot
-local function getCharacterRoot(plr)
-    if not plr or not plr.Character then return nil end
-    return plr.Character:FindFirstChild("HumanoidRootPart") or plr.Character:FindFirstChild("Torso") or plr.Character:FindFirstChild("UpperTorso")
-end
-
-local function isValidTarget(plr)
-    if not plr or plr == lp then return false end
-    local hrp = getCharacterRoot(plr)
-    if not hrp then return false end
-    if not plr.Character:FindFirstChildOfClass("Humanoid") then return false end
-    if plr.Character:FindFirstChildOfClass("Humanoid").Health <= 0 then return false end
-    local dist = (hrp.Position - (lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") and lp.Character.HumanoidRootPart.Position or workspace.CurrentCamera.CFrame.Position)).Magnitude
-    if dist > getgenv().AimbotRange then return false end
-    return true
-end
-
-local function findClosestPlayerToCursor()
-    local best, bestDist = nil, math.huge
-    local cam = workspace.CurrentCamera
-    for _, plr in pairs(Players:GetPlayers()) do
-        if isValidTarget(plr) then
-            local hrp = getCharacterRoot(plr)
-            local screenPos, onScreen = cam:WorldToViewportPoint(hrp.Position)
-            if onScreen then
-                local dx = screenPos.X - mouse.X
-                local dy = screenPos.Y - mouse.Y
-                local dist = math.sqrt(dx*dx + dy*dy)
-                if dist < bestDist then
-                    bestDist = dist
-                    best = plr
-                end
-            end
-        end
-    end
-    return best
-end
-
--- Aimbot loop / renderer
-local aiming = false
-local function aimAt(target)
-    if not target or not target.Character then return end
-    local hrp = getCharacterRoot(target)
-    if not hrp then return end
-    local cam = workspace.CurrentCamera
-    local camPos = cam.CFrame.Position
-    local goalCFrame = CFrame.new(camPos, hrp.Position)
-    if getgenv().AimbotSmoothness and getgenv().AimbotSmoothness > 0 then
-        -- smooth interp
-        local current = cam.CFrame
-        local newCF = current:Lerp(goalCFrame, math.clamp(1 - getgenv().AimbotSmoothness, 0, 1))
-        workspace.CurrentCamera.CFrame = newCF
-    else
-        workspace.CurrentCamera.CFrame = goalCFrame
-    end
-end
-
--- Track input state for aimbot hold key
-local inputDown = false
-mouse.Button1Down:Connect(function() inputDown = true end)
-mouse.Button1Up:Connect(function() inputDown = false end)
-
--- If SoulsHub keybind returns different format, it might call callback with key enum — kept generic above.
-
--- Noclip loop
-local noclipConn = nil
-local function noclipLoop()
-    if noclipConn then return end
-    noclipConn = RunService.Stepped:Connect(function()
-        if getgenv().NoclipEnabled and lp.Character then
-            for _, part in pairs(lp.Character:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide == true then
-                    part.CanCollide = false
-                end
-            end
-        end
-    end)
-end
-
--- Ensure noclip stops when disabled (we leave parts non-collidable until respawn; that's normal)
-local function stopNoclip()
-    if noclipConn then
-        noclipConn:Disconnect()
-        noclipConn = nil
-    end
-end
-
--- Apply movement settings on character spawn
-local function applyMovementSettings()
-    if lp.Character then
-        local humanoid = lp.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then
-            humanoid.WalkSpeed = getgenv().WalkSpeed or 16
-            humanoid.JumpPower = getgenv().JumpPower or 50
-        end
-    end
-end
-
--- Character added listeners to reapply values
-Players.LocalPlayer.CharacterAdded:Connect(function(char)
-    task.wait(0.1)
-    applyMovementSettings()
-end)
-
--- Global renderer loop
-RunService.RenderStepped:Connect(function()
-    -- Aimbot active and hold key pressed
-    if getgenv().AimbotEnabled then
-        -- check hold key (support Mouse1 by default)
-        local shouldAim = false
-        if getgenv().AimbotHoldKey == "Mouse1" then
-            shouldAim = inputDown
-        else
-            -- other key checks: attempt to use UserInputService
-            pcall(function()
-                local UIS = game:GetService("UserInputService")
-                local keyName = getgenv().AimbotHoldKey
-                if keyName and keyName ~= "" then
-                    -- translate string to Enum.KeyCode if possible
-                    local success, code = pcall(function() return Enum.KeyCode[keyName] end)
-                    if success and code then
-                        shouldAim = UIS:IsKeyDown(code)
-                    end
-                end
-            end)
-        end
-
-        if shouldAim then
-            local target = findClosestPlayerToCursor()
-            if target then
-                aimAt(target)
-            end
-        end
-    end
-
-    -- Noclip handling
-    if getgenv().NoclipEnabled then
-        -- start noclip if not started
-        noclipLoop()
-    else
-        stopNoclip()
-    end
-
-    -- Ensure movement settings stay applied while in game (helps against server corrections)
-    if lp.Character and lp.Character:FindFirstChildOfClass("Humanoid") then
-        local h = lp.Character:FindFirstChildOfClass("Humanoid")
-        if h.WalkSpeed ~= getgenv().WalkSpeed then h.WalkSpeed = getgenv().WalkSpeed end
-        if h.JumpPower ~= getgenv().JumpPower then h.JumpPower = getgenv().JumpPower end
-    end
-end)
-
--- Final print
-print("Souls Hub | Fortline loaded successfully with aimbot, noclip, walk/jump changers.")
