@@ -1,5 +1,5 @@
--- Souls Hub | Fortline (Overpowered Edition)
--- Fully enhanced with advanced features, silent aim, and ESP
+-- Souls Hub | Fortline (Overpowered Edition - FIXED)
+-- Fixed kill features and aimbot functionality
 local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
 SoulsHub:Loader(nil, 1).yield()
 local Players = game:GetService("Players")
@@ -75,7 +75,7 @@ getgenv().KillAllLoop = false
 getgenv().KillSelectedLoop = false
 getgenv().KillDelay = 0.02
 getgenv().SilentAim = true
-getgenv().AimbotEnabled = true
+getgenv().AimbotEnabled = false
 getgenv().AimbotHoldKey = "Mouse1"
 getgenv().AimbotRange = 1500
 getgenv().AimbotSmoothness = 0.08
@@ -191,37 +191,6 @@ local function FindClosestPlayerToCursor()
     return best
 end
 
-local function GetClosestPlayerWithFOV()
-    local best, bestDist = nil, math.huge
-    local cam = workspace.CurrentCamera
-    local fovAngle = math.rad(getgenv().AimbotFOV)
-    
-    for _, plr in pairs(Players:GetPlayers()) do
-        if IsValidTarget(plr) then
-            local head = GetCharacterHead(plr)
-            if head then
-                local screenPos, onScreen = cam:WorldToViewportPoint(head.Position)
-                if onScreen then
-                    local dx = screenPos.X - mouse.X
-                    local dy = screenPos.Y - mouse.Y
-                    local dist = math.sqrt(dx*dx + dy*dy)
-                    
-                    -- Check FOV angle
-                    local lookVector = (head.Position - Camera.CFrame.Position).Unit
-                    local camDirection = Camera.CFrame.LookVector
-                    local angle = math.acos(lookVector:Dot(camDirection))
-                    
-                    if angle <= fovAngle and dist < bestDist then
-                        bestDist = dist
-                        best = plr
-                    end
-                end
-            end
-        end
-    end
-    return best
-end
-
 -- Enhanced kill functions
 local function StopKillLoop()
     isEquipped = false
@@ -293,8 +262,8 @@ local function StartKillLoop(tool, targetName)
                             ["p"] = targetPosition,
                             ["pid"] = 1,
                             ["part"] = hrp,
-                            ["d"] = 1000,
-                            ["maxDist"] = 1000,
+                            ["d"] = 17.5, -- FIXED: Original value from working script
+                            ["maxDist"] = 17.5, -- FIXED: Original value from working script
                             ["h"] = target.Character.Humanoid,
                             ["m"] = Enum.Material.Plastic,
                             ["sid"] = 14,
@@ -663,7 +632,7 @@ RunService.RenderStepped:Connect(function(delta)
         end
     end
     
-    -- Aimbot
+    -- Aimbot - FIXED to use HRP instead of head for more reliable targeting
     if getgenv().AimbotEnabled then
         local shouldAim = false
         if getgenv().AimbotHoldKey == "Mouse1" then
@@ -674,15 +643,15 @@ RunService.RenderStepped:Connect(function(delta)
         end
         
         if shouldAim then
-            closestPlayer = GetClosestPlayerWithFOV()
+            closestPlayer = FindClosestPlayerToCursor()
             if closestPlayer then
-                local head = GetCharacterHead(closestPlayer)
-                if head then
-                    local targetPosition = head.Position
+                local hrp = GetCharacterRoot(closestPlayer)
+                if hrp then
+                    local targetPosition = hrp.Position
                     
                     -- Add prediction
                     if getgenv().AimbotPrediction > 0 then
-                        local velocity = head.Velocity * getgenv().AimbotPrediction
+                        local velocity = hrp.Velocity * getgenv().AimbotPrediction
                         targetPosition = targetPosition + velocity
                     end
                     
@@ -698,7 +667,7 @@ RunService.RenderStepped:Connect(function(delta)
                     
                     -- Trigger bot
                     if getgenv().TriggerBot then
-                        local dist = (head.Position - Camera.CFrame.Position).Magnitude
+                        local dist = (hrp.Position - Camera.CFrame.Position).Magnitude
                         if dist < getgenv().TriggerDistance then
                             mouse:PressButton(Enum.UserInputType.MouseButton1)
                         end
