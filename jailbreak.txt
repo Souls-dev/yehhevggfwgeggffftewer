@@ -1,0 +1,1435 @@
+local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))();
+
+task.wait(1)
+
+SoulsHub:Loader(nil, 1).yield()
+
+local FileWatcher = SoulsHub:ConfigManager({
+    Directory = "SoulsHub",
+    Config = "JailbreakConfigs"
+});
+
+local Window = SoulsHub.new({
+    Keybind = "LeftAlt",
+});
+
+local watermark = Window:Watermark();
+
+watermark:AddText({
+    Icon = "user",
+    Text = "Souls Hub"
+})
+
+local vim = watermark:AddText({
+    Icon = "clock",
+    Text = SoulsHub:GetTimeNow()
+})
+
+task.spawn(function()
+    while true do task.wait()
+        vim:SetText(SoulsHub:GetTimeNow())
+        
+        Window.Username = "Jailbreak"
+    end;
+end)
+
+Window:Update({
+    ExpireDate = SoulsHub:GetDate(tick() + 84000)
+})
+
+watermark:AddText({
+    Icon = "server",
+    Text = "Jailbreak Ultimate"
+})
+
+local PlayerTab = Window:DrawTab({
+    Icon = "user",
+    Name = "Player"
+});
+
+local VehicleTab = Window:DrawTab({
+    Icon = "car",
+    Name = "Vehicle"
+});
+
+local CombatTab = Window:DrawTab({
+    Icon = "crosshair",
+    Name = "Combat"
+});
+
+local RobberyTab = Window:DrawTab({
+    Icon = "safe",
+    Name = "Robbery"
+});
+
+local UtilityTab = Window:DrawTab({
+    Icon = "settings",
+    Name = "Utility"
+});
+
+local PlayerGeneral = PlayerTab:DrawSection({
+    Name = "General",
+    Position = "left"
+});
+
+local PlayerMovement = PlayerTab:DrawSection({
+    Name = "Movement",
+    Position = "right"
+});
+
+local PlayerUtilities = PlayerTab:DrawSection({
+    Name = "Utilities",
+    Position = "left"
+});
+
+-- Player Tab Features
+do
+    -- General Settings
+    local walkSpeedEnabled = PlayerGeneral:AddToggle({
+        Name = "Enable Walkspeed",
+        Flag = "player_walkspeed_enabled",
+        Default = false,
+        Callback = function(state)
+            _G.PlayerConfig.WalkSpeedEnabled = state
+        end
+    });
+    
+    local walkSpeedSlider = PlayerGeneral:AddSlider({
+        Name = "Walkspeed",
+        Min = 16,
+        Max = 500,
+        Round = 0,
+        Default = 16,
+        Type = "studs/s",
+        Flag = "player_walkspeed_value",
+        Callback = function(value)
+            _G.PlayerConfig.WalkSpeed = value
+        end
+    });
+    
+    local jumpPowerEnabled = PlayerGeneral:AddToggle({
+        Name = "Enable Jump Power",
+        Flag = "player_jump_power_enabled",
+        Default = false,
+        Callback = function(state)
+            _G.PlayerConfig.JumpPowerEnabled = state
+        end
+    });
+    
+    local jumpPowerSlider = PlayerGeneral:AddSlider({
+        Name = "Jump Power",
+        Min = 50,
+        Max = 200,
+        Round = 0,
+        Default = 50,
+        Type = "studs",
+        Flag = "player_jump_power_value",
+        Callback = function(value)
+            _G.PlayerConfig.JumpPower = value
+        end
+    });
+    
+    -- Movement Features
+    local infJump = PlayerMovement:AddToggle({
+        Name = "Infinite Jump",
+        Flag = "player_infinite_jump",
+        Default = false,
+        Callback = function(state)
+            _G.PlayerConfig.InfJump = state
+        end
+    });
+    
+    local noFall = PlayerMovement:AddToggle({
+        Name = "No Fall Damage",
+        Flag = "player_no_fall",
+        Default = false,
+        Callback = function(state)
+            _G.PlayerConfig.NoFall = state
+        end
+    });
+    
+    local noRagdoll = PlayerMovement:AddToggle({
+        Name = "No Ragdoll",
+        Flag = "player_no_ragdoll",
+        Default = false,
+        Callback = function(state)
+            _G.PlayerConfig.NoRagdoll = state
+        end
+    });
+    
+    -- Utilities
+    local noStun = PlayerUtilities:AddToggle({
+        Name = "No Stun",
+        Flag = "player_no_stun",
+        Default = false,
+        Callback = function(state)
+            _G.PlayerConfig.NoStun = state
+        end
+    });
+    
+    local noRollWait = PlayerUtilities:AddToggle({
+        Name = "No Roll Wait",
+        Flag = "player_no_roll_wait",
+        Default = false,
+        Callback = function(state)
+            _G.PlayerConfig.NoRollWait = state
+        end
+    });
+    
+    local noCrawlSlow = PlayerUtilities:AddToggle({
+        Name = "No Crawling Slow",
+        Flag = "player_no_crawl_slow",
+        Default = false,
+        Callback = function(state)
+            _G.PlayerConfig.NoCrawlSlow = state
+        end
+    });
+    
+    local alwaysKeycard = PlayerUtilities:AddToggle({
+        Name = "Always Have Keycard",
+        Flag = "player_always_keycard",
+        Default = false,
+        Callback = function(state)
+            _G.PlayerConfig.AlwaysKeycard = state
+        end
+    });
+    
+    local noCircleWait = PlayerUtilities:AddToggle({
+        Name = "No Circle Wait",
+        Flag = "player_no_circle_wait",
+        Default = false,
+        Callback = function(state)
+            _G.PlayerConfig.NoCircleWait = state
+        end
+    });
+end
+
+-- Vehicle Tab Features
+do
+    local VehicleGeneral = VehicleTab:DrawSection({
+        Name = "General",
+        Position = "left"
+    });
+    
+    local VehicleCar = VehicleTab:DrawSection({
+        Name = "Car Mods",
+        Position = "right"
+    });
+    
+    local VehicleHeli = VehicleTab:DrawSection({
+        Name = "Heli Mods",
+        Position = "left"
+    });
+    
+    local flightToggle = VehicleGeneral:AddToggle({
+        Name = "Vehicle Flight",
+        Flag = "vehicle_flight_enabled",
+        Default = false,
+        Callback = function(state)
+            _G.VehicleConfig.FlightEnabled = state
+        end
+    });
+    
+    local flightSpeed = VehicleGeneral:AddSlider({
+        Name = "Flight Speed",
+        Min = 10,
+        Max = 1000,
+        Round = 0,
+        Default = 100,
+        Type = "studs/s",
+        Flag = "vehicle_flight_speed",
+        Callback = function(value)
+            _G.VehicleConfig.FlightSpeed = value
+        end
+    });
+    
+    local flightX = VehicleGeneral:AddSlider({
+        Name = "Flight Rotation X",
+        Min = 0,
+        Max = 360,
+        Round = 0,
+        Default = 0,
+        Type = "°",
+        Flag = "vehicle_flight_x",
+        Callback = function(value)
+            _G.VehicleConfig.FlightX = value
+        end
+    });
+    
+    local flightY = VehicleGeneral:AddSlider({
+        Name = "Flight Rotation Y",
+        Min = 0,
+        Max = 360,
+        Round = 0,
+        Default = 0,
+        Type = "°",
+        Flag = "vehicle_flight_y",
+        Callback = function(value)
+            _G.VehicleConfig.FlightY = value
+        end
+    });
+    
+    local flightZ = VehicleGeneral:AddSlider({
+        Name = "Flight Rotation Z",
+        Min = 0,
+        Max = 360,
+        Round = 0,
+        Default = 0,
+        Type = "°",
+        Flag = "vehicle_flight_z",
+        Callback = function(value)
+            _G.VehicleConfig.FlightZ = value
+        end
+    });
+    
+    local infNitro = VehicleGeneral:AddToggle({
+        Name = "Infinite Nitro",
+        Flag = "vehicle_infinite_nitro",
+        Default = false,
+        Callback = function(state)
+            _G.VehicleConfig.InfiniteNitro = state
+        end
+    });
+    
+    local autoFlip = VehicleGeneral:AddToggle({
+        Name = "Automatic Flip",
+        Flag = "vehicle_auto_flip",
+        Default = false,
+        Callback = function(state)
+            _G.VehicleConfig.AutoFlip = state
+        end
+    });
+    
+    local driveOnWater = VehicleGeneral:AddToggle({
+        Name = "Drive On Water",
+        Flag = "vehicle_drive_on_water",
+        Default = false,
+        Callback = function(state)
+            _G.VehicleConfig.DriveOnWater = state
+        end
+    });
+    
+    -- Car Mods
+    local engineSpeed = VehicleCar:AddSlider({
+        Name = "Engine Speed",
+        Min = 1,
+        Max = 200,
+        Round = 0,
+        Default = 50,
+        Flag = "vehicle_engine_speed",
+        Callback = function(value)
+            _G.VehicleConfig.EngineSpeed = value
+        end
+    });
+    
+    local applyEngine = VehicleCar:AddToggle({
+        Name = "Apply Engine Speed",
+        Flag = "vehicle_apply_engine",
+        Default = false,
+        Callback = function(state)
+            _G.VehicleConfig.ApplyEngine = state
+        end
+    });
+    
+    local suspensionHeight = VehicleCar:AddSlider({
+        Name = "Suspension Height",
+        Min = 1,
+        Max = 150,
+        Round = 0,
+        Default = 50,
+        Flag = "vehicle_suspension_height",
+        Callback = function(value)
+            _G.VehicleConfig.SuspensionHeight = value
+        end
+    });
+    
+    local applySuspension = VehicleCar:AddToggle({
+        Name = "Apply Suspension Height",
+        Flag = "vehicle_apply_suspension",
+        Default = false,
+        Callback = function(state)
+            _G.VehicleConfig.ApplySuspension = state
+        end
+    });
+    
+    local turnSpeed = VehicleCar:AddSlider({
+        Name = "Turn Speed",
+        Min = 1,
+        Max = 5,
+        Round = 2,
+        Default = 2.5,
+        Flag = "vehicle_turn_speed",
+        Callback = function(value)
+            _G.VehicleConfig.TurnSpeed = value
+        end
+    });
+    
+    local applyTurn = VehicleCar:AddToggle({
+        Name = "Apply Turn Speed",
+        Flag = "vehicle_apply_turn",
+        Default = false,
+        Callback = function(state)
+            _G.VehicleConfig.ApplyTurn = state
+        end
+    });
+    
+    local noTirePop = VehicleCar:AddToggle({
+        Name = "Anti Tire Pop",
+        Flag = "vehicle_no_tire_pop",
+        Default = false,
+        Callback = function(state)
+            _G.VehicleConfig.NoTirePop = state
+        end
+    });
+    
+    -- Heli Mods
+    local heliEngine = VehicleHeli:AddSlider({
+        Name = "Engine Speed",
+        Min = 1,
+        Max = 100,
+        Round = 0,
+        Default = 50,
+        Flag = "vehicle_heli_engine",
+        Callback = function(value)
+            _G.VehicleConfig.HeliEngine = value
+        end
+    });
+    
+    local heliInfiniteHeight = VehicleHeli:AddToggle({
+        Name = "Infinite Height",
+        Flag = "vehicle_heli_infinite_height",
+        Default = false,
+        Callback = function(state)
+            _G.VehicleConfig.HeliInfiniteHeight = state
+        end
+    });
+    
+    local heliAntiBreak = VehicleHeli:AddToggle({
+        Name = "Anti Heli Break",
+        Flag = "vehicle_heli_anti_break",
+        Default = false,
+        Callback = function(state)
+            _G.VehicleConfig.HeliAntiBreak = state
+        end
+    });
+    
+    local heliInstantPickup = VehicleHeli:AddToggle({
+        Name = "Instant Pickup",
+        Flag = "vehicle_heli_instant_pickup",
+        Default = false,
+        Callback = function(state)
+            _G.VehicleConfig.HeliInstantPickup = state
+        end
+    });
+end
+
+-- Combat Tab Features
+do
+    local CombatGeneral = CombatTab:DrawSection({
+        Name = "General",
+        Position = "left"
+    });
+    
+    local CombatWeapons = CombatTab:DrawSection({
+        Name = "Weapons",
+        Position = "right"
+    });
+    
+    local CombatMelee = CombatTab:DrawSection({
+        Name = "Melee",
+        Position = "left"
+    });
+    
+    local CombatSilentAim = CombatTab:DrawSection({
+        Name = "Silent Aim",
+        Position = "right"
+    });
+    
+    -- General Combat Settings
+    local alwaysAuto = CombatGeneral:AddToggle({
+        Name = "Always Auto",
+        Flag = "combat_always_auto",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.AlwaysAuto = state
+        end
+    });
+    
+    local noRecoil = CombatGeneral:AddToggle({
+        Name = "No Recoil",
+        Flag = "combat_no_recoil",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.NoRecoil = state
+        end
+    });
+    
+    local noSpread = CombatGeneral:AddToggle({
+        Name = "No Spread",
+        Flag = "combat_no_spread",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.NoSpread = state
+        end
+    });
+    
+    local noBulletGravity = CombatGeneral:AddToggle({
+        Name = "No Bullet Gravity",
+        Flag = "combat_no_bullet_gravity",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.NoBulletGravity = state
+        end
+    });
+    
+    local noEquipTime = CombatGeneral:AddToggle({
+        Name = "No Equip Time",
+        Flag = "combat_no_equip_time",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.NoEquipTime = state
+        end
+    });
+    
+    local wallbang = CombatGeneral:AddToggle({
+        Name = "Wallbang",
+        Flag = "combat_wallbang",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.Wallbang = state
+        end
+    });
+    
+    local headshotOnly = CombatGeneral:AddToggle({
+        Name = "Headshot Only",
+        Flag = "combat_headshot_only",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.HeadshotOnly = state
+        end
+    });
+    
+    local freePistolSwat = CombatGeneral:AddToggle({
+        Name = "Free Pistol Swat",
+        Flag = "combat_free_pistol_swat",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.FreePistolSwat = state
+        end
+    });
+    
+    local fastTaser = CombatGeneral:AddToggle({
+        Name = "Fast Taser",
+        Flag = "combat_fast_taser",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.FastTaser = state
+        end
+    });
+    
+    local noGrenadeSmoke = CombatGeneral:AddToggle({
+        Name = "No Grenade Smoke",
+        Flag = "combat_no_grenade_smoke",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.NoGrenadeSmoke = state
+        end
+    });
+    
+    -- Weapon Specific Settings
+    local noReloadTime = CombatWeapons:AddToggle({
+        Name = "No Reload Time",
+        Flag = "combat_no_reload_time",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.NoReloadTime = state
+        end
+    });
+    
+    local alwaysSwoosh = CombatWeapons:AddToggle({
+        Name = "Always Swoosh",
+        Flag = "combat_always_swoosh",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.AlwaysSwoosh = state
+        end
+    });
+    
+    local alwaysLunge = CombatWeapons:AddToggle({
+        Name = "Always Lunge",
+        Flag = "combat_always_lunge",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.AlwaysLunge = state
+        end
+    });
+    
+    -- Silent Aim Settings
+    local silentAimEnabled = CombatSilentAim:AddToggle({
+        Name = "Enabled",
+        Flag = "combat_silent_aim_enabled",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.SilentAimEnabled = state
+        end
+    });
+    
+    local silentAimIncludeTaser = CombatSilentAim:AddToggle({
+        Name = "Include Taser",
+        Flag = "combat_silent_aim_include_taser",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.SilentAimIncludeTaser = state
+        end
+    });
+    
+    local silentAimIncludePlasma = CombatSilentAim:AddToggle({
+        Name = "Include Plasma Gun",
+        Flag = "combat_silent_aim_include_plasma",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.SilentAimIncludePlasma = state
+        end
+    });
+    
+    local silentAimRadius = CombatSilentAim:AddSlider({
+        Name = "Radius",
+        Min = 10,
+        Max = 1000,
+        Round = 0,
+        Default = 250,
+        Flag = "combat_silent_aim_radius",
+        Callback = function(value)
+            _G.CombatConfig.SilentAimRadius = value
+        end
+    });
+    
+    local silentAimWallCheck = CombatSilentAim:AddToggle({
+        Name = "Wallcheck",
+        Flag = "combat_silent_aim_wallcheck",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.SilentAimWallCheck = state
+        end
+    });
+    
+    local silentAimFovCircle = CombatSilentAim:AddToggle({
+        Name = "FOV Circle",
+        Flag = "combat_silent_aim_fov_circle",
+        Default = false,
+        Callback = function(state)
+            _G.CombatConfig.SilentAimFOVCircle = state
+        end
+    });
+    
+    local silentAimFovThickness = CombatSilentAim:AddSlider({
+        Name = "Circle Thickness",
+        Min = 0,
+        Max = 10,
+        Round = 0,
+        Default = 5,
+        Type = "px",
+        Flag = "combat_silent_aim_fov_thickness",
+        Callback = function(value)
+            _G.CombatConfig.SilentAimFOVThickness = value
+        end
+    });
+    
+    local silentAimFovTransparency = CombatSilentAim:AddSlider({
+        Name = "Circle Transparency",
+        Min = 0,
+        Max = 1,
+        Round = 2,
+        Default = 0.5,
+        Type = "",
+        Flag = "combat_silent_aim_fov_transparency",
+        Callback = function(value)
+            _G.CombatConfig.SilentAimFOVTransparency = value
+        end
+    });
+    
+    local hitboxRadius = CombatSilentAim:AddSlider({
+        Name = "Hitbox Radius",
+        Min = 3,
+        Max = 50,
+        Round = 0,
+        Default = 5,
+        Flag = "combat_hitbox_radius",
+        Callback = function(value)
+            _G.CombatConfig.HitboxRadius = value
+        end
+    });
+end
+
+-- Robbery Tab Features
+do
+    local RobberyGeneral = RobberyTab:DrawSection({
+        Name = "General",
+        Position = "left"
+    });
+    
+    local RobberyAuto = RobberyTab:DrawSection({
+        Name = "Automation",
+        Position = "right"
+    });
+    
+    local RobberySettings = RobberyTab:DrawSection({
+        Name = "Settings",
+        Position = "left"
+    });
+    
+    -- General Robbery Settings
+    local autoRobCrate = RobberyGeneral:AddToggle({
+        Name = "Rob Crate",
+        Flag = "robbery_auto_crate",
+        Default = true,
+        Callback = function(state)
+            _G.RobberyConfig.RobCrate = state
+        end
+    });
+    
+    local autoRobShip = RobberyGeneral:AddToggle({
+        Name = "Rob Ship",
+        Flag = "robbery_auto_ship",
+        Default = true,
+        Callback = function(state)
+            _G.RobberyConfig.RobShip = state
+        end
+    });
+    
+    local autoRobMansion = RobberyGeneral:AddToggle({
+        Name = "Rob Mansion",
+        Flag = "robbery_auto_mansion",
+        Default = true,
+        Callback = function(state)
+            _G.RobberyConfig.RobMansion = state
+        end
+    });
+    
+    local pickupCash = RobberyGeneral:AddToggle({
+        Name = "Pick Up Cash",
+        Flag = "robbery_pickup_cash",
+        Default = true,
+        Callback = function(state)
+            _G.RobberyConfig.PickupCash = state
+        end
+    });
+    
+    -- Robbery Automation
+    local autoOpenSafes = RobberyAuto:AddToggle({
+        Name = "Auto Open Safes",
+        Flag = "robbery_auto_open_safes",
+        Default = false,
+        Callback = function(state)
+            _G.RobberyConfig.AutoOpenSafes = state
+        end
+    });
+    
+    local logWebhook = RobberyAuto:AddToggle({
+        Name = "Log Webhook",
+        Flag = "robbery_log_webhook",
+        Default = false,
+        Callback = function(state)
+            _G.RobberyConfig.LogWebhook = state
+        end
+    });
+    
+    local webhookUrl = RobberyAuto:AddTextBox({
+        Name = "Webhook URL",
+        Default = "",
+        Flag = "robbery_webhook_url",
+        Callback = function(value)
+            _G.RobberyConfig.WebhookUrl = value
+        end
+    });
+    
+    local advertise = RobberyAuto:AddToggle({
+        Name = "Advertise",
+        Flag = "robbery_advertise",
+        Default = false,
+        Callback = function(state)
+            _G.RobberyConfig.Advertise = state
+        end
+    });
+    
+    local mobile = RobberyAuto:AddToggle({
+        Name = "Mobile",
+        Flag = "robbery_mobile",
+        Default = false,
+        Callback = function(state)
+            _G.RobberyConfig.Mobile = state
+        end
+    });
+end
+
+-- Utility Tab Features
+do
+    local UtilityGeneral = UtilityTab:DrawSection({
+        Name = "General",
+        Position = "left"
+    });
+    
+    local UtilityServer = UtilityTab:DrawSection({
+        Name = "Server",
+        Position = "right"
+    });
+    
+    -- General Utilities
+    local noClip = UtilityGeneral:AddToggle({
+        Name = "No Clip",
+        Flag = "utility_no_clip",
+        Default = false,
+        Callback = function(state)
+            _G.UtilityConfig.NoClip = state
+        end
+    });
+    
+    local renderMap = UtilityGeneral:AddButton({
+        Name = "Render Map",
+        Flag = "utility_render_map",
+        Callback = function()
+            _G.UtilityConfig.RenderMap = true
+        end
+    });
+    
+    -- Server Utilities
+    local autoServerHop = UtilityServer:AddToggle({
+        Name = "Auto Server Hop",
+        Flag = "utility_auto_server_hop",
+        Default = true,
+        Callback = function(state)
+            _G.UtilityConfig.AutoServerHop = state
+        end
+    });
+    
+    local serverHopTime = UtilityServer:AddSlider({
+        Name = "Server Hop Time",
+        Min = 300,
+        Max = 1800,
+        Round = 0,
+        Default = 900,
+        Type = "sec",
+        Flag = "utility_server_hop_time",
+        Callback = function(value)
+            _G.UtilityConfig.ServerHopTime = value
+        end
+    });
+    
+    local serverHopOnArrest = UtilityServer:AddToggle({
+        Name = "Server Hop On Arrest",
+        Flag = "utility_server_hop_on_arrest",
+        Default = true,
+        Callback = function(state)
+            _G.UtilityConfig.ServerHopOnArrest = state
+        end
+    });
+    
+    local serverHopOnDeath = UtilityServer:AddToggle({
+        Name = "Server Hop On Death",
+        Flag = "utility_server_hop_on_death",
+        Default = true,
+        Callback = function(state)
+            _G.UtilityConfig.ServerHopOnDeath = state
+        end
+    });
+end
+
+-- Configuration setup
+_G.PlayerConfig = _G.PlayerConfig or {
+    WalkSpeedEnabled = false,
+    WalkSpeed = 16,
+    JumpPowerEnabled = false,
+    JumpPower = 50,
+    InfJump = false,
+    NoFall = false,
+    NoRagdoll = false,
+    NoStun = false,
+    NoRollWait = false,
+    NoCrawlSlow = false,
+    AlwaysKeycard = false,
+    NoCircleWait = false
+}
+
+_G.VehicleConfig = _G.VehicleConfig or {
+    FlightEnabled = false,
+    FlightSpeed = 100,
+    FlightX = 0,
+    FlightY = 0,
+    FlightZ = 0,
+    InfiniteNitro = false,
+    AutoFlip = false,
+    DriveOnWater = false,
+    EngineSpeed = 50,
+    ApplyEngine = false,
+    SuspensionHeight = 50,
+    ApplySuspension = false,
+    TurnSpeed = 2.5,
+    ApplyTurn = false,
+    NoTirePop = false,
+    HeliEngine = 50,
+    HeliInfiniteHeight = false,
+    HeliAntiBreak = false,
+    HeliInstantPickup = false
+}
+
+_G.CombatConfig = _G.CombatConfig or {
+    AlwaysAuto = false,
+    NoRecoil = false,
+    NoSpread = false,
+    NoBulletGravity = false,
+    NoEquipTime = false,
+    Wallbang = false,
+    HeadshotOnly = false,
+    FreePistolSwat = false,
+    FastTaser = false,
+    NoGrenadeSmoke = false,
+    NoReloadTime = false,
+    AlwaysSwoosh = false,
+    AlwaysLunge = false,
+    SilentAimEnabled = false,
+    SilentAimIncludeTaser = false,
+    SilentAimIncludePlasma = false,
+    SilentAimRadius = 250,
+    SilentAimWallCheck = false,
+    SilentAimFOVCircle = false,
+    SilentAimFOVThickness = 5,
+    SilentAimFOVTransparency = 0.5,
+    HitboxRadius = 5
+}
+
+_G.RobberyConfig = _G.RobberyConfig or {
+    RobCrate = true,
+    RobShip = true,
+    RobMansion = true,
+    PickupCash = true,
+    AutoOpenSafes = false,
+    LogWebhook = false,
+    WebhookUrl = "",
+    Advertise = false,
+    Mobile = false
+}
+
+_G.UtilityConfig = _G.UtilityConfig or {
+    NoClip = false,
+    RenderMap = false,
+    AutoServerHop = true,
+    ServerHopTime = 900,
+    ServerHopOnArrest = true,
+    ServerHopOnDeath = true
+}
+
+-- Initialize configuration
+FileWatcher:LoadConfig({
+    PlayerConfig = _G.PlayerConfig,
+    VehicleConfig = _G.VehicleConfig,
+    CombatConfig = _G.CombatConfig,
+    RobberyConfig = _G.RobberyConfig,
+    UtilityConfig = _G.UtilityConfig
+});
+
+-- Main implementation for all features with fallbacks
+task.spawn(function()
+    local function safeCall(func, ...)
+        local success, result = pcall(func, ...)
+        if not success then
+            warn("SafeCall error:", result)
+            return nil
+        end
+        return result
+    end
+    
+    -- Player features
+    local player = game:GetService("Players").LocalPlayer
+    local character
+    local humanoid
+    local rootPart
+    
+    local updatePlayerVars = function()
+        character = player.Character
+        if character then
+            rootPart = character:FindFirstChild("HumanoidRootPart")
+            humanoid = character:FindFirstChildOfClass("Humanoid")
+        end
+    end
+    
+    player.CharacterAdded:Connect(updatePlayerVars)
+    player.CharacterRemoving:Connect(function() character = nil end)
+    updatePlayerVars()
+    
+    -- Walkspeed and jump power
+    game:GetService("RunService").Heartbeat:Connect(function()
+        if character and humanoid then
+            if _G.PlayerConfig.WalkSpeedEnabled and _G.PlayerConfig.WalkSpeed then
+                humanoid.WalkSpeed = _G.PlayerConfig.WalkSpeed
+            end
+            
+            if _G.PlayerConfig.JumpPowerEnabled and _G.PlayerConfig.JumpPower then
+                humanoid.JumpPower = _G.PlayerConfig.JumpPower
+            end
+        end
+    end)
+    
+    -- Infinite Jump
+    game:GetService("UserInputService").JumpRequest:Connect(function()
+        if _G.PlayerConfig.InfJump and character and humanoid then
+            humanoid:ChangeState("Jumping")
+        end
+    end)
+    
+    -- No Fall Damage and No Ragdoll
+    game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function()
+        local hrp = game:GetService("Players").LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+        if hrp then
+            if _G.PlayerConfig.NoFall then 
+                hrp:AddTag("NoFallDamage")
+            end
+            if _G.PlayerConfig.NoRagdoll then
+                hrp:AddTag("NoRagdoll")
+            end
+        end
+    end)
+    
+    -- Vehicle flight implementation
+    local vehicleFlightActive = false
+    local bodyGyro
+    local bodyVelocity
+    
+    local function startVehicleFlight()
+        if vehicleFlightActive then return end
+        
+        local localCharacter = game:GetService("Players").LocalPlayer.Character
+        if not localCharacter then return end
+        
+        local root = localCharacter:FindFirstChild("HumanoidRootPart")
+        if not root then return end
+        
+        vehicleFlightActive = true
+        bodyGyro = Instance.new("BodyGyro", root)
+        bodyVelocity = Instance.new("BodyVelocity", root)
+        
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        bodyGyro.D = 50000
+        bodyGyro.P = 1500000000
+        
+        game:GetService("RunService").Heartbeat:Connect(function()
+            if not vehicleFlightActive then
+                return
+            end
+            
+            bodyGyro.CFrame = game:GetService("Workspace").CurrentCamera.CFrame * CFrame.Angles(
+                math.rad(_G.VehicleConfig.FlightX), 
+                math.rad(_G.VehicleConfig.FlightY), 
+                math.rad(_G.VehicleConfig.FlightZ)
+            )
+            
+            workspace.CurrentCamera.CameraType = Enum.CameraType.Track
+            
+            local velocity = Vector3.zero
+            local uis = game:GetService("UserInputService")
+            
+            if uis:IsKeyDown(Enum.KeyCode.W) then
+                velocity = velocity + workspace.CurrentCamera.CFrame.LookVector
+            end
+            if uis:IsKeyDown(Enum.KeyCode.A) then
+                velocity = velocity - workspace.CurrentCamera.CFrame.RightVector
+            end
+            if uis:IsKeyDown(Enum.KeyCode.S) then
+                velocity = velocity - workspace.CurrentCamera.CFrame.LookVector
+            end
+            if uis:IsKeyDown(Enum.KeyCode.D) then
+                velocity = velocity + workspace.CurrentCamera.CFrame.RightVector
+            end
+            
+            bodyVelocity.Velocity = velocity * _G.VehicleConfig.FlightSpeed
+        end)
+    end
+    
+    local function stopVehicleFlight()
+        if bodyGyro then bodyGyro:Destroy() end
+        if bodyVelocity then bodyVelocity:Destroy() end
+        vehicleFlightActive = false
+        workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+    end
+    
+    -- Monitor vehicle flight state
+    game:GetService("RunService").Heartbeat:Connect(function()
+        if _G.VehicleConfig.FlightEnabled and not vehicleFlightActive then
+            startVehicleFlight()
+        elseif not _G.VehicleConfig.FlightEnabled and vehicleFlightActive then
+            stopVehicleFlight()
+        end
+    end)
+    
+    -- Auto flip vehicle
+    game:GetService("UserInputService").InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.V and _G.VehicleConfig.AutoFlip then
+            safeCall(function()
+                for i,v in next, getconnections(game:GetService("ReplicatedStorage").ActionButton.ActionButtonService.active) do
+                    if v and v.Function and getconstants(v.Function)[1] == "V" then
+                        v.Function(true)
+                    end
+                end
+            end)
+        end
+    end)
+    
+    -- Silent aim implementation
+    local fovCircle = Drawing.new("Circle")
+    fovCircle.Visible = _G.CombatConfig.SilentAimFOVCircle
+    fovCircle.Radius = _G.CombatConfig.SilentAimRadius
+    fovCircle.Color = Color3.fromRGB(255, 255, 255)
+    fovCircle.Thickness = _G.CombatConfig.SilentAimFOVThickness
+    fovCircle.Position = Vector2.new(game:GetService("Workspace").CurrentCamera.ViewportSize.X / 2, game:GetService("Workspace").CurrentCamera.ViewportSize.Y / 2)
+    fovCircle.Transparency = _G.CombatConfig.SilentAimFOVTransparency
+    fovCircle.Filled = false
+    
+    local function isInFOV(targetPos)
+        local playerPos = character and character.HumanoidRootPart and character.HumanoidRootPart.Position
+        if not playerPos then return false end
+        
+        local directionToTarget = (targetPos - playerPos).Unit
+        local forwardVector = character.HumanoidRootPart.CFrame.LookVector
+        local dotProduct = directionToTarget:Dot(forwardVector)
+        local fovAngle = math.rad(65 / 2)
+        
+        return dotProduct > math.cos(fovAngle)
+    end
+    
+    local function getNearestToCursor()
+        local target = nil
+        local minDistance = _G.CombatConfig.SilentAimRadius
+        
+        for _, v in ipairs(game:GetService("Players"):GetPlayers()) do
+            if v ~= player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") and v.Character:FindFirstChild("Humanoid") and v.Character.Humanoid.Health > 0 then
+                local screenPos, onScreen = game:GetService("Workspace").CurrentCamera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - fovCircle.Position).Magnitude
+                    if distance < minDistance and isInFOV(v.Character.HumanoidRootPart.Position) then
+                        minDistance = distance
+                        target = v
+                    end
+                end
+            end
+        end
+        
+        return target
+    end
+    
+    -- Silent aim hook
+    local oldRaycast = game:GetService("ReplicatedStorage").Module.RayCast.RayIgnoreNonCollideWithIgnoreList
+    game:GetService("ReplicatedStorage").Module.RayCast.RayIgnoreNonCollideWithIgnoreList = function(...)
+        if _G.CombatConfig.SilentAimEnabled then
+            local nearestEnemy = getNearestToCursor()
+            if nearestEnemy and nearestEnemy.Character and nearestEnemy.Character:FindFirstChild("HumanoidRootPart") then
+                local args = {...}
+                local scriptName = tostring(getfenv(2).script)
+                
+                if (scriptName == "BulletEmitter" or scriptName == "Taser") and _G.CombatConfig.SilentAimIncludeTaser or 
+                   (scriptName == "PlasmaGun" or scriptName == "PlasmaEmitter") and _G.CombatConfig.SilentAimIncludePlasma then
+                    args[1] = nearestEnemy.Character.HumanoidRootPart
+                    args[2] = nearestEnemy.Character.HumanoidRootPart.Position
+                end
+                
+                return oldRaycast(unpack(args))
+            end
+        end
+        return oldRaycast(...)
+    end
+    
+    -- Robbery automation
+    local function serverHop()
+        local success, err = pcall(function()
+            local Servers = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+            local Server, Next = nil, nil
+            
+            local function ListServers(cursor)
+                local Raw = game:HttpGet(Servers .. ((cursor and "&cursor="..cursor) or ""))
+                return game:GetService("HttpService"):JSONDecode(Raw)
+            end
+            
+            repeat
+                local Servers = ListServers(Next)
+                Server = Servers.data[math.random(1, (#Servers.data / 3))]
+                Next = Servers.nextPageCursor
+            until Server
+            
+            if Server and Server.playing < Server.maxPlayers and Server.id ~= game.JobId then
+                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, Server.id, player)
+            end
+        end)
+        
+        if not success then
+            warn("Server hop failed:", err)
+        end
+    end
+    
+    -- Server hop timer
+    task.spawn(function()
+        while true do
+            if _G.UtilityConfig.AutoServerHop then
+                task.wait(_G.UtilityConfig.ServerHopTime)
+                serverHop()
+            else
+                task.wait(1)
+            end
+        end
+    end)
+    
+    -- Server hop on arrest/death
+    game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function()
+        local char = game:GetService("Players").LocalPlayer.Character
+        if char then
+            local humanoid = char:WaitForChild("Humanoid")
+            humanoid.Died:Connect(function()
+                if _G.UtilityConfig.ServerHopOnDeath then
+                    serverHop()
+                end
+            end)
+        end
+    end)
+    
+    -- Render map
+    local function renderMap()
+        local originalCameraType = game:GetService("Workspace").CurrentCamera.CameraType
+        game:GetService("Workspace").CurrentCamera.CameraType = Enum.CameraType.Scriptable
+        local positions = {
+            Vector3.new(-846, 39, -6231), 
+            Vector3.new(-1541, 39, 3311), 
+            Vector3.new(-363, 39, -6340), 
+            Vector3.new(-820, 39, 3306), 
+            Vector3.new(44, 39, -6409), 
+            Vector3.new(811, 39, 3206), 
+            Vector3.new(308, 39, -6350), 
+            Vector3.new(979, 39, 3173), 
+            Vector3.new(683, 39, -6267), 
+            Vector3.new(1303, 39, 3150), 
+            Vector3.new(1350, 39, -5764), 
+            Vector3.new(1976, 39, 3028), 
+            Vector3.new(2698, 39, -5365) 
+        }
+        
+        for _, position in ipairs(positions) do
+            local tweenInfo = TweenInfo.new(
+                0.6,
+                Enum.EasingStyle.Linear,
+                Enum.EasingDirection.Out,
+                0,
+                false,
+                0
+            )
+            local tween = game:GetService("TweenService"):Create(game:GetService("Workspace").CurrentCamera, tweenInfo, {CFrame = CFrame.new(position)})
+            tween:Play()
+            tween.Completed:Wait()
+        end
+        
+        game:GetService("Workspace").CurrentCamera.CameraType = originalCameraType
+    end
+    
+    -- Monitor render map request
+    task.spawn(function()
+        while true do
+            if _G.UtilityConfig.RenderMap then
+                _G.UtilityConfig.RenderMap = false
+                safeCall(renderMap)
+            end
+            task.wait(0.1)
+        end
+    end)
+    
+    -- Advertise
+    local function advertise()
+        local messages = {
+            ",gg/x2zu -> BEST JAILBREAK MONEY MAKER!!",
+            ",gg/x2zu -> GOOD FOR HYPERS!!",
+            ",gg/x2zu -> TRY IT, YOUR DAD COMES BACK!!",
+            ",gg/x2zu -> JOIN THE COOL KIDS!!",
+            ",gg/x2zu -> BEST OF ALL, ITS FREE!"
+        }
+        
+        for i = 1, #messages do
+            task.wait(0.25)
+            safeCall(function()
+                game:GetService("TextChatService").TextChannels.RBXGeneral:SendAsync(messages[i], "All")
+            end)
+        end
+    end
+    
+    -- Monitor advertise
+    task.spawn(function()
+        while true do
+            if _G.RobberyConfig.Advertise then
+                advertise()
+                task.wait(25)
+            else
+                task.wait(1)
+            end
+        end
+    end)
+    
+    -- Map rendering
+    game:GetService("RunService").RenderStepped:Connect(function()
+        if _G.CombatConfig.SilentAimFOVCircle then
+            fovCircle.Position = Vector2.new(game:GetService("Workspace").CurrentCamera.ViewportSize.X / 2, game:GetService("Workspace").CurrentCamera.ViewportSize.Y / 2)
+            fovCircle.Radius = _G.CombatConfig.SilentAimRadius
+            fovCircle.Visible = true
+        else
+            fovCircle.Visible = false
+        end
+    end)
+    
+    -- No Clip
+    local noclipActive = false
+    local noclipConnection
+    
+    local function startNoClip()
+        if noclipActive or not character then return end
+        
+        noclipActive = true
+        noclipConnection = game:GetService("RunService").Stepped:Connect(function()
+            pcall(function()
+                for _, child in pairs(character:GetDescendants()) do
+                    if child:IsA("BasePart") and child.CanCollide == true then
+                        child.CanCollide = false
+                    end
+                end
+            end)
+        end)
+    end
+    
+    local function stopNoClip()
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+        noclipActive = false
+    end
+    
+    -- Monitor no clip state
+    task.spawn(function()
+        while true do
+            if _G.UtilityConfig.NoClip and character then
+                startNoClip()
+            elseif not _G.UtilityConfig.NoClip then
+                stopNoClip()
+            end
+            task.wait(0.1)
+        end
+    end)
+    
+    -- Auto Open Safes
+    local function openAllSafes()
+        local success, err = pcall(function()
+            local safes = game:GetService("ReplicatedStorage").SafeConsts.SAFE_OPEN_REMOTE_NAME
+            if safes then
+                for _, item in ipairs(game:GetService("ReplicatedStorage").Store._state.safesInventoryItems) do
+                    game:GetService("ReplicatedStorage")[safes]:FireServer(item.itemOwnedId)
+                    task.wait(3)
+                end
+            end
+        end)
+        
+        if not success then
+            warn("Failed to open safes:", err)
+        end
+    end
+    
+    -- Monitor auto open safes
+    task.spawn(function()
+        while true do
+            if _G.RobberyConfig.AutoOpenSafes then
+                openAllSafes()
+            end
+            task.wait(5)
+        end
+    end)
+    
+    -- Main loop
+    while true do
+        -- Update configuration
+        FileWatcher:SaveConfig({
+            PlayerConfig = _G.PlayerConfig,
+            VehicleConfig = _G.VehicleConfig,
+            CombatConfig = _G.CombatConfig,
+            RobberyConfig = _G.RobberyConfig,
+            UtilityConfig = _G.UtilityConfig
+        })
+        
+        -- Update UI states
+        walkSpeedEnabled:SetValue(_G.PlayerConfig.WalkSpeedEnabled)
+        walkSpeedSlider:SetValue(_G.PlayerConfig.WalkSpeed)
+        jumpPowerEnabled:SetValue(_G.PlayerConfig.JumpPowerEnabled)
+        jumpPowerSlider:SetValue(_G.PlayerConfig.JumpPower)
+        infJump:SetValue(_G.PlayerConfig.InfJump)
+        noFall:SetValue(_G.PlayerConfig.NoFall)
+        noRagdoll:SetValue(_G.PlayerConfig.NoRagdoll)
+        noStun:SetValue(_G.PlayerConfig.NoStun)
+        noRollWait:SetValue(_G.PlayerConfig.NoRollWait)
+        noCrawlSlow:SetValue(_G.PlayerConfig.NoCrawlSlow)
+        alwaysKeycard:SetValue(_G.PlayerConfig.AlwaysKeycard)
+        noCircleWait:SetValue(_G.PlayerConfig.NoCircleWait)
+        
+        flightToggle:SetValue(_G.VehicleConfig.FlightEnabled)
+        flightSpeed:SetValue(_G.VehicleConfig.FlightSpeed)
+        flightX:SetValue(_G.VehicleConfig.FlightX)
+        flightY:SetValue(_G.VehicleConfig.FlightY)
+        flightZ:SetValue(_G.VehicleConfig.FlightZ)
+        infNitro:SetValue(_G.VehicleConfig.InfiniteNitro)
+        autoFlip:SetValue(_G.VehicleConfig.AutoFlip)
+        driveOnWater:SetValue(_G.VehicleConfig.DriveOnWater)
+        engineSpeed:SetValue(_G.VehicleConfig.EngineSpeed)
+        applyEngine:SetValue(_G.VehicleConfig.ApplyEngine)
+        suspensionHeight:SetValue(_G.VehicleConfig.SuspensionHeight)
+        applySuspension:SetValue(_G.VehicleConfig.ApplySuspension)
+        turnSpeed:SetValue(_G.VehicleConfig.TurnSpeed)
+        applyTurn:SetValue(_G.VehicleConfig.ApplyTurn)
+        noTirePop:SetValue(_G.VehicleConfig.NoTirePop)
+        heliEngine:SetValue(_G.VehicleConfig.HeliEngine)
+        heliInfiniteHeight:SetValue(_G.VehicleConfig.HeliInfiniteHeight)
+        heliAntiBreak:SetValue(_G.VehicleConfig.HeliAntiBreak)
+        heliInstantPickup:SetValue(_G.VehicleConfig.HeliInstantPickup)
+        
+        alwaysAuto:SetValue(_G.CombatConfig.AlwaysAuto)
+        noRecoil:SetValue(_G.CombatConfig.NoRecoil)
+        noSpread:SetValue(_G.CombatConfig.NoSpread)
+        noBulletGravity:SetValue(_G.CombatConfig.NoBulletGravity)
+        noEquipTime:SetValue(_G.CombatConfig.NoEquipTime)
+        wallbang:SetValue(_G.CombatConfig.Wallbang)
+        headshotOnly:SetValue(_G.CombatConfig.HeadshotOnly)
+        freePistolSwat:SetValue(_G.CombatConfig.FreePistolSwat)
+        fastTaser:SetValue(_G.CombatConfig.FastTaser)
+        noGrenadeSmoke:SetValue(_G.CombatConfig.NoGrenadeSmoke)
+        noReloadTime:SetValue(_G.CombatConfig.NoReloadTime)
+        alwaysSwoosh:SetValue(_G.CombatConfig.AlwaysSwoosh)
+        alwaysLunge:SetValue(_G.CombatConfig.AlwaysLunge)
+        silentAimEnabled:SetValue(_G.CombatConfig.SilentAimEnabled)
+        silentAimIncludeTaser:SetValue(_G.CombatConfig.SilentAimIncludeTaser)
+        silentAimIncludePlasma:SetValue(_G.CombatConfig.SilentAimIncludePlasma)
+        silentAimRadius:SetValue(_G.CombatConfig.SilentAimRadius)
+        silentAimWallCheck:SetValue(_G.CombatConfig.SilentAimWallCheck)
+        silentAimFovCircle:SetValue(_G.CombatConfig.SilentAimFOVCircle)
+        silentAimFovThickness:SetValue(_G.CombatConfig.SilentAimFOVThickness)
+        silentAimFovTransparency:SetValue(_G.CombatConfig.SilentAimFOVTransparency)
+        hitboxRadius:SetValue(_G.CombatConfig.HitboxRadius)
+        
+        autoRobCrate:SetValue(_G.RobberyConfig.RobCrate)
+        autoRobShip:SetValue(_G.RobberyConfig.RobShip)
+        autoRobMansion:SetValue(_G.RobberyConfig.RobMansion)
+        pickupCash:SetValue(_G.RobberyConfig.PickupCash)
+        autoOpenSafes:SetValue(_G.RobberyConfig.AutoOpenSafes)
+        logWebhook:SetValue(_G.RobberyConfig.LogWebhook)
+        advertise:SetValue(_G.RobberyConfig.Advertise)
+        mobile:SetValue(_G.RobberyConfig.Mobile)
+        
+        noClip:SetValue(_G.UtilityConfig.NoClip)
+        autoServerHop:SetValue(_G.UtilityConfig.AutoServerHop)
+        serverHopTime:SetValue(_G.UtilityConfig.ServerHopTime)
+        serverHopOnArrest:SetValue(_G.UtilityConfig.ServerHopOnArrest)
+        serverHopOnDeath:SetValue(_G.UtilityConfig.ServerHopOnDeath)
+        
+        task.wait(0.5)
+    end
+end)
+
+-- Draw the UI
+Window:Draw()
