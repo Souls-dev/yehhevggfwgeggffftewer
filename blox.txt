@@ -1,0 +1,1300 @@
+local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))();
+
+task.wait(1)
+
+SoulsHub:Loader(nil, 1).yield()
+
+local FileWatcher = SoulsHub:ConfigManager({
+    Directory = "SoulsHub",
+    Config = "Bloxfruits-Config"
+});
+
+local Window = SoulsHub.new({
+    Keybind = "LeftAlt",
+});
+
+local watermark = Window:Watermark();
+
+watermark:AddText({
+    Icon = "user",
+    Text = "Battleye"
+})
+
+local vim = watermark:AddText({
+    Icon = "clock",
+    Text = SoulsHub:GetTimeNow()
+})
+
+task.spawn(function()
+    while true do task.wait()
+        vim:SetText(SoulsHub:GetTimeNow())
+        Window.Username = "Souls Hub"
+    end;
+end)
+
+Window:Update({
+    ExpireDate = SoulsHub:GetDate(tick() + 84000)
+})
+
+watermark:AddText({
+    Icon = "server",
+    Text = "Blox Fruits"
+})
+
+-- Global feature state management
+_G.FeatureStates = _G.FeatureStates or {
+    ESP_Enabled = false,
+    WalkSpeed = 16,
+    JumpPower = 50,
+    AutoFarm = false,
+    AutoQuest = false,
+    AutoStore = false,
+    AutoServerHop = false,
+    NoClip = false,
+    AntiAFK = false,
+    FarmMode = "Normal",
+    SelectedWeapon = "Melee",
+    SelectedFruit = "None",
+    SelectedBoss = "None",
+    SelectedMaterial = "None",
+    AutoRedeem = false,
+    AutoPotion = false,
+    AutoHaki = false,
+    AutoBringMob = false,
+    AutoSword = false,
+    AutoFruit = false,
+    AutoRaid = false,
+    AutoThirdSea = false,
+    AutoRainbowHaki = false,
+    AutoHallowScythe = false,
+    AutoSoulGuitar = false,
+    AutoBartilo = false,
+    AutoDoughKing = false,
+    AutoRengoku = false,
+    AutoCakePrince = false,
+    AutoPirateCastle = false,
+    AutoBone = false,
+    AutoDarkDagger = false,
+    AutoEvoRace = false,
+    AutoTrain = false,
+    AutoMastery = false,
+    AutoElite = false,
+    AutoNear = false,
+    AutoShark = false,
+    AutoSaber = false,
+    AutoRainbow = false,
+    AutoDragon = false,
+    AutoRace = false,
+    AutoTrial = false,
+    AutoKillPlayer = false,
+    AutoDarkStep = false,
+    AutoCake = false,
+    AutoPole = false,
+    AutoLeather = false,
+    AutoDragonScale = false,
+    AutoGuitar = false,
+    AutoSwan = false,
+    AutoRaidAura = false,
+    AutoThirdWorld = false,
+    AutoZou = false,
+    AutoZouCave = false,
+    AutoZouCave2 = false,
+    AutoZouCave3 = false,
+    AutoZouCave4 = false,
+    AutoZouCave5 = false,
+    AutoZouCave6 = false,
+    AutoZouCave7 = false,
+    AutoZouCave8 = false,
+    AutoZouCave9 = false,
+    AutoZouCave10 = false,
+    AutoZouCave11 = false,
+    AutoZouCave12 = false,
+    AutoZouCave13 = false,
+    AutoZouCave14 = false,
+    AutoZouCave15 = false,
+    AutoZouCave16 = false,
+    AutoZouCave17 = false,
+    AutoZouCave18 = false,
+    AutoZouCave19 = false,
+    AutoZouCave20 = false,
+    AutoZouCave21 = false,
+    AutoZouCave22 = false,
+    AutoZouCave23 = false,
+    AutoZouCave24 = false,
+    AutoZouCave25 = false,
+    AutoZouCave26 = false,
+    AutoZouCave27 = false,
+    AutoZouCave28 = false,
+    AutoZouCave29 = false,
+    AutoZouCave30 = false,
+    AutoZouCave31 = false,
+    AutoZouCave32 = false,
+    AutoZouCave33 = false,
+    AutoZouCave34 = false,
+    AutoZouCave35 = false,
+    AutoZouCave36 = false,
+    AutoZouCave37 = false,
+    AutoZouCave38 = false,
+    AutoZouCave39 = false,
+    AutoZouCave40 = false,
+    AutoZouCave41 = false,
+    AutoZouCave42 = false,
+    AutoZouCave43 = false,
+    AutoZouCave44 = false,
+    AutoZouCave45 = false,
+    AutoZouCave46 = false,
+    AutoZouCave47 = false,
+    AutoZouCave48 = false,
+    AutoZouCave49 = false,
+    AutoZouCave50 = false,
+}
+
+-- Create tabs
+local Farming = Window:DrawTab({
+    Icon = "skull",
+    Name = "Farming",
+    Type = "Double"
+});
+
+local Quest = Window:DrawTab({
+    Icon = "map",
+    Name = "Quests"
+});
+
+local Materials = Window:DrawTab({
+    Icon = "gift",
+    Name = "Materials"
+});
+
+local Teleport = Window:DrawTab({
+    Icon = "compass",
+    Name = "Teleport"
+});
+
+local Combat = Window:DrawTab({
+    Icon = "sword",
+    Name = "Combat"
+});
+
+local Inventory = Window:DrawTab({
+    Icon = "backpack",
+    Name = "Inventory"
+});
+
+local Misc = Window:DrawTab({
+    Icon = "settings",
+    Name = "Misc"
+});
+
+local Server = Window:DrawTab({
+    Icon = "server",
+    Name = "Server"
+});
+
+-- Section: Farming
+local FarmingGeneral = Farming:DrawSection({
+    Name = "General",
+    Position = "LEFT"
+});
+
+local FarmingTarget = Farming:DrawSection({
+    Name = "Target",
+    Position = "right"
+});
+
+-- Farming toggles
+FarmingGeneral:AddToggle({
+    Name = "Auto Farm",
+    Flag = "auto_farm",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoFarm = value
+    end
+});
+
+FarmingGeneral:AddToggle({
+    Name = "Auto Bring Mob",
+    Flag = "auto_bring_mob",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoBringMob = value
+    end
+});
+
+FarmingGeneral:AddToggle({
+    Name = "Auto Haki",
+    Flag = "auto_haki",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoHaki = value
+    end
+});
+
+FarmingGeneral:AddToggle({
+    Name = "Auto Store",
+    Flag = "auto_store",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoStore = value
+    end
+});
+
+FarmingGeneral:AddToggle({
+    Name = "Auto Potion",
+    Flag = "auto_potion",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoPotion = value
+    end
+});
+
+FarmingGeneral:AddDropdown({
+    Name = "Farm Mode",
+    Values = {"Normal", "Fast", "Super Fast"},
+    Default = "Normal",
+    Flag = "farm_mode",
+    Callback = function(value)
+        _G.FeatureStates.FarmMode = value
+    end
+});
+
+FarmingGeneral:AddDropdown({
+    Name = "Selected Weapon",
+    Values = {"Melee", "Sword", "Gun", "Fruit"},
+    Default = "Melee",
+    Flag = "selected_weapon",
+    Callback = function(value)
+        _G.FeatureStates.SelectedWeapon = value
+    end
+});
+
+-- Farming target dropdowns
+FarmingTarget:AddDropdown({
+    Name = "Selected Boss",
+    Values = {"None", "Shark", "Pirate", "Saber", "Kilo Admiral", "Captain Elephant", "Darkbeard", "Soul Reaper", "Rengoku", "Dough King", "Don Swan", "Cake Prince", "Pirate Castle", "Bartilo", "Ice Admiral"},
+    Default = "None",
+    Flag = "selected_boss",
+    Callback = function(value)
+        _G.FeatureStates.SelectedBoss = value
+    end
+});
+
+FarmingTarget:AddDropdown({
+    Name = "Selected Material",
+    Values = {"None", "Demonic Wisp", "Vampire Fang", "Conjured Cocoa", "Dragon Scale", "Leather", "Bone"},
+    Default = "None",
+    Flag = "selected_material",
+    Callback = function(value)
+        _G.FeatureStates.SelectedMaterial = value
+    end
+});
+
+-- Section: Quests
+local QuestGeneral = Quest:DrawSection({
+    Name = "General",
+    Position = "LEFT"
+});
+
+local QuestTarget = Quest:DrawSection({
+    Name = "Target",
+    Position = "right"
+});
+
+QuestGeneral:AddToggle({
+    Name = "Auto Quest",
+    Flag = "auto_quest",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoQuest = value
+    end
+});
+
+QuestGeneral:AddToggle({
+    Name = "Auto Rainbow Haki",
+    Flag = "auto_rainbow_haki",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoRainbowHaki = value
+    end
+});
+
+QuestGeneral:AddToggle({
+    Name = "Auto Hallow Scythe",
+    Flag = "auto_hallow_scythe",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoHallowScythe = value
+    end
+});
+
+QuestGeneral:AddToggle({
+    Name = "Auto Soul Guitar",
+    Flag = "auto_soul_guitar",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoSoulGuitar = value
+    end
+});
+
+QuestGeneral:AddToggle({
+    Name = "Auto Bartilo",
+    Flag = "auto_bartilo",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoBartilo = value
+    end
+});
+
+QuestTarget:AddToggle({
+    Name = "Auto Dough King",
+    Flag = "auto_dough_king",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoDoughKing = value
+    end
+});
+
+QuestTarget:AddToggle({
+    Name = "Auto Rengoku",
+    Flag = "auto_rengoku",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoRengoku = value
+    end
+});
+
+QuestTarget:AddToggle({
+    Name = "Auto Cake Prince",
+    Flag = "auto_cake_prince",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoCakePrince = value
+    end
+});
+
+QuestTarget:AddToggle({
+    Name = "Auto Pirate Castle",
+    Flag = "auto_pirate_castle",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoPirateCastle = value
+    end
+});
+
+-- Section: Materials
+local MaterialGeneral = Materials:DrawSection({
+    Name = "General",
+    Position = "LEFT"
+});
+
+local MaterialTarget = Materials:DrawSection({
+    Name = "Target",
+    Position = "right"
+});
+
+MaterialGeneral:AddToggle({
+    Name = "Auto Bone",
+    Flag = "auto_bone",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoBone = value
+    end
+});
+
+MaterialGeneral:AddToggle({
+    Name = "Auto Dark Dagger",
+    Flag = "auto_dark_dagger",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoDarkDagger = value
+    end
+});
+
+MaterialGeneral:AddToggle({
+    Name = "Auto Evo Race",
+    Flag = "auto_evo_race",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoEvoRace = value
+    end
+});
+
+MaterialGeneral:AddToggle({
+    Name = "Auto Train",
+    Flag = "auto_train",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoTrain = value
+    end
+});
+
+MaterialTarget:AddToggle({
+    Name = "Auto Mastery",
+    Flag = "auto_mastery",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoMastery = value
+    end
+});
+
+MaterialTarget:AddToggle({
+    Name = "Auto Elite",
+    Flag = "auto_elite",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoElite = value
+    end
+});
+
+MaterialTarget:AddToggle({
+    Name = "Auto Near",
+    Flag = "auto_near",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoNear = value
+    end
+});
+
+MaterialTarget:AddToggle({
+    Name = "Auto Shark",
+    Flag = "auto_shark",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoShark = value
+    end
+});
+
+-- Section: Teleport
+local TeleportGeneral = Teleport:DrawSection({
+    Name = "General",
+    Position = "LEFT"
+});
+
+local TeleportTarget = Teleport:DrawSection({
+    Name = "Target",
+    Position = "right"
+});
+
+TeleportGeneral:AddButton({
+    Name = "Teleport to Lower Server",
+    Callback = function()
+        HopToLowestPlayerCount()
+    end
+});
+
+TeleportGeneral:AddButton({
+    Name = "Server Hop",
+    Callback = function()
+        Hop()
+    end
+});
+
+TeleportGeneral:AddToggle({
+    Name = "Auto Server Hop",
+    Flag = "auto_server_hop",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoServerHop = value
+    end
+});
+
+TeleportTarget:AddButton({
+    Name = "Teleport to Cake Prince",
+    Callback = function()
+        TeleportToCakePrince()
+    end
+});
+
+TeleportTarget:AddButton({
+    Name = "Teleport to Pirate Castle",
+    Callback = function()
+        TeleportToPirateCastle()
+    end
+});
+
+TeleportTarget:AddButton({
+    Name = "Teleport to Bartilo",
+    Callback = function()
+        TeleportToBartilo()
+    end
+});
+
+-- Section: Combat
+local CombatGeneral = Combat:DrawSection({
+    Name = "General",
+    Position = "LEFT"
+});
+
+local CombatTarget = Combat:DrawSection({
+    Name = "Target",
+    Position = "right"
+});
+
+CombatGeneral:AddToggle({
+    Name = "Auto Sword",
+    Flag = "auto_sword",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoSword = value
+    end
+});
+
+CombatGeneral:AddToggle({
+    Name = "Auto Fruit",
+    Flag = "auto_fruit",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoFruit = value
+    end
+});
+
+CombatGeneral:AddToggle({
+    Name = "Auto Raid",
+    Flag = "auto_raid",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoRaid = value
+    end
+});
+
+CombatGeneral:AddToggle({
+    Name = "Auto Third Sea",
+    Flag = "auto_third_sea",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoThirdSea = value
+    end
+});
+
+CombatTarget:AddToggle({
+    Name = "Auto Raid Aura",
+    Flag = "auto_raid_aura",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoRaidAura = value
+    end
+});
+
+CombatTarget:AddToggle({
+    Name = "Auto Third World",
+    Flag = "auto_third_world",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoThirdWorld = value
+    end
+});
+
+CombatTarget:AddToggle({
+    Name = "Auto Zou",
+    Flag = "auto_zou",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoZou = value
+    end
+});
+
+-- Section: Inventory
+local InventoryGeneral = Inventory:DrawSection({
+    Name = "General",
+    Position = "LEFT"
+});
+
+local InventoryTarget = Inventory:DrawSection({
+    Name = "Target",
+    Position = "right"
+});
+
+InventoryGeneral:AddButton({
+    Name = "Open Devil Fruit",
+    Callback = function()
+        OpenDevilFruit()
+    end
+});
+
+InventoryGeneral:AddButton({
+    Name = "Open Title Name",
+    Callback = function()
+        OpenTitleName()
+    end
+});
+
+InventoryGeneral:AddButton({
+    Name = "Open Inventory",
+    Callback = function()
+        OpenInventory()
+    end
+});
+
+InventoryTarget:AddButton({
+    Name = "Redeem All Codes",
+    Callback = function()
+        RedeemAllCodes()
+    end
+});
+
+InventoryTarget:AddButton({
+    Name = "Open Inventory Fruit",
+    Callback = function()
+        OpenInventoryFruit()
+    end
+});
+
+-- Section: Misc
+local MiscGeneral = Misc:DrawSection({
+    Name = "General",
+    Position = "LEFT"
+});
+
+local MiscTarget = Misc:DrawSection({
+    Name = "Target",
+    Position = "right"
+});
+
+MiscGeneral:AddToggle({
+    Name = "No Clip",
+    Flag = "no_clip",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.NoClip = value
+        ToggleNoClip(value)
+    end
+});
+
+MiscGeneral:AddToggle({
+    Name = "Anti AFK",
+    Flag = "anti_afk",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AntiAFK = value
+        ToggleAntiAFK(value)
+    end
+});
+
+MiscGeneral:AddSlider({
+    Name = "Walk Speed",
+    Min = 16,
+    Max = 250,
+    Round = 0,
+    Default = 16,
+    Type = "studs/s",
+    Flag = "walk_speed",
+    Callback = function(value)
+        _G.FeatureStates.WalkSpeed = value
+        SetWalkSpeed(value)
+    end
+});
+
+MiscGeneral:AddSlider({
+    Name = "Jump Power",
+    Min = 50,
+    Max = 200,
+    Round = 0,
+    Default = 50,
+    Type = "studs",
+    Flag = "jump_power",
+    Callback = function(value)
+        _G.FeatureStates.JumpPower = value
+        SetJumpPower(value)
+    end
+});
+
+MiscTarget:AddToggle({
+    Name = "Auto Redeem",
+    Flag = "auto_redeem",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoRedeem = value
+    end
+});
+
+MiscTarget:AddToggle({
+    Name = "Auto Kill Player",
+    Flag = "auto_kill_player",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoKillPlayer = value
+    end
+});
+
+MiscTarget:AddToggle({
+    Name = "Auto Dark Step",
+    Flag = "auto_dark_step",
+    Default = false,
+    Callback = function(value)
+        _G.FeatureStates.AutoDarkStep = value
+    end
+});
+
+-- Section: Server
+local ServerGeneral = Server:DrawSection({
+    Name = "General",
+    Position = "LEFT"
+});
+
+local ServerTarget = Server:DrawSection({
+    Name = "Target",
+    Position = "right"
+});
+
+ServerGeneral:AddButton({
+    Name = "Server Hop",
+    Callback = function()
+        Hop()
+    end
+});
+
+ServerGeneral:AddButton({
+    Name = "Rejoin Server",
+    Callback = function()
+        RejoinServer()
+    end
+});
+
+ServerGeneral:AddButton({
+    Name = "Teleport to Lower Server",
+    Callback = function()
+        HopToLowestPlayerCount()
+    end
+});
+
+-- Core functions with fallbacks
+
+-- Farming loop
+local function FarmingLoop()
+    while true do
+        task.wait()
+        if _G.FeatureStates.AutoFarm then
+            pcall(function()
+                FarmTarget()
+            end)
+        end
+    end
+end
+
+-- Quest automation loop
+local function QuestLoop()
+    while true do
+        task.wait()
+        if _G.FeatureStates.AutoQuest then
+            pcall(function()
+                CompleteQuests()
+            end)
+        end
+    end
+end
+
+-- Server hopping loop
+local function ServerHopLoop()
+    while true do
+        task.wait(5)
+        if _G.FeatureStates.AutoServerHop then
+            pcall(function()
+                Hop()
+            end)
+        end
+    end
+end
+
+-- Main functionality
+local function FarmTarget()
+    if not game:GetService("Players").LocalPlayer.Character then return end
+    
+    local selectedBoss = _G.FeatureStates.SelectedBoss
+    local selectedMaterial = _G.FeatureStates.SelectedMaterial
+    
+    if selectedBoss ~= "None" then
+        pcall(function()
+            FarmBoss(selectedBoss)
+        end)
+    elseif selectedMaterial ~= "None" then
+        pcall(function()
+            FarmMaterial(selectedMaterial)
+        end)
+    else
+        pcall(function()
+            FarmDefault()
+        end)
+    end
+end
+
+-- Farming implementation with fallbacks
+local function FarmBoss(bossName)
+    local enemies = game:GetService("Workspace").Enemies:GetChildren()
+    local foundBoss = false
+    
+    for _, enemy in ipairs(enemies) do
+        if enemy.Name == bossName and enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+            foundBoss = true
+            
+            local targetCFrame = enemy.HumanoidRootPart.CFrame
+            local farmMode = _G.FeatureStates.FarmMode
+            
+            local speed = 350
+            if farmMode == "Fast" then speed = 500 end
+            if farmMode == "Super Fast" then speed = 750 end
+            
+            pcall(function()
+                if _G.FeatureStates.AutoBringMob then
+                    TweenToPosition(targetCFrame * CFrame.new(0, 0, -10), speed)
+                else
+                    TweenToPosition(targetCFrame, speed)
+                end
+            end)
+            
+            pcall(function()
+                if _G.FeatureStates.AutoHaki then
+                    UseHaki()
+                end
+            end)
+            
+            pcall(function()
+                if _G.FeatureStates.AutoPotion then
+                    UsePotion()
+                end
+            end)
+            
+            pcall(function()
+                Attack()
+            end)
+            
+            break
+        end
+    end
+    
+    if not foundBoss then
+        pcall(function()
+            if bossName == "Shark" then
+                TeleportToShark()
+            elseif bossName == "Pirate" then
+                TeleportToPirate()
+            end
+        end)
+    end
+end
+
+-- Material farming implementation
+local function FarmMaterial(materialName)
+    local materialLocations = {
+        ["Demonic Wisp"] = CFrame.new(-9507,172,6158),
+        ["Vampire Fang"] = CFrame.new(-6033,7,-1317),
+        ["Conjured Cocoa"] = CFrame.new(1349.697, 37.35, -1328.831),
+        ["Dragon Scale"] = CFrame.new(2099.882, 448.931, 648.997),
+        ["Leather"] = CFrame.new(-11975.785, 331.773, -10620.03),
+        ["Bone"] = CFrame.new(-9515.75, 174.852, 6079.406)
+    }
+    
+    if materialLocations[materialName] then
+        pcall(function()
+            TweenToPosition(materialLocations[materialName], 350)
+        end)
+    end
+end
+
+-- Default farming implementation
+local function FarmDefault()
+    local enemies = game:GetService("Workspace").Enemies:GetChildren()
+    local lowestHealthEnemy
+    
+    for _, enemy in ipairs(enemies) do
+        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 then
+            if not lowestHealthEnemy or enemy.Humanoid.Health < lowestHealthEnemy.Humanoid.Health then
+                lowestHealthEnemy = enemy
+            end
+        end
+    end
+    
+    if lowestHealthEnemy then
+        local targetCFrame = lowestHealthEnemy.HumanoidRootPart.CFrame
+        local farmMode = _G.FeatureStates.FarmMode
+        
+        local speed = 350
+        if farmMode == "Fast" then speed = 500 end
+        if farmMode == "Super Fast" then speed = 750 end
+        
+        pcall(function()
+            if _G.FeatureStates.AutoBringMob then
+                TweenToPosition(targetCFrame * CFrame.new(0, 0, -10), speed)
+            else
+                TweenToPosition(targetCFrame, speed)
+            end
+        end)
+        
+        pcall(function()
+            if _G.FeatureStates.AutoHaki then
+                UseHaki()
+            end
+        end)
+        
+        pcall(function()
+            if _G.FeatureStates.AutoPotion then
+                UsePotion()
+            end
+        end)
+        
+        pcall(function()
+            Attack()
+        end)
+    end
+end
+
+-- Auto Quest implementation
+local function CompleteQuests()
+    local questName = game:GetService("Players").LocalPlayer.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text
+    
+    if string.find(questName, "Demonic Soul") or string.find(questName, "Demonic Wisp") then
+        pcall(function()
+            FarmMaterial("Demonic Wisp")
+        end)
+    elseif string.find(questName, "Vampire") then
+        pcall(function()
+            FarmMaterial("Vampire Fang")
+        end)
+    elseif string.find(questName, "Cake") then
+        pcall(function()
+            if _G.FeatureStates.AutoDoughKing then
+                FarmBoss("Dough King")
+            end
+        end)
+    elseif string.find(questName, "Bartilo") then
+        pcall(function()
+            if _G.FeatureStates.AutoBartilo then
+                FarmBoss("Bartilo")
+            end
+        end)
+    elseif string.find(questName, "Rengoku") then
+        pcall(function()
+            if _G.FeatureStates.AutoRengoku then
+                FarmBoss("Rengoku")
+            end
+        end)
+    elseif string.find(questName, "Pirate Castle") then
+        pcall(function()
+            if _G.FeatureStates.AutoPirateCastle then
+                FarmBoss("Pirate Castle")
+            end
+        end)
+    end
+end
+
+-- Server hopping implementation with fallbacks
+local function Hop()
+    local PlaceID = game.PlaceId
+    local AllIDs = {}
+    local foundAnything = ""
+    local actualHour = os.date("!*t").hour
+    local Deleted = false
+    
+    local function TPReturner()
+        local Site
+        if foundAnything == "" then
+            Site = pcall(function()
+                return game:GetService("HttpService"):JSONDecode(
+                    game:GetService("HttpService"):GetAsync(
+                        'https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'
+                    )
+                )
+            end)
+        else
+            Site = pcall(function()
+                return game:GetService("HttpService"):JSONDecode(
+                    game:GetService("HttpService"):GetAsync(
+                        'https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything
+                    )
+                )
+            end)
+        end
+        
+        if Site and Site.data then
+            if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
+                foundAnything = Site.nextPageCursor
+            end
+            
+            for _, v in ipairs(Site.data) do
+                local ID = v.id
+                if v.playing and v.maxPlayers and tonumber(v.maxPlayers) > tonumber(v.playing) then
+                    if not table.find(AllIDs, ID) then
+                        table.insert(AllIDs, ID)
+                    end
+                end
+            end
+        end
+    end
+    
+    local function Teleport()
+        while true do
+            task.wait(0.1)
+            pcall(function()
+                TPReturner()
+                if foundAnything ~= "" then
+                    TPReturner()
+                end
+            end)
+        end
+    end
+    
+    if #AllIDs > 0 then
+        local randomID = AllIDs[math.random(1, #AllIDs)]
+        pcall(function()
+            game:GetService("TeleportService"):TeleportToPlaceInstance(PlaceID, randomID, game:GetService("Players").LocalPlayer)
+        end)
+    else
+        pcall(function()
+            Teleport()
+        end)
+    end
+end
+
+-- Hop to server with lowest player count
+local function HopToLowestPlayerCount()
+    local PlaceID = game.PlaceId
+    local lowestServer = nil
+    local lowestPlayerCount = math.huge
+    local maxAttempts = 10
+    local attempts = 0
+    
+    while attempts < maxAttempts do
+        attempts = attempts + 1
+        
+        local success, result = pcall(function()
+            return game:GetService("HttpService"):JSONDecode(
+                game:GetService("HttpService"):GetAsync(
+                    'https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'
+                )
+            )
+        end)
+        
+        if success and result and result.data then
+            for _, server in ipairs(result.data) do
+                local playerCount = server.playing or 0
+                if playerCount < lowestPlayerCount then
+                    lowestPlayerCount = playerCount
+                    lowestServer = server
+                end
+            end
+            
+            if lowestServer then
+                pcall(function()
+                    game:GetService("TeleportService"):TeleportToPlaceInstance(PlaceID, lowestServer.id, game:GetService("Players").LocalPlayer)
+                end)
+                break
+            end
+        end
+        
+        task.wait(0.5)
+    end
+end
+
+-- Teleport functions
+local function TeleportToCakePrince()
+    pcall(function()
+        TweenToPosition(CFrame.new(-5524.532, 313.800, -2918.074), 350)
+    end)
+end
+
+local function TeleportToPirateCastle()
+    pcall(function()
+        TweenToPosition(CFrame.new(-16885.203, 114.129, 1627.95), 350)
+    end)
+end
+
+local function TeleportToBartilo()
+    pcall(function()
+        TweenToPosition(CFrame.new(1057.928, 137.614, 1242.081), 350)
+    end)
+end
+
+-- Inventory functions
+local function OpenDevilFruit()
+    pcall(function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("GetFruits")
+        game:GetService("Players").LocalPlayer.PlayerGui.Main.FruitShop.Visible = true
+    end)
+end
+
+local function OpenTitleName()
+    pcall(function()
+        local args = {[1] = "getTitles"}
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        game:GetService("Players").LocalPlayer.PlayerGui.Main.Titles.Visible = true
+    end)
+end
+
+local function OpenInventory()
+    pcall(function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("getInventoryWeapons")
+        task.wait(1)
+        game:GetService("Players").LocalPlayer.PlayerGui.Main.Inventory.Visible = true
+    end)
+end
+
+local function OpenInventoryFruit()
+    pcall(function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("getInventory")
+        task.wait(1)
+        game:GetService("Players").LocalPlayer.PlayerGui.Main.FruitInventory.Visible = true
+    end)
+end
+
+-- Redeem all codes
+local function RedeemAllCodes()
+    local codes = {
+        "EXP_5B", "CONTROL", "UPDATE11", "XMASEXP", "1BILLION", "ShutDownFix2", "UPD14", "STRAWHATMAINE", "TantaiGaming",
+        "Colosseum", "Axiore", "Sub2Daigrock", "Sky Island 3", "Sub2OfficialNoobie", "SUB2NOOBMASTER123", "THEGREATACE",
+        "Fountain City", "BIGNEWS", "FUDD10", "SUB2GAMERROBOT_EXP1", "UPD15", "2BILLION", "UPD16", "3BVISITS", "fudd10_v2",
+        "Starcodeheo", "Magicbus", "JCWK", "Bluxxy", "Sub2Fer999", "Enyu_is_Pro", "SECRET_ADMIN", "KITT_RESET", "DRAGONABUSE",
+        "Sub2CaptainMaui", "DEVSCOOKING", "kittgaming", "NOOB_REFUND", "SUB2GAMERROBOT_RESET1", "Sub2UncleKizaru"
+    }
+    
+    for _, code in ipairs(codes) do
+        pcall(function()
+            game:GetService("ReplicatedStorage").Remotes.Redeem:InvokeServer(code)
+        end)
+    end
+end
+
+-- Movement functions
+local function SetWalkSpeed(speed)
+    local player = game:GetService("Players").LocalPlayer
+    if player and player.Character then
+        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            pcall(function()
+                humanoid.WalkSpeed = speed
+            end)
+        end
+    end
+end
+
+local function SetJumpPower(power)
+    local player = game:GetService("Players").LocalPlayer
+    if player and player.Character then
+        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            pcall(function()
+                humanoid.JumpPower = power
+            end)
+        end
+    end
+end
+
+-- No clip functionality
+local function ToggleNoClip(enabled)
+    local player = game:GetService("Players").LocalPlayer
+    if player and player.Character then
+        local character = player.Character
+        local bodyClip = character:FindFirstChild("BodyClip")
+        
+        if enabled then
+            if not bodyClip then
+                bodyClip = Instance.new("BodyVelocity")
+                bodyClip.Name = "BodyClip"
+                bodyClip.Parent = character.HumanoidRootPart
+                bodyClip.MaxForce = Vector3.new(100000, 100000, 100000)
+                bodyClip.Velocity = Vector3.new(0, 0, 0)
+            end
+            
+            pcall(function()
+                for _, part in ipairs(character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end)
+        else
+            if bodyClip then
+                bodyClip:Destroy()
+            end
+            
+            pcall(function()
+                for _, part in ipairs(character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = true
+                    end
+                end
+            end)
+        end
+    end
+end
+
+-- Anti AFK functionality
+local function ToggleAntiAFK(enabled)
+    if enabled then
+        local virtualUser = game:GetService("VirtualUser")
+        local connection
+        
+        connection = game:GetService("RunService").Heartbeat:Connect(function()
+            virtualUser:ClickButton2(Vector2.new())
+        end)
+        
+        -- Store connection so we can disconnect it later
+        _G.AntiAFKConnection = connection
+    else
+        if _G.AntiAFKConnection then
+            _G.AntiAFKConnection:Disconnect()
+            _G.AntiAFKConnection = nil
+        end
+    end
+end
+
+-- Tween to position function
+local function TweenToPosition(cframe, speed)
+    local character = game:GetService("Players").LocalPlayer.Character
+    if not character then return end
+    
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    
+    local distance = (cframe.Position - rootPart.Position).Magnitude
+    if distance > 1 then
+        pcall(function()
+            game:GetService("TweenService"):Create(
+                rootPart,
+                TweenInfo.new(distance / speed, Enum.EasingStyle.Linear),
+                {CFrame = cframe}
+            ):Play()
+        end)
+    else
+        rootPart.CFrame = cframe
+    end
+end
+
+-- Combat functions
+local function Attack()
+    pcall(function()
+        local args = {[1] = "SetMon", [2] = "Default"}
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        
+        game:GetService("VirtualInputManager"):SendKeyEvent(true, 99, false, game:GetService("Players").LocalPlayer.Character.HumanoidRootPart)
+        game:GetService("VirtualInputManager"):SendKeyEvent(false, 99, false, game:GetService("Players").LocalPlayer.Character.HumanoidRootPart)
+        
+        if _G.FeatureStates.SelectedWeapon == "Fruit" then
+            game:GetService("VirtualInputManager"):SendKeyEvent(true, 122, false, game:GetService("Players").LocalPlayer.Character.HumanoidRootPart)
+            game:GetService("VirtualInputManager"):SendKeyEvent(false, 122, false, game:GetService("Players").LocalPlayer.Character.HumanoidRootPart)
+        end
+        
+        if _G.FeatureStates.SelectedWeapon == "Sword" or _G.FeatureStates.SelectedWeapon == "Gun" then
+            game:GetService("VirtualInputManager"):SendKeyEvent(true, 120, false, game:GetService("Players").LocalPlayer.Character.HumanoidRootPart)
+            game:GetService("VirtualInputManager"):SendKeyEvent(false, 120, false, game:GetService("Players").LocalPlayer.Character.HumanoidRootPart)
+        end
+    end)
+end
+
+local function UseHaki()
+    pcall(function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("UseHaki")
+    end)
+end
+
+local function UsePotion()
+    pcall(function()
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyPotion", 1)
+    end)
+end
+
+-- Initialize loops
+task.spawn(FarmingLoop)
+task.spawn(QuestLoop)
+task.spawn(ServerHopLoop)
+
+-- Final UI setup
+Window:Draw()
