@@ -1,13 +1,3 @@
--- Souls Hub | made by soul
--- Merged Souls UI (SoulsHub) + Azure Latch feature set
--- Created by: soul (merged by assistant)
-
--- Note: This file is a best-effort merge of the provided Azure Latch (OS) features
--- into the Souls Hub UI library. Some extremely large or deeply interwoven
--- pieces of the original script were integrated as-is; where direct 1:1
--- mapping was unclear the original logic is preserved in helper functions
--- and exposed via SoulsHub buttons.
-
 -- Load Souls Hub UI
 local ok, SoulsHub = pcall(function()
     return loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
@@ -64,7 +54,7 @@ local function notify(title, text, duration)
     end
 end
 
--- Example: Auto Goal (adapted)
+-- Example: Auto Goal 
 local _G = _G or {}
 _G.AUTO_GOAL = false
 function AutoGoal_Toggle()
@@ -264,11 +254,11 @@ end
 -- the original Azure Latch code (loaded directly from the pastebin URL provided in the
 -- uploaded file). This keeps the accurate original logic while still exposing Souls UI.
 
-local AZURE_LATCH_RAW_URL = "https://pastebin.com/raw/wk7ZrGyr"
+
 function LoadAzureOriginal()
     local ok, code = pcall(function() return game:HttpGet(AZURE_LATCH_RAW_URL, true) end)
     if not ok or not code or code == "" then
-        notify("Load Azure", "Failed to fetch Azure Latch code.")
+        notify("Load souls hub", "Failed to fetch Azure source.")
         return
     end
 
@@ -285,7 +275,7 @@ function LoadAzureOriginal()
     if not ok2 then
         notify("Load Azure", "Execution error: " .. tostring(err2))
     else
-        notify("Load Azure", "Azure Latch loaded (may create its own UI).")
+        notify("Load souls hub", "...")
     end
 end
 
@@ -295,7 +285,7 @@ end
 sectionBlatant:AddButton({ Name = "Auto Goal", Callback = AutoGoal_Toggle })
 sectionBlatant:AddButton({ Name = "Always Ball", Callback = AlwaysBall_Toggle })
 sectionBlatant:AddButton({ Name = "Auto QTE", Callback = AutoQTE_Toggle })
-sectionBlatant:AddButton({ Name = "Load Azure Latch Original", Callback = LoadAzureOriginal })
+sectionBlatant:AddButton({ Name = "Load Azure Latch ", Callback = LoadAzure })
 
 sectionSilent:AddButton({ Name = "Toggle Auto-Dribble", Callback = function() AutoCounter_Set("toggleDetection", not _G.toggleDetection) end })
 sectionSilent:AddButton({ Name = "Toggle Auto-Counter (Move 1)", Callback = function() AutoCounter_Set("toggleCounter1", not _G.toggleCounter1) end })
@@ -323,7 +313,7 @@ sectionMisc:AddButton({ Name = "Fix Duplicate Ball", Callback = function()
     notify("Fix Duplicate Ball", "Attempted to remove duplicate ball parts.")
 end })
 
-sectionInfo:AddParagraph({ Title = "Controls", Content = "Show/Hide GUI: LeftAlt. Many features are adapted from Azure Latch; use the 'Load Azure Latch Original' button to load the original script verbatim if you need full parity." })
+sectionInfo:AddParagraph({ Title = "Controls", Content = "Show/Hide GUI: LeftAlt. Many features are adapted from Azure Latch; use the." })
 sectionInfo:AddButton({ Name = "Toggle Notifications Suppression", Callback = function()
     _G.suppressNotifs = not _G.suppressNotifs
     notify("Notifications", _G.suppressNotifs and "Suppressed." or "Enabled.")
@@ -336,3 +326,22 @@ Configs:Init()
 
 -- End of merged script
 print("Souls Hub | made by soul loaded.")
+ original script verbatim if you need full parity." })
+sectionInfo:AddButton({ Name = "Toggle Notifications Suppression", Callback = function()
+    _G.suppressNotifs = not _G.suppressNotifs
+    notify("Notifications", _G.suppressNotifs and "Suppressed." or "Enabled.")
+end })
+
+-- Final note: Saveable config example
+local FileWatcher = SoulsHub:ConfigManager({ Directory = "SoulsHub", Config = "Default" })
+local Configs = Window:DrawConfig({ Name = "Configs", Icon = "folder", Config = FileWatcher })
+Configs:Init()
+
+-- End of merged script
+print("Souls Hub | made by soul loaded.")
+ soul loaded.")
+nfigs:Init()
+
+-- End of merged script
+print("Souls Hub | made by soul loaded.")
+ soul loaded.")
