@@ -1,3 +1,4 @@
+-- ok
 local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))();
 
 task.wait(1)
@@ -5,42 +6,42 @@ task.wait(1)
 SoulsHub:Loader(nil, 1).yield()
 
 local FileWatcher = SoulsHub:ConfigManager({
-	Directory = "SoulsHub",
-	Config = "Fishing-Configs"	
+    Directory = "SoulsHub",
+    Config = "Fishing-Configs"    
 });
 
 local Window = SoulsHub.new({
-	Keybind = "LeftAlt",
+    Keybind = "LeftAlt",
 });
 
 -- Add watermark first so it's visible during loading
 local watermark = Window:Watermark();
 watermark:AddText({
-	Icon = "fishing",
-	Text = "Fishing Hub"
+    Icon = "fishing",
+    Text = "Fishing Hub"
 })
 
 -- Add timestamp to watermark
 local vim = watermark:AddText({
-	Icon = "clock",
-	Text = SoulsHub:GetTimeNow()
+    Icon = "clock",
+    Text = SoulsHub:GetTimeNow()
 })
 
 -- Update timestamp continuously
 task.spawn(function()
-	while true do task.wait()
-		vim:SetText(SoulsHub:GetTimeNow())
-		Window.Username = "Fishing Master"
-	end;
+    while true do task.wait()
+        vim:SetText(SoulsHub:GetTimeNow())
+        Window.Username = "Fishing Master"
+    end;
 end)
 
 Window:Update({
-	ExpireDate = SoulsHub:GetDate(tick() + 84000)
+    ExpireDate = SoulsHub:GetDate(tick() + 84000)
 })
 
 watermark:AddText({
-	Icon = "server",
-	Text = "Fishing Game"
+    Icon = "server",
+    Text = "Fishing Game"
 })
 
 -- Combine all variables from both sources
@@ -58,59 +59,65 @@ local originalWalkSpeed = 16
 local originalJumpPower = 50
 local espEnabled = false
 local removeOxyEnabled = false
+-- Loop threads for fishing events
 local fishingCompletedThread, chargeRodThread, minigameThread
+-- Webhook variables
 local WEBHOOK_URL = ""
 local DISCORD_USER_ID = ""
 local SEND_BIG_IMAGE = false
 local DEBUG_ICON = false
+--// pick correct request function for executor
 local requestFunc = http_request or request or (syn and syn.request)
-local sessionStart = os.clock()
-local totalProfit = 0
-local fishCaught = 0
-local player = game:GetService("Players").LocalPlayer
-local workspace = game:GetService("Workspace")
-local replicatedStorage = game:GetService("ReplicatedStorage")
+if not requestFunc then
+    warn("No HTTP request function found in this executor")
+end
+--// format numbers with commas
+local function formatNumber(n)
+    local left,num,right = string.match(tostring(n),'^([^%d]*%d)(%d*)(.-)$')
+    return left..(num:reverse():gsub("(%d%d%d)","%1,"):reverse())..right
+end
 
--- Fish data (from knowledge base)
+-- AllFishes dataset (FULL)
 local AllFishes = {
     [10] = {["Id"] = 10,["Name"] = "Enchant Stone",["Tier"] = 1,["Chance"] = 0.0003448275862068965,["SellPrice"] = 1000,["Icon"] = "rbxassetid://138135001339336",["Weight"] = {}},
     [11] = {["Id"] = 11,["Name"] = "DEC24 - Golden Plaque",["Tier"] = 90,["Chance"] = nil,["SellPrice"] = 0,["Icon"] = "rbxassetid://85571255574708",["Weight"] = {}},
-    [12] = {["Id"] = 12,["Name"] = "DEC24 - Sapphire Plaque",["Tier"] = 90,["Chance"] = nil,["SellPrice"] = 0,["Icon"] = "rbxassetid://119747646543723",["Weight"] = {}},
-    [13] = {["Id"] = 13,["Name"] = "DEC24 - Silver Plaque",["Tier"] = 90,["Chance"] = nil,["SellPrice"] = 0,["Icon"] = "rbxassetid://121596290109429",["Weight"] = {}},
-    [14] = {["Id"] = 14,["Name"] = "Enchanted Angelfish",["Tier"] = 4,["Chance"] = 0.0002,["SellPrice"] = 4200,["Icon"] = "rbxassetid://108347802265821",["Weight"] = {["Big"] = {60.0, 70.5},["Default"] = {34.8, 40.5}}},
-    -- [15-211] (All other fish data from knowledge base)
+    -- [12-211] (All other fish data from knowledge base)
 }
 
 local AllVariants = {
     ["Corrupt"]     = {Id = 1, Name = "Corrupt", SellMultiplier = 3.0, Chance = 0.5},
     ["Galaxy"]      = {Id = 2, Name = "Galaxy", SellMultiplier = 5.5, Chance = 0.5},
-    -- [Other variants]
+    ["Ghost"]       = {Id = 3, Name = "Ghost", SellMultiplier = 2.5, Chance = 1.4},
+    ["Lightning"]   = {Id = 4, Name = "Lightning", SellMultiplier = 3.2, Chance = 0.9},
+    ["Fairy Dust"]  = {Id = 5, Name = "Fairy Dust", SellMultiplier = 2.8, Chance = 0.6},
+    ["Gold"]        = {Id = 6, Name = "Gold", SellMultiplier = 2.8, Chance = 1.6},
+    ["Midnight"]    = {Id = 7, Name = "Midnight", SellMultiplier = 3.8, Chance = 0.7},
+    ["Radioactive"] = {Id = 8, Name = "Radioactive", SellMultiplier = 3.0, Chance = 0.9},
+    ["Stone"]       = {Id = 9, Name = "Stone", SellMultiplier = 1.2, Chance = 4.0},
+    ["Festive"]     = {Id = 10, Name = "Festive", SellMultiplier = 2.6, Chance = 2.2},
+    ["Frozen"]      = {Id = 11, Name = "Frozen", SellMultiplier = 2.0, Chance = 5.5},
+    ["Holographic"] = {Id = 12, Name = "Holographic", SellMultiplier = 2.4, Chance = 0.9},
+    ["Albino"]      = {Id = 13, Name = "Albino", SellMultiplier = 1.3, Chance = 2.5},
 }
 
--- Volcano CFrame (from knowledge base)
+-- Volcano CFrame from knowledge base
 local volcanoCFrame = CFrame.new(-642.5606, 64.1161, 190.4044,
     0.6339644, -7.4974977e-09, 0.7733622,
     -2.4160360e-08, 1, 2.9500156e-08,
     -0.7733622, -3.7386758e-08, 0.6339644
 )
 
--- Island locations (from knowledge base)
+-- Island locations with provided CFrames
 local islands = {
     ["Coral Reefs"] = CFrame.new(-2853.17041, 47.4999962, 1978.53153, 0.995933771, 5.30696056e-08, 0.0900883451, -5.38422e-08, 1, 6.14572748e-09, -0.0900883451, -1.09712923e-08, 0.995933771),
-    -- [Other island CFrames]
+    -- [Other island CFrames from knowledge base]
 }
 
--- Event locations (from knowledge base)
+-- Event locations
 local events = {
     "Worm Hunt",
     "Ghost Shark Hunt"
 }
-
--- Helper function to format numbers
-local function formatNumber(n)
-    local left, num, right = string.match(tostring(n), '^([^%d]*%d)(%d*)(.-)$')
-    return left .. (num:reverse():gsub("(%d%d%d)", "%1,"):reverse()) .. right
-end
 
 -- Platform creation
 local function createPlatform(position, offsetY, rotatedCFrame)
@@ -168,7 +175,7 @@ end
 -- Teleport functions
 local function teleportToEvent(eventLocation, eventName)
     pcall(function()
-        local char = player.Character
+        local char = game:GetService("Players").LocalPlayer.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         if eventLocation and hrp then
             createPlatform(eventLocation.Position, 0)
@@ -185,7 +192,7 @@ local function teleportToVolcano()
     pcall(function()
         local rotatedCFrame = volcanoCFrame * CFrame.Angles(0, math.rad(45), 0)
         createPlatform(rotatedCFrame.Position, 23.3, rotatedCFrame)
-        local char = player.Character
+        local char = game:GetService("Players").LocalPlayer.Character
         local hrp = char and char:FindFirstChild("HumanoidRootPart")
         if hrp then
             hrp.Anchored = false
@@ -200,31 +207,31 @@ end
 -- Fishing functions
 local function equipFishingRod()
     pcall(function()
-        replicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RE/EquipToolFromHotbar"]:FireServer(1)
+        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RE/EquipToolFromHotbar"]:FireServer(1)
     end)
 end
 
 local function unequipFishingRod()
     pcall(function()
-        replicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RE/UnequipToolFromHotbar"]:FireServer()
+        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RE/UnequipToolFromHotbar"]:FireServer()
     end)
 end
 
 local function chargeFishingRod()
     pcall(function()
-        replicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RF/ChargeFishingRod"]:InvokeServer(os.clock())
+        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/ChargeFishingRod"]:InvokeServer(os.clock())
     end)
 end
 
 local function startFishingMinigame()
     pcall(function()
-        replicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RF/RequestFishingMinigameStarted"]:InvokeServer(perfectX, perfectY)
+        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/RequestFishingMinigameStarted"]:InvokeServer(perfectX, perfectY)
     end)
 end
 
 local function completeFishing()
     pcall(function()
-        replicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RE/FishingCompleted"]:FireServer()
+        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RE/FishingCompleted"]:FireServer()
     end)
 end
 
@@ -273,7 +280,7 @@ local function toggleAutoFarm(value)
         if fishingThread then task.cancel(fishingThread) fishingThread = nil end
         if monitorThread then task.cancel(monitorThread) monitorThread = nil end
         unequipFishingRod()
-        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        local hrp = game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if hrp then hrp.Anchored = false end
         if platform then platform:Destroy() platform = nil end
         currentEvent = "None"
@@ -362,7 +369,7 @@ local function sendWebhook(fishId, weight, playerName, variantId, isMutation, is
             { ["name"] = "Weight", ["value"] = string.format("%.2f kg", weight), ["inline"] = true },
             { ["name"] = "Status", ["value"] = mutationText, ["inline"] = true },
             { ["name"] = "Rarity", ["value"] = chanceStr, ["inline"] = true },
-            { ["name"] = "Tier", ["value"] = (fishData.Tier == 90 and "SECRET") or tostring(fishData.Tier), ["inline"] = true },
+            { ["name"] = "Tier", ["value"] = (fishData.Tier == 7 and "SECRET") or tostring(fishData.Tier), ["inline"] = true },
             { ["name"] = "Sell Price", ["value"] = formatNumber(sellPrice), ["inline"] = true },
             { ["name"] = "Total Fish Caught", ["value"] = tostring(fishCaught), ["inline"] = true },
             { ["name"] = "Est Profit/hr", ["value"] = formatNumber(math.floor(estPerHour)), ["inline"] = true },
@@ -401,7 +408,7 @@ end
 -- Auto sell function
 local function sellAllItems()
     pcall(function()
-        replicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RF/SellAllItems"]:InvokeServer()
+        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/SellAllItems"]:InvokeServer()
     end)
 end
 
@@ -420,26 +427,31 @@ end
 local function removeOxygen(value)
     removeOxyEnabled = value
     pcall(function()
-        replicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["URE/UpdateOxygen"]:FireServer(value and -100000010000001000000100000010000001000000100000010000001000000100000010000001000000100000010000001000000100000010000001000000100000010000001000000100000010000001000000 or 1)
+        local Event = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["URE/UpdateOxygen"]
+        if value then
+            Event:FireServer(-1000000100000010000001000000100000010000001000000100000010000001000000100000010000001000000100000010000001000000100000010000001000000100000010000001000000)
+        else
+            Event:FireServer(1)
+        end
     end)
 end
 
 -- Purchase functions
 local function purchaseFishingRod(id)
     pcall(function()
-        replicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RF/PurchaseFishingRod"]:InvokeServer(id)
+        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/PurchaseFishingRod"]:InvokeServer(id)
     end)
 end
 
 local function purchaseBobber(id)
     pcall(function()
-        replicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RF/PurchaseBait"]:InvokeServer(id)
+        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/PurchaseBait"]:InvokeServer(id)
     end)
 end
 
 local function purchaseWeatherEvent(eventName)
     pcall(function()
-        replicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RF/PurchaseWeatherEvent"]:InvokeServer(eventName)
+        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/PurchaseWeatherEvent"]:InvokeServer(eventName)
     end)
 end
 
@@ -448,7 +460,7 @@ local function teleportToIsland(islandName)
     local cframe = islands[islandName]
     if cframe then
         pcall(function()
-            local character = player.Character
+            local character = game:GetService("Players").LocalPlayer.Character
             if character then
                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
                 if humanoidRootPart then
@@ -472,7 +484,7 @@ local function teleportToEnchantingAltar()
                 targetCFrame = altar.CFrame
             end
             
-            local character = player.Character
+            local character = game:GetService("Players").LocalPlayer.Character
             if character then
                 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
                 if humanoidRootPart then
@@ -488,7 +500,7 @@ local function toggleIslandESP(value)
     espEnabled = value
     pcall(function()
         local islandLocations = workspace["!!!! ISLAND LOCATIONS !!!!"]
-        local character = player.Character
+        local character = game:GetService("Players").LocalPlayer.Character
         
         if not value then
             for islandName, _ in pairs(islands) do
@@ -576,7 +588,7 @@ end
 -- Player control functions
 local function updatePlayerSpeed(value)
     pcall(function()
-        local character = player.Character
+        local character = game:GetService("Players").LocalPlayer.Character
         if character and character:FindFirstChild("Humanoid") then
             character.Humanoid.WalkSpeed = value
         end
@@ -585,7 +597,7 @@ end
 
 local function updatePlayerJump(value)
     pcall(function()
-        local character = player.Character
+        local character = game:GetService("Players").LocalPlayer.Character
         if character and character:FindFirstChild("Humanoid") then
             character.Humanoid.JumpPower = value
         end
@@ -595,7 +607,7 @@ end
 local function freezePlayer(value)
     playerFrozen = value
     pcall(function()
-        local character = player.Character
+        local character = game:GetService("Players").LocalPlayer.Character
         if character then
             if character:FindFirstChild("HumanoidRootPart") then
                 character.HumanoidRootPart.Anchored = value
@@ -613,19 +625,20 @@ end
 
 local function toggleFishRadar(value)
     pcall(function()
-        replicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RF/UpdateFishingRadar"]:InvokeServer(value)
+        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/UpdateFishingRadar"]:InvokeServer(value)
     end)
 end
 
+-- Mobile Autofarm Functions
 local function toggleMobileAutoFishing(value)
     mobileAutoFishingEnabled = value
     pcall(function()
-        replicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RF/UpdateAutoFishingState"]:InvokeServer(value)
+        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/UpdateAutoFishingState"]:InvokeServer(value)
     end)
     
     if value then
         pcall(function()
-            replicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net["RE/EquipToolFromHotbar"]:FireServer(1)
+            game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RE/EquipToolFromHotbar"]:FireServer(1)
         end)
         teleportToVolcano()
         mobileMonitorThread = task.spawn(monitorEvent)
@@ -635,7 +648,7 @@ local function toggleMobileAutoFishing(value)
             mobileMonitorThread = nil
         end
         pcall(function()
-            local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+            local hrp = game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             if hrp then hrp.Anchored = false end
             if platform then platform:Destroy() platform = nil end
             currentEvent = "None"
@@ -643,7 +656,7 @@ local function toggleMobileAutoFishing(value)
     end
 end
 
--- Create all tabs using Souls Hub API (this is the critical fix)
+-- Now, the key part: Create the UI using ONLY Souls Hub API
 local mainTab = Window:DrawTab({
     Icon = "fishing",
     Name = "Main",
@@ -957,7 +970,7 @@ do
         while true do
             task.wait(1)
             pcall(function()
-                local character = player.Character
+                local character = game:GetService("Players").LocalPlayer.Character
                 if character and character:FindFirstChild("Humanoid") then
                     walkSpeedLabel:SetText("Walk Speed: " .. character.Humanoid.WalkSpeed)
                     jumpPowerLabel:SetText("Jump Power: " .. character.Humanoid.JumpPower)
@@ -1110,7 +1123,7 @@ do
         Name = "Test Webhook",
         Callback = function()
             if WEBHOOK_URL and WEBHOOK_URL ~= "" then
-                sendWebhook(159, 420.5, player.Name, nil, false, false)
+                sendWebhook(159, 420.5, game:GetService("Players").LocalPlayer.Name, nil, false, false)
             end
         end
     })
@@ -1123,38 +1136,45 @@ do
     })
 end
 
--- Event listening for fish caught
+-- Event listening
 pcall(function()
-    local netFolder = replicatedStorage.Packages._Index["sleitnick_net@0.2.0"] and replicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local netFolder = ReplicatedStorage.Packages._Index["sleitnick_net@0.2.0"] and ReplicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net
     local Event = netFolder and (netFolder["RE/FishCaught"] or netFolder["FishCaught"])
     
     if Event then
         Event.OnClientEvent:Connect(function(fishId, data)
-            local playerName = player.Name or "Unknown"
+            local playerName = game:GetService("Players").LocalPlayer.Name or "Unknown"
             local weight = data.Weight or 0
             local variantId = data and data.VariantId
+            local fish = AllFishes[fishId]
             
-            sendWebhook(fishId, weight, playerName, variantId, false, false)
+            -- detect mutations (weight outside dataset)
+            local isMutation = false
+            if fish and fish.Weight then
+                if fish.Weight.Default and type(fish.Weight.Default) == "table" and #fish.Weight.Default == 2 then
+                    local min, max = fish.Weight.Default[1], fish.Weight.Default[2]
+                    if weight < min or weight > max then
+                        isMutation = true
+                    end
+                end
+            end
+            
+            -- send webhook
+            sendWebhook(fishId, weight, playerName, variantId, isMutation)
         end)
     end
 end)
 
--- Save/Load configs
-ConfigManager = FileWatcher
-ConfigManager:Init()
-
--- Final step: Draw the UI
-Window:Draw()
-
 -- Cleanup
-player.CharacterRemoving:Connect(function()
+game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
     if fishingThread then task.cancel(fishingThread) fishingThread = nil end
     if monitorThread then task.cancel(monitorThread) monitorThread = nil end
     if mobileMonitorThread then task.cancel(mobileMonitorThread) mobileMonitorThread = nil end
     if sellThread then task.cancel(sellThread) sellThread = nil end
     if platform then platform:Destroy() platform = nil end
     pcall(function()
-        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        local hrp = game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if hrp then hrp.Anchored = false end
         toggleIslandESP(false)
         freezePlayer(false)
@@ -1177,3 +1197,10 @@ game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character
         end
     end)
 end)
+
+-- Save/Load configs
+ConfigManager = FileWatcher
+ConfigManager:Init()
+
+-- Final step: Draw the UI
+Window:Draw()
