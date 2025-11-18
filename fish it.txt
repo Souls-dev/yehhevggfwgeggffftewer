@@ -1,0 +1,1462 @@
+local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
+
+task.wait(1)
+
+SoulsHub:Loader(nil, 1).yield()
+
+local FileWatcher = SoulsHub:ConfigManager({
+    Directory = "SoulsHub",
+    Config = "FishIt"
+})
+
+local Window = SoulsHub.new({
+    Keybind = "LeftAlt",
+})
+
+local watermark = Window:Watermark()
+
+watermark:AddText({
+    Icon = "user",
+    Text = "Souls Hub"
+})
+
+local vim = watermark:AddText({
+    Icon = "clock",
+    Text = SoulsHub:GetTimeNow()
+})
+
+task.spawn(function()
+    while true do 
+        task.wait()
+        vim:SetText(SoulsHub:GetTimeNow())
+        Window.Username = "Fish It"
+    end
+end)
+
+Window:Update({
+    ExpireDate = SoulsHub:GetDate(tick() + 84000)
+})
+
+watermark:AddText({
+    Icon = "server",
+    Text = "Fishing Expert"
+})
+
+-- Global feature states
+_G.FeatureStates = _G.FeatureStates or {
+    ESP_Enabled = false,
+    MasterVisuals = true,
+    WalkSpeed = 16,
+    JumpPower = 50,
+    AutoFarming = false,
+    AutoFishing = false,
+    AutoSell = false,
+    AutoRadar = false,
+    Noclip = false,
+    DivingGear = false,
+    AutoEvent = false,
+    FishRadar = false,
+    AutoInstant = false,
+    AutoInstantDelay = 0.1,
+    AutoSellDelay = 3,
+    AutoFarmDelay = 3,
+    AutoBypass = false,
+    AutoBoatSpeed = false,
+    SpeedBoost = 1,
+    AutoWeather = false,
+    AutoTrade = false,
+    AutoBuy = false,
+    AutoFishV2 = false,
+    AutoFishV1 = false,
+    AutoEquipRod = false,
+    AutoSellMode = "Sell Delay",
+    AutoSellDelayValue = 2,
+    AutoBoat = false,
+    AutoBait = false,
+    AutoRods = false,
+    AutoCodes = false,
+    AutoWeatherSelection = {},
+    AutoRodsSelection = {},
+    AutoBaitSelection = {},
+    AutoEventSelection = {},
+    AutoShop = false,
+    AutoEvent = false,
+    EventDetection = false,
+    AutoDeepSea = false,
+    AutoAura = false,
+    AutoAntiStaff = false,
+    StaffActions = {"Notify"},
+    AutoAntiLava = false,
+    AutoTeleport = false,
+    AutoInstantFishing = false,
+    AutoFishingMode = "v1",
+    AutoFishingSpeed = 0.1,
+    AutoFishingPerfect = true,
+    AutoFishingDelay = 0.1,
+    AutoFishingWait = 3,
+    AutoFishingAction = 0.1,
+    AutoFishingCast = 0.0001,
+    AutoFishingEnabled = false,
+    AutoFishingComplete = false,
+    AutoFishingCompleteDelay = 0.1,
+    AutoFishingCompleteEnabled = false,
+    AutoFishingInstant = false,
+    AutoFishingInstantEnabled = false,
+    AutoFishingInstantDelay = 0.1,
+    AutoFishingV1Enabled = false,
+    AutoFishingV2Enabled = false,
+    AutoFishingV2Hold = 0.4,
+    AutoFishingV2Loop = 0.2,
+    AutoFishingV2Enabled = false,
+    AutoFishingV1Enabled = false,
+    AutoFishingV1Delay = 0.1,
+    AutoFishingV1Enabled = false,
+    AutoFishingV2Enabled = false,
+    AutoFishingV2Hold = 0.4,
+    AutoFishingV2Loop = 0.2,
+    AutoFishingV2Enabled = false,
+    AutoFishingV1Enabled = false,
+    AutoFishingV1Delay = 0.1,
+    AutoFishingV1Enabled = false,
+    AutoFishingV2Enabled = false,
+    AutoFishingV2Hold = 0.4,
+    AutoFishingV2Loop = 0.2,
+    AutoFishingV2Enabled = false,
+    AutoFishingV1Enabled = false,
+    AutoFishingV1Delay = 0.1,
+    AutoFishingV1Enabled = false,
+    AutoFishingV2Enabled = false,
+    AutoFishingV2Hold = 0.4,
+    AutoFishingV2Loop = 0.2,
+    AutoFishingV2Enabled = false,
+    AutoFishingV1Enabled = false,
+    AutoFishingV1Delay = 0.1,
+    AutoFishingV1Enabled = false,
+}
+
+-- Initialize global settings
+_G.RAINBOW = false
+_G.RAINBOW_SPEED = 0.1
+
+-- Fallback functions
+local function safeCall(func, ...)
+    local success, result = pcall(func, ...)
+    if not success then
+        return nil
+    end
+    return result
+end
+
+local function getRemote(remotePath)
+    local success, remote = safeCall(function()
+        local parts = {}
+        for part in string.gmatch(remotePath, "[^%.]+") do
+            table.insert(parts, part)
+        end
+        
+        local current = game
+        for i, part in ipairs(parts) do
+            current = current:FindFirstChild(part)
+            if not current then break end
+        end
+        return current
+    end)
+    
+    if success and remote then
+        return remote
+    end
+    
+    return nil
+end
+
+local function safeInvoke(remote, ...)
+    if not remote or typeof(remote) ~= "Instance" then
+        return nil
+    end
+    return safeCall(function()
+        return remote:InvokeServer(...)
+    end)
+end
+
+local function safeFire(remote, ...)
+    if not remote or typeof(remote) ~= "Instance" then
+        return
+    end
+    return safeCall(function()
+        return remote:FireServer(...)
+    end)
+end
+
+-- Get critical game services with fallbacks
+local Players = safeCall(function() return game:GetService("Players") end) or {}
+local ReplicatedStorage = safeCall(function() return game:GetService("ReplicatedStorage") end) or {}
+local RunService = safeCall(function() return game:GetService("RunService") end) or {}
+local VirtualInputManager = safeCall(function() return game:GetService("VirtualInputManager") end) or {}
+local Workspace = safeCall(function() return game:GetService("Workspace") end) or {}
+local Lighting = safeCall(function() return game:GetService("Lighting") end) or {}
+local HttpService = safeCall(function() return game:GetService("HttpService") end) or {}
+local Stats = safeCall(function() return game:GetService("Stats") end) or {}
+local LocalPlayer = safeCall(function() return Players.LocalPlayer end) or {}
+
+-- Network remotes
+local NetFolder = safeCall(function()
+    return ReplicatedStorage.Packages and ReplicatedStorage.Packages._Index and 
+           ReplicatedStorage.Packages._Index["sleitnick_net@0.2.0"] and 
+           ReplicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net
+end) or {}
+
+-- Common remote functions
+local function getRemoteByName(name)
+    return NetFolder and NetFolder[name] or nil
+end
+
+local function getRemoteWithFallback(name)
+    local remote = getRemoteByName(name)
+    if not remote then
+        local fallbackPath = "ReplicatedStorage.Packages._Index.sleitnick_net@0.2.0.net." .. name
+        remote = getRemote(fallbackPath)
+    end
+    return remote
+end
+
+-- Network calls with fallbacks
+local function invokeRemote(name, ...)
+    local remote = getRemoteWithFallback(name)
+    if not remote then return nil end
+    return safeInvoke(remote, ...)
+end
+
+local function fireRemote(name, ...)
+    local remote = getRemoteWithFallback(name)
+    if not remote then return end
+    return safeFire(remote, ...)
+end
+
+-- Player related functions
+local function getPlayerCharacter()
+    if not LocalPlayer or not LocalPlayer.Character then
+        return safeCall(function() return LocalPlayer.CharacterAdded:Wait() end) or nil
+    end
+    return LocalPlayer.Character
+end
+
+local function getPlayerHrp()
+    local character = getPlayerCharacter()
+    if not character then return nil end
+    return safeCall(function() return character:WaitForChild("HumanoidRootPart", 5) end) or character:FindFirstChild("HumanoidRootPart")
+end
+
+-- UI Sections
+local AutoFarm = Window:DrawTab({
+    Icon = "fish",
+    Name = "Auto Farm",
+    Type = "Double"
+})
+
+local AutoFishing = AutoFarm:DrawSection({
+    Name = "Auto Fishing",
+    Position = "LEFT"
+})
+
+local AutoFishingV2 = AutoFarm:DrawSection({
+    Name = "Auto Fishing V2",
+    Position = "RIGHT"
+})
+
+local AutoEvent = AutoFarm:DrawSection({
+    Name = "Auto Events",
+    Position = "LEFT"
+})
+
+local AutoFishingSettings = AutoFarming:DrawSection({
+    Name = "Fishing Settings",
+    Position = "RIGHT"
+})
+
+local AutoSell = AutoFarm:DrawSection({
+    Name = "Auto Sell",
+    Position = "LEFT"
+})
+
+local AutoShop = AutoFarm:DrawSection({
+    Name = "Auto Shop",
+    Position = "RIGHT"
+})
+
+local Teleport = Window:DrawTab({
+    Icon = "map-pin",
+    Name = "Teleport",
+    Type = "Double"
+})
+
+local Islands = Teleport:DrawSection({
+    Name = "Islands",
+    Position = "LEFT"
+})
+
+local Events = Teleport:DrawSection({
+    Name = "Events",
+    Position = "RIGHT"
+})
+
+local Player = Window:DrawTab({
+    Icon = "user",
+    Name = "Player",
+    Type = "Double"
+})
+
+local Movement = Player:DrawSection({
+    Name = "Movement",
+    Position = "LEFT"
+})
+
+local Visual = Player:DrawSection({
+    Name = "Visual",
+    Position = "RIGHT"
+})
+
+local Shop = Window:DrawTab({
+    Icon = "shopping-cart",
+    Name = "Shop",
+    Type = "Double"
+})
+
+local Rods = Shop:DrawSection({
+    Name = "Rods",
+    Position = "LEFT"
+})
+
+local Bait = Shop:DrawSection({
+    Name = "Bait",
+    Position = "RIGHT"
+})
+
+local Weather = Shop:DrawSection({
+    Name = "Weather",
+    Position = "LEFT"
+})
+
+local Boats = Shop:DrawSection({
+    Name = "Boats",
+    Position = "RIGHT"
+})
+
+local Misc = Window:DrawTab({
+    Icon = "settings",
+    Name = "Misc",
+    Type = "Double"
+})
+
+local Webhook = Misc:DrawSection({
+    Name = "Webhook",
+    Position = "LEFT"
+})
+
+local Anti = Misc:DrawSection({
+    Name = "Anti",
+    Position = "RIGHT"
+})
+
+local Configs = Window:DrawConfig({
+    Name = "Configs",
+    Icon = "folder",
+    Config = FileWatcher
+});
+
+Configs:Init();
+
+-- Auto Fishing Toggle
+local autoFishingToggle = AutoFishing:AddToggle({
+    Name = "Auto Fishing",
+    Flag = "auto_fishing",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.AutoFishing = state
+        if state then
+            fireRemote("RE/UpdateAutoFishingState", true)
+            _G.FeatureStates.AutoFishingEnabled = true
+            task.spawn(function()
+                while _G.FeatureStates.AutoFishingEnabled do
+                    task.wait(0.5)
+                    if not _G.FeatureStates.AutoFishing then
+                        break
+                    end
+                    
+                    fireRemote("RE/EquipToolFromHotbar", 1)
+                    
+                    invokeRemote("RF/ChargeFishingRod", workspace:GetServerTimeNow())
+                    task.wait(0.2)
+                    
+                    invokeRemote("RF/RequestFishingMinigameStarted", -0.57187455892563, 0.98649686980755)
+                    task.wait(3)
+                    
+                    fireRemote("RE/FishingCompleted")
+                    task.wait(0.1)
+                end
+                _G.FeatureStates.AutoFishingEnabled = false
+            end)
+        else
+            fireRemote("RE/UpdateAutoFishingState", false)
+            _G.FeatureStates.AutoFishingEnabled = false
+            fireRemote("RE/UnequipToolFromHotbar")
+        end
+    end
+})
+
+-- Auto Fishing V2
+local autoFishingV2Toggle = AutoFishingV2:AddToggle({
+    Name = "Auto Fishing V2",
+    Flag = "auto_fishing_v2",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.AutoFishingV2 = state
+        if state then
+            _G.FeatureStates.AutoFishingV2Enabled = true
+            task.spawn(function()
+                while _G.FeatureStates.AutoFishingV2Enabled do
+                    task.wait(0.5)
+                    if not _G.FeatureStates.AutoFishingV2 then
+                        break
+                    end
+                    
+                    fireRemote("RE/EquipToolFromHotbar", 1)
+                    
+                    local clickX = 5
+                    local clickY = game:GetService("Workspace").CurrentCamera.ViewportSize.Y - 5
+                    VirtualInputManager:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
+                    task.wait(0.4)
+                    VirtualInputManager:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
+                    
+                    task.wait(0.2)
+                end
+                _G.FeatureStates.AutoFishingV2Enabled = false
+            end)
+        else
+            _G.FeatureStates.AutoFishingV2Enabled = false
+        end
+    end
+})
+
+-- Auto Fishing Instant
+local autoFishingInstantToggle = AutoFishingSettings:AddToggle({
+    Name = "Auto Instant Fishing",
+    Flag = "auto_instant_fishing",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.AutoFishingInstant = state
+        if state then
+            _G.FeatureStates.AutoFishingInstantEnabled = true
+            task.spawn(function()
+                while _G.FeatureStates.AutoFishingInstantEnabled do
+                    task.wait(0.1)
+                    if not _G.FeatureStates.AutoFishingInstant then
+                        break
+                    end
+                    fireRemote("RE/FishingCompleted")
+                end
+                _G.FeatureStates.AutoFishingInstantEnabled = false
+            end)
+        else
+            _G.FeatureStates.AutoFishingInstantEnabled = false
+        end
+    end
+})
+
+-- Auto Sell Toggle
+local autoSellToggle = AutoSell:AddToggle({
+    Name = "Auto Sell",
+    Flag = "auto_sell",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.AutoSell = state
+        if state then
+            _G.FeatureStates.AutoSellEnabled = true
+            task.spawn(function()
+                while _G.FeatureStates.AutoSellEnabled do
+                    task.wait(3)
+                    if not _G.FeatureStates.AutoSell then
+                        break
+                    end
+                    invokeRemote("RF/SellAllItems")
+                end
+                _G.FeatureStates.AutoSellEnabled = false
+            end)
+        else
+            _G.FeatureStates.AutoSellEnabled = false
+        end
+    end
+})
+
+-- Auto Farm Toggle
+local autoFarmToggle = AutoEvent:AddToggle({
+    Name = "Auto Farm",
+    Flag = "auto_farm",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.AutoFarming = state
+        if state then
+            _G.FeatureStates.AutoFarmingEnabled = true
+            _G.FeatureStates.CurrentEvent = "None"
+            task.spawn(function()
+                while _G.FeatureStates.AutoFarmingEnabled do
+                    task.wait(5)
+                    if not _G.FeatureStates.AutoFarming then
+                        break
+                    end
+                    
+                    local eventLocation, eventName = getEventLocation()
+                    if eventName ~= "None" and _G.FeatureStates.CurrentEvent == "None" then
+                        teleportToEvent(eventLocation, eventName)
+                    elseif eventName == "None" and _G.FeatureStates.CurrentEvent ~= "None" then
+                        teleportToVolcano()
+                    end
+                    _G.FeatureStates.CurrentEvent = eventName
+                end
+                _G.FeatureStates.AutoFarmingEnabled = false
+                _G.FeatureStates.CurrentEvent = "None"
+            end)
+        else
+            _G.FeatureStates.AutoFarmingEnabled = false
+            teleportToVolcano()
+        end
+    end
+})
+
+-- Event Detection
+local eventDetectionToggle = AutoEvent:AddToggle({
+    Name = "Event Detection",
+    Flag = "event_detection",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.EventDetection = state
+        if state then
+            _G.FeatureStates.EventDetectionEnabled = true
+            task.spawn(function()
+                while _G.FeatureStates.EventDetectionEnabled do
+                    task.wait(1)
+                    if not _G.FeatureStates.EventDetection then
+                        break
+                    end
+                    local eventLocation, eventName = getEventLocation()
+                    if eventName ~= "None" then
+                        _G.FeatureStates.CurrentEvent = eventName
+                    else
+                        _G.FeatureStates.CurrentEvent = "None"
+                    end
+                end
+                _G.FeatureStates.EventDetectionEnabled = false
+            end)
+        else
+            _G.FeatureStates.EventDetectionEnabled = false
+        end
+    end
+})
+
+-- Island Teleportation
+local islandNames = {
+    "Coral Reefs",
+    "Crater Island",
+    "Esoteric Depths",
+    "Fisherman Island",
+    "Kohana",
+    "Kohana Volcano",
+    "Lost Isle",
+    "Tropical Grove",
+    "Weather Machine",
+    "Treasure Room"
+}
+
+local islandCframes = {
+    ["Coral Reefs"] = CFrame.new(-2853.17041, 47.4999962, 1978.53153, 0.995933771, 5.30696056e-08, 0.0900883451, -5.38422e-08, 1, 6.14572748e-09, -0.0900883451, -1.09712923e-08, 0.995933771),
+    ["Crater Island"] = CFrame.new(1010.01001, 22.5737934, 5078.45117, 1, 3.73163225e-08, 2.25615272e-14, -3.73163225e-08, 1, 7.7200859e-09, -2.22734412e-14, -7.7200859e-09, 1),
+    ["Esoteric Depths"] = CFrame.new(2016.02954, 24.1472187, 1392.12378, -0.59965688, 1.00978752e-07, 0.800257206, 1.12315014e-07, 1, -4.20218385e-08, -0.800257206, 6.46822187e-08, -0.59965688),
+    ["Fisherman Island"] = CFrame.new(31.9851341, 17.0335217, 2836.88086, 0.99385339, -5.1943001e-08, 0.110704549, 4.40043664e-08, 1, 7.41533484e-08, -0.110704549, -6.88260684e-08, 0.99385339),
+    ["Kohana"] = CFrame.new(-665.425537, 3.04580712, 726.46582, 0.643756926, -7.04636776e-08, -0.76523006, 2.26932979e-08, 1, -7.29907441e-08, 0.76523006, 2.96227025e-08, 0.643756926),
+    ["Kohana Volcano"] = CFrame.new(-615.110474, 48.5929337, 185.705719, 0.821147323, -9.90723095e-08, 0.570716262, 1.00536617e-07, 1, 2.89407147e-08, -0.570716262, 3.36132899e-08, 0.821147323),
+    ["Lost Isle"] = CFrame.new(-3673.05298, 4.91650009, -1064.66992, 0.91068995, 6.99755498e-09, -0.413090557, 6.7637087e-09, 1, 3.18506359e-08, 0.413090557, -3.18000772e-08, 0.91068995),
+    ["Tropical Grove"] = CFrame.new(-2144.80469, 53.5837822, 3696.86865, -0.145694956, -2.13120419e-08, -0.989329576, -9.90430493e-08, 1, -6.95619518e-09, 0.989329576, 9.69727338e-08, -0.145694956),
+    ["Weather Machine"] = CFrame.new(-1487.95251, 28.7718086, 1878.29395, -0.999500036, 1.5616715e-08, 0.0316170119, 1.45293999e-08, 1, -3.46199371e-08, -0.0316170119, -3.41432553e-08, -0.999500036),
+    ["Treasure Room"] = CFrame.new(-3603.39502, -266.57373, -1580.11853, 0.998887777, -5.06168885e-09, 0.0471506417, 2.91316415e-09, 1, 4.56359537e-08, -0.0471506417, -4.54478375e-08, 0.998887777)
+}
+
+for _, islandName in ipairs(islandNames) do
+    Islands:AddButton({
+        Name = "TP to " .. islandName,
+        Callback = function()
+            local cframe = islandCframes[islandName]
+            if cframe then
+                local hrp = getPlayerHrp()
+                if hrp then
+                    hrp.CFrame = cframe
+                end
+            end
+        end
+    })
+end
+
+-- Event Teleportation
+local eventNames = {
+    "Worm Hunt",
+    "Ghost Shark Hunt",
+    "Shark Hunt",
+    "Megalodon Hunt"
+}
+
+for _, eventName in ipairs(eventNames) do
+    Events:AddButton({
+        Name = "TP to " .. eventName,
+        Callback = function()
+            local eventLocation = getEventLocationByName(eventName)
+            if eventLocation then
+                local hrp = getPlayerHrp()
+                if hrp then
+                    hrp.CFrame = eventLocation.CFrame + Vector3.new(0, 5, 0)
+                end
+            end
+        end
+    })
+end
+
+-- Walk Speed
+local walkSpeedSlider = Movement:AddSlider({
+    Name = "Walk Speed",
+    Min = 16,
+    Max = 200,
+    Round = 0,
+    Default = 16,
+    Type = "studs/s",
+    Callback = function(value)
+        _G.FeatureStates.WalkSpeed = value
+        local character = getPlayerCharacter()
+        if character and character:FindFirstChildOfClass("Humanoid") then
+            character.Humanoid.WalkSpeed = value
+        end
+    end
+})
+
+-- Jump Power
+local jumpPowerSlider = Movement:AddSlider({
+    Name = "Jump Power",
+    Min = 50,
+    Max = 200,
+    Round = 0,
+    Default = 50,
+    Type = "studs",
+    Callback = function(value)
+        _G.FeatureStates.JumpPower = value
+        local character = getPlayerCharacter()
+        if character and character:FindFirstChildOfClass("Humanoid") then
+            character.Humanoid.JumpPower = value
+        end
+    end
+})
+
+-- Noclip Toggle
+local noclipToggle = Movement:AddToggle({
+    Name = "Noclip",
+    Flag = "noclip",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.Noclip = state
+        local character = getPlayerCharacter()
+        if character then
+            for _, part in ipairs(character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = not state
+                end
+            end
+        end
+    end
+})
+
+-- ESP Toggle
+local espToggle = Visual:AddToggle({
+    Name = "Player ESP",
+    Flag = "esp",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.ESP_Enabled = state
+        if state then
+            task.spawn(function()
+                while _G.FeatureStates.ESP_Enabled do
+                    task.wait(0.1)
+                    drawESP()
+                end
+                clearESP()
+            end)
+        else
+            clearESP()
+        end
+    end
+})
+
+-- Diving Gear Bypass
+local divingGearToggle = Visual:AddToggle({
+    Name = "Diving Gear Bypass",
+    Flag = "diving_gear",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.DivingGear = state
+        if state then
+            invokeRemote("RF/EquipOxygenTank", 105)
+        else
+            invokeRemote("RF/UnequipOxygenTank")
+        end
+    end
+})
+
+-- Fishing Radar Bypass
+local fishingRadarToggle = Visual:AddToggle({
+    Name = "Fishing Radar Bypass",
+    Flag = "fishing_radar",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.FishRadar = state
+        if state then
+            invokeRemote("RF/UpdateFishingRadar", true)
+        else
+            invokeRemote("RF/UpdateFishingRadar", false)
+        end
+    end
+})
+
+-- Buy Rods
+local rodNames = {
+    "Luck Rod",
+    "Carbon Rod",
+    "Grass Rod",
+    "Demascus Rod",
+    "Ice Rod",
+    "Lucky Rod",
+    "Midnight Rod",
+    "Steampunk Rod",
+    "Chrome Rod",
+    "Astral Rod",
+    "Ares Rod",
+    "Angler Rod"
+}
+
+local rodIds = {
+    ["Luck Rod"] = 79,
+    ["Carbon Rod"] = 76,
+    ["Grass Rod"] = 85,
+    ["Demascus Rod"] = 77,
+    ["Ice Rod"] = 78,
+    ["Lucky Rod"] = 4,
+    ["Midnight Rod"] = 80,
+    ["Steampunk Rod"] = 6,
+    ["Chrome Rod"] = 7,
+    ["Astral Rod"] = 5,
+    ["Ares Rod"] = 126,
+    ["Angler Rod"] = 168
+}
+
+for _, rodName in ipairs(rodNames) do
+    Rods:AddButton({
+        Name = "Buy " .. rodName,
+        Callback = function()
+            local id = rodIds[rodName]
+            if id then
+                invokeRemote("RF/PurchaseFishingRod", id)
+            end
+        end
+    })
+end
+
+-- Buy Bait
+local baitNames = {
+    "Topwater Bait",
+    "Luck Bait",
+    "Midnight Bait",
+    "Chroma Bait",
+    "Dark Matter Bait",
+    "Corrupt Bait",
+    "Aether Bait"
+}
+
+local baitIds = {
+    ["Topwater Bait"] = 10,
+    ["Luck Bait"] = 2,
+    ["Midnight Bait"] = 3,
+    ["Chroma Bait"] = 6,
+    ["Dark Matter Bait"] = 8,
+    ["Corrupt Bait"] = 15,
+    ["Aether Bait"] = 16
+}
+
+for _, baitName in ipairs(baitNames) do
+    Bait:AddButton({
+        Name = "Buy " .. baitName,
+        Callback = function()
+            local id = baitIds[baitName]
+            if id then
+                invokeRemote("RF/PurchaseBait", id)
+            end
+        end
+    })
+end
+
+-- Buy Weather
+local weatherNames = {
+    "Snow",
+    "Wind",
+    "Cloudy",
+    "Storm",
+    "Radiant",
+    "Shark Hunt"
+}
+
+for _, weatherName in ipairs(weatherNames) do
+    Weather:AddButton({
+        Name = "Buy " .. weatherName,
+        Callback = function()
+            invokeRemote("RF/PurchaseWeatherEvent", weatherName)
+        end
+    })
+end
+
+-- Buy Boats
+local boatNames = {
+    "Small Boat",
+    "Kayak",
+    "Jetski",
+    "Highfield Boat",
+    "Speed Boat",
+    "Fishing Boat",
+    "Mini Yacht",
+    "Hyper Boat",
+    "Frozen Boat",
+    "Cruiser Boat"
+}
+
+local boatIds = {
+    ["Small Boat"] = 1,
+    ["Kayak"] = 2,
+    ["Jetski"] = 3,
+    ["Highfield Boat"] = 4,
+    ["Speed Boat"] = 5,
+    ["Fishing Boat"] = 6,
+    ["Mini Yacht"] = 14,
+    ["Hyper Boat"] = 7,
+    ["Frozen Boat"] = 11,
+    ["Cruiser Boat"] = 13
+}
+
+for _, boatName in ipairs(boatNames) do
+    Boats:AddButton({
+        Name = "Buy " .. boatName,
+        Callback = function()
+            local id = boatIds[boatName]
+            if id then
+                invokeRemote("RF/PurchaseBoat", id)
+            end
+        end
+    })
+end
+
+-- Webhook Setup
+local webhookInput = Webhook:AddInput({
+    Name = "Webhook URL",
+    Default = "",
+    Numeric = false,
+    Finished = true,
+    Placeholder = "Discord Webhook URL",
+    Callback = function(value)
+        _G.FeatureStates.WebhookURL = value
+    end
+})
+
+local webhookToggle = Webhook:AddToggle({
+    Name = "Enable Webhook",
+    Flag = "webhook",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.WebhookEnabled = state
+    end
+})
+
+-- Anti Staff
+local staffIds = {
+    75974130,
+    33372493,
+    30944240,
+}
+
+local staffActions = {
+    "Notify",
+    "Kick"
+}
+
+local antiStaffToggle = Anti:AddToggle({
+    Name = "Anti Staff",
+    Flag = "anti_staff",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.AutoAntiStaff = state
+    end
+})
+
+local staffActionDropdown = Anti:AddDropdown({
+    Name = "Staff Actions",
+    Values = staffActions,
+    Default = {"Notify"},
+    Multi = true,
+    Callback = function(values)
+        _G.FeatureStates.StaffActions = values
+    end
+})
+
+-- Auto Codes
+local codeNames = {"SHARKSSS", "100M", "MUTATE", "ARMOR", "THEWHEEL", "FREEBIES", "WOWSPINS"}
+
+local redeemAllCodes = Webhook:AddButton({
+    Name = "Redeem All Codes",
+    Callback = function()
+        for _, code in ipairs(codeNames) do
+            invokeRemote("RF/RedeemCode", code)
+        end
+    end
+})
+
+-- Highlight Color
+local highlightColor = Movement:AddColorPicker({
+    Name = "Highlight",
+    Default = SoulsHub.Colors.Highlight,
+    Flag = "highlight_color",
+    Callback = function(v)
+        SoulsHub:ChangeHighlightColor(v)
+    end
+})
+
+-- Rainbow Highlight
+local rainbowToggle = highlightColor.Link:AddOption():AddToggle({
+    Name = "Rainbow",
+    Default = false,
+    Callback = function(v)
+        _G.RAINBOW = v
+    end
+})
+
+local rainbowSpeed = highlightColor.Link:AddOption():AddSlider({
+    Name = "Speed",
+    Min = 0.01,
+    Max = 1,
+    Round = 2,
+    Default = 0.1,
+    Callback = function(v)
+        _G.RAINBOW_SPEED = v
+    end
+})
+
+task.spawn(function()
+    local x = 0
+    while true do 
+        task.wait(_G.RAINBOW_SPEED or 0.1)
+        if _G.RAINBOW then
+            SoulsHub:ChangeHighlightColor(Color3.fromHSV(x,1,1))
+            x = x + 2/255
+            if x >= 1 then
+                x = 0
+            end
+        end
+    end
+end)
+
+-- Auto Anti-Lava
+local antiLavaToggle = Anti:AddToggle({
+    Name = "Anti Lava",
+    Flag = "anti_lava",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.AutoAntiLava = state
+        if state then
+            _G.FeatureStates.AutoAntiLavaEnabled = true
+            task.spawn(function()
+                while _G.FeatureStates.AutoAntiLavaEnabled do
+                    task.wait(0.1)
+                    if not _G.FeatureStates.AutoAntiLava then
+                        break
+                    end
+                    local volcanoFolder = Workspace:FindFirstChild("Zones") and Workspace.Zones:FindFirstChild("Kohana Volcano")
+                    if volcanoFolder then
+                        for _, obj in ipairs(volcanoFolder:GetDescendants()) do
+                            if obj:IsA("TouchTransmitter") then
+                                obj:Destroy()
+                            end
+                        end
+                    end
+                end
+                _G.FeatureStates.AutoAntiLavaEnabled = false
+            end)
+        else
+            _G.FeatureStates.AutoAntiLavaEnabled = false
+        end
+    end
+})
+
+-- Auto Teleport
+local autoTeleportToggle = AutoEvent:AddToggle({
+    Name = "Auto Teleport to Events",
+    Flag = "auto_teleport",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.AutoTeleport = state
+        if state then
+            _G.FeatureStates.AutoTeleportEnabled = true
+            task.spawn(function()
+                while _G.FeatureStates.AutoTeleportEnabled do
+                    task.wait(1)
+                    if not _G.FeatureStates.AutoTeleport then
+                        break
+                    end
+                    local eventLocation, eventName = getEventLocation()
+                    if eventLocation then
+                        local hrp = getPlayerHrp()
+                        if hrp then
+                            hrp.CFrame = eventLocation.CFrame + Vector3.new(0, 5, 0)
+                        end
+                    end
+                end
+                _G.FeatureStates.AutoTeleportEnabled = false
+            end)
+        else
+            _G.FeatureStates.AutoTeleportEnabled = false
+        end
+    end
+})
+
+-- Auto Deep Sea Quest
+local autoDeepSeaToggle = AutoEvent:AddToggle({
+    Name = "Auto Deep Sea Quest",
+    Flag = "auto_deep_sea",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.AutoDeepSea = state
+        if state then
+            _G.FeatureStates.AutoDeepSeaEnabled = true
+            task.spawn(function()
+                while _G.FeatureStates.AutoDeepSeaEnabled do
+                    task.wait(0.5)
+                    if not _G.FeatureStates.AutoDeepSea then
+                        break
+                    end
+                    local board = Workspace:FindFirstChild("!!! MENU RINGS") and 
+                                 Workspace["!!! MENU RINGS"]:FindFirstChild("Deep Sea Tracker") and 
+                                 Workspace["!!! MENU RINGS"]["Deep Sea Tracker"].Board
+                    if board and board.Gui then
+                        local content = board.Gui:FindFirstChild("Content")
+                        if content then
+                            local label1 = content:FindFirstChild("Label1")
+                            if label1 then
+                                local text = label1.Text
+                                local persen = text:match("(%d+)%%")
+                                persen = tonumber(persen)
+                                if persen and persen < 100 then
+                                    teleportToPosition(CFrame.new(-3563.65063, -279.074219, -1605.75671, 0.707868576, 1.15482976e-07, 0.706344128, -9.39126679e-08, 1, -6.93785722e-08, -0.706344128, -1.72237495e-08, 0.707868576))
+                                elseif persen and persen >= 100 then
+                                    teleportToPosition(CFrame.new(-3698.01001, -135.073914, -1010.34033, -0.937130094, -7.4511493e-09, 0.348980278, -5.57951241e-09, 1, 6.36803633e-09, -0.348980278, 4.0207917e-09, -0.937130094))
+                                end
+                            end
+                        end
+                    end
+                end
+                _G.FeatureStates.AutoDeepSeaEnabled = false
+            end)
+        else
+            _G.FeatureStates.AutoDeepSeaEnabled = false
+        end
+    end
+})
+
+-- Auto Aura Boat Quest
+local autoAuraToggle = AutoEvent:AddToggle({
+    Name = "Auto Aura Boat Quest",
+    Flag = "auto_aura",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.AutoAura = state
+        if state then
+            _G.FeatureStates.AutoAuraEnabled = true
+            task.spawn(function()
+                while _G.FeatureStates.AutoAuraEnabled do
+                    task.wait(0.5)
+                    if not _G.FeatureStates.AutoAura then
+                        break
+                    end
+                    local auraBoard = Workspace:FindFirstChild("!!! MENU RINGS") and 
+                                     Workspace["!!! MENU RINGS"]:FindFirstChild("Aura Tracker") and 
+                                     Workspace["!!! MENU RINGS"]["Aura Tracker"].Board
+                    if auraBoard and auraBoard.Gui then
+                        local content = auraBoard.Gui:FindFirstChild("Content")
+                        if content then
+                            local label2 = content:FindFirstChild("Label2")
+                            if label2 then
+                                local text = label2.Text
+                                local level = tonumber(text:match("%d+")) or 0
+                                if level >= 200 then
+                                    fireRemote("RF/ActivateQuestLine", "AuraQuest")
+                                    teleportToPosition(CFrame.new(88.2434769, 9.53157043, 2685.2605, 0.999735832, -1.020575e-08, 0.0228940968, 1.1017133e-08, 1, 3.51753293e-08, -0.0228940968, 3.54192586e-08, 0.999735832))
+                                end
+                            end
+                        end
+                    end
+                end
+                _G.FeatureStates.AutoAuraEnabled = false
+            end)
+        else
+            _G.FeatureStates.AutoAuraEnabled = false
+        end
+    end
+})
+
+-- Auto Boat Speed
+local autoBoatSpeedToggle = Movement:AddToggle({
+    Name = "Super Speed Boats",
+    Flag = "auto_boat_speed",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.AutoBoatSpeed = state
+        if state then
+            local boatsModule = safeCall(function()
+                return require(ReplicatedStorage.Shared.BoatsHandlingData)
+            end)
+            if boatsModule then
+                _G.FeatureStates.OriginalSpeed = {}
+                for boatName, boatData in pairs(boatsModule) do
+                    _G.FeatureStates.OriginalSpeed[boatName] = boatData.Speed
+                    boatData.Speed = 1000
+                end
+            end
+        else
+            local boatsModule = safeCall(function()
+                return require(ReplicatedStorage.Shared.BoatsHandlingData)
+            end)
+            if boatsModule and _G.FeatureStates.OriginalSpeed then
+                for boatName, boatData in pairs(boatsModule) do
+                    if _G.FeatureStates.OriginalSpeed[boatName] then
+                        boatData.Speed = _G.FeatureStates.OriginalSpeed[boatName]
+                    end
+                end
+            end
+        end
+    end
+})
+
+-- Auto Equip Rod
+local autoEquipRodToggle = AutoFishingSettings:AddToggle({
+    Name = "Auto Equip Rod",
+    Flag = "auto_equip_rod",
+    Default = false,
+    Callback = function(state)
+        _G.FeatureStates.AutoEquipRod = state
+        if state then
+            _G.FeatureStates.AutoEquipRodEnabled = true
+            task.spawn(function()
+                while _G.FeatureStates.AutoEquipRodEnabled do
+                    task.wait(1)
+                    if not _G.FeatureStates.AutoEquipRod then
+                        break
+                    end
+                    local character = getPlayerCharacter()
+                    if character and character:FindFirstChild("!!!FISHING_VIEW_MODEL!!!") then
+                        fireRemote("RE/EquipToolFromHotbar", 1)
+                    end
+                end
+                _G.FeatureStates.AutoEquipRodEnabled = false
+            end)
+        else
+            _G.FeatureStates.AutoEquipRodEnabled = false
+            fireRemote("RE/UnequipToolFromHotbar")
+        end
+    end
+})
+
+-- Auto Sell Mode
+local autoSellModeDropdown = AutoSell:AddDropdown({
+    Name = "Auto Sell Mode",
+    Values = {"Backpack Full", "Sell Delay"},
+    Default = "Sell Delay",
+    Callback = function(option)
+        _G.FeatureStates.AutoSellMode = option
+    end
+})
+
+-- Auto Sell Delay
+local autoSellDelaySlider = AutoSell:AddSlider({
+    Name = "Auto Sell Delay",
+    Min = 1,
+    Max = 30,
+    Round = 0,
+    Default = 2,
+    Type = "seconds",
+    Callback = function(value)
+        _G.FeatureStates.AutoSellDelayValue = value
+    end
+})
+
+-- Helper functions
+local function getEventLocation()
+    local menuRings = Workspace:FindFirstChild("!!! MENU RINGS")
+    if not menuRings then return nil, "None" end
+    
+    local propsFolder = menuRings:FindFirstChild("Props") or
+                        menuRings:FindFirstChild("Props 1") or
+                        menuRings:FindFirstChild("Props 2") or
+                        menuRings:FindFirstChild("Props 3") or
+                        menuRings:FindFirstChild("Props 4") or
+                        menuRings:FindFirstChild("Props 5")
+                        
+    if not propsFolder then return nil, "None" end
+    
+    local huntMap = {
+        ["Shark Hunt"] = "Props 1",
+        ["Model"] = "Props 2",
+        ["Megalodon Hunt"] = "Props 3",
+        ["Ghost Shark Hunt"] = "Props 4",
+        ["Fishing Hunt"] = "Props 5",
+    }
+    
+    for childName, propName in pairs(huntMap) do
+        if propsFolder:FindFirstChild(childName) then
+            return propsFolder:FindFirstChild(childName), childName
+        end
+    end
+    
+    if propsFolder:FindFirstChild("Model") then
+        local model = propsFolder.Model
+        if model:FindFirstChild("BlackHole") then
+            return model.BlackHole, "Worm Hunt"
+        end
+        if model:FindFirstChild("Ghost Shark Hunt") and model:FindFirstChild("Ghost Shark Hunt").Part then
+            return model["Ghost Shark Hunt"].Part, "Ghost Shark Hunt"
+        end
+    end
+    
+    return nil, "None"
+end
+
+local function getEventLocationByName(eventName)
+    local menuRings = Workspace:FindFirstChild("!!! MENU RINGS")
+    if not menuRings then return nil end
+    
+    local propsFolder = menuRings:FindFirstChild("Props") or
+                        menuRings:FindFirstChild("Props 1") or
+                        menuRings:FindFirstChild("Props 2") or
+                        menuRings:FindFirstChild("Props 3") or
+                        menuRings:FindFirstChild("Props 4") or
+                        menuRings:FindFirstChild("Props 5")
+                        
+    if not propsFolder then return nil end
+    
+    if eventName == "Worm Hunt" then
+        if propsFolder:FindFirstChild("Model") and propsFolder.Model:FindFirstChild("BlackHole") then
+            return propsFolder.Model.BlackHole
+        end
+    elseif eventName == "Ghost Shark Hunt" then
+        if propsFolder:FindFirstChild("Model") and propsFolder.Model:FindFirstChild("Ghost Shark Hunt") and propsFolder.Model["Ghost Shark Hunt"]:FindFirstChild("Part") then
+            return propsFolder.Model["Ghost Shark Hunt"].Part
+        end
+    else
+        if propsFolder:FindFirstChild(eventName) then
+            return propsFolder[eventName]
+        end
+    end
+    
+    return nil
+end
+
+local function teleportToPosition(cframe)
+    local hrp = getPlayerHrp()
+    if hrp then
+        hrp.CFrame = cframe
+    end
+end
+
+local function teleportToVolcano()
+    teleportToPosition(CFrame.new(-642.5606, 64.1161, 190.4044, 0.6339644, -7.4974977e-09, 0.7733622, -2.4160360e-08, 1, 2.9500156e-08, -0.7733622, -3.7386758e-08, 0.6339644))
+end
+
+local function teleportToEvent(eventLocation, eventName)
+    if not eventLocation or not eventName then return end
+    teleportToPosition(eventLocation.CFrame + Vector3.new(0, 5, 0))
+end
+
+-- ESP functions
+local espVisuals = {}
+
+local function createBoxESP(character, color)
+    local box = safeCall(function()
+        local box = Instance.new("BoxHandleAdornment")
+        box.Adornee = character
+        box.Color3 = color
+        box.Transparency = 0.5
+        box.AlwaysOnTop = true
+        box.ZIndex = 1
+        box.Extents = character.PrimaryPart.Size
+        box.CFrame = character.PrimaryPart.CFrame
+        box.Parent = game:GetService("Workspace").CurrentCamera
+        return box
+    end)
+    return box
+end
+
+local function createNameESP(character, name, color)
+    local billboardGui = safeCall(function()
+        local billboardGui = Instance.new("BillboardGui")
+        billboardGui.Size = UDim2.new(0, 100, 0, 20)
+        billboardGui.Adornee = character.PrimaryPart
+        billboardGui.AlwaysOnTop = true
+        billboardGui.ExtentsOffset = Vector3.new(0, character.PrimaryPart.Size.Y / 2 + 1, 0)
+
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.TextScaled = true
+        textLabel.TextColor3 = color
+        textLabel.TextStrokeTransparency = 0
+        textLabel.Font = Enum.Font.SourceSansBold
+        textLabel.Text = name
+        textLabel.Parent = billboardGui
+
+        billboardGui.Parent = game:GetService("Workspace").CurrentCamera
+        return billboardGui
+    end)
+    return billboardGui
+end
+
+local function createHealthESP(character, health, maxHealth, color)
+    local billboardGui = safeCall(function()
+        local billboardGui = Instance.new("BillboardGui")
+        billboardGui.Size = UDim2.new(0, 100, 0, 10)
+        billboardGui.Adornee = character.PrimaryPart
+        billboardGui.AlwaysOnTop = true
+        billboardGui.ExtentsOffset = Vector3.new(0, character.PrimaryPart.Size.Y / 2 + 2, 0)
+
+        local healthBar = Instance.new("Frame")
+        healthBar.Size = UDim2.new(1, 0, 1, 0)
+        healthBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        healthBar.Parent = billboardGui
+
+        local currentHealth = Instance.new("Frame")
+        currentHealth.Size = UDim2.new(health / maxHealth, 0, 1, 0)
+        currentHealth.BackgroundColor3 = color
+        currentHealth.Parent = healthBar
+
+        billboardGui.Parent = game:GetService("Workspace").CurrentCamera
+        return billboardGui
+    end)
+    return billboardGui
+end
+
+local function drawESP()
+    for _, visual in ipairs(espVisuals) do
+        safeCall(function()
+            visual:Destroy()
+        end)
+    end
+    espVisuals = {}
+
+    if not _G.FeatureStates.MasterVisuals or not _G.FeatureStates.ESP_Enabled then
+        return
+    end
+
+    local espBoxColor = Color3.fromRGB(0, 170, 255) -- Blue by default
+    local espNameColor = Color3.fromRGB(255, 255, 255) -- White by default
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChildOfClass("Humanoid") and player.Character:FindFirstChild("HumanoidRootPart") then
+            local character = player.Character
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+            if _G.FeatureStates.ESP_ShowBoxes then
+                local box = createBoxESP(character, espBoxColor)
+                if box then table.insert(espVisuals, box) end
+            end
+
+            if _G.FeatureStates.ESP_ShowNames then
+                local name = createNameESP(character, player.Name, espNameColor)
+                if name then table.insert(espVisuals, name) end
+            end
+
+            if _G.FeatureStates.ESP_ShowHealth and humanoid and humanoid.Health > 0 and humanoid.MaxHealth > 0 then
+                local health = createHealthESP(character, humanoid.Health, humanoid.MaxHealth, espNameColor)
+                if health then table.insert(espVisuals, health) end
+            end
+        end
+    end
+end
+
+local function clearESP()
+    for _, visual in ipairs(espVisuals) do
+        safeCall(function()
+            visual:Destroy()
+        end)
+    end
+    espVisuals = {}
+end
+
+-- Player loop
+task.spawn(function()
+    while true do
+        task.wait()
+        local character = getPlayerCharacter()
+        if character then
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid then
+                if _G.FeatureStates.Noclip then
+                    for _, part in ipairs(character:GetChildren()) do
+                        if part:IsA("BasePart") then
+                            safeCall(function()
+                                part.CanCollide = false
+                            end)
+                        end
+                    end
+                end
+                
+                if _G.FeatureStates.WalkSpeed ~= humanoid.WalkSpeed then
+                    safeCall(function()
+                        humanoid.WalkSpeed = _G.FeatureStates.WalkSpeed
+                    end)
+                end
+                
+                if _G.FeatureStates.JumpPower ~= humanoid.JumpPower then
+                    safeCall(function()
+                        humanoid.JumpPower = _G.FeatureStates.JumpPower
+                    end)
+                end
+            end
+        end
+    end
+end)
+
+-- Staff detection
+task.spawn(function()
+    while true do
+        task.wait()
+        if _G.FeatureStates.AutoAntiStaff then
+            for _, player in ipairs(Players:GetPlayers()) do
+                for _, id in ipairs(staffIds) do
+                    if player.UserId == id then
+                        for _, action in ipairs(_G.FeatureStates.StaffActions) do
+                            if action == "Kick" and player ~= LocalPlayer then
+                                safeCall(function()
+                                    player:Kick("Staff detected")
+                                end)
+                            elseif action == "Notify" then
+                                safeCall(function()
+                                    local notification = {
+                                        Title = "⚠️ Staff Detected",
+                                        Content = player.Name .. " (UserId: " .. player.UserId .. ") joined!",
+                                        Duration = 6.5
+                                    }
+                                end)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+Window:Draw()
