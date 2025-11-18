@@ -1,4 +1,3 @@
--- ok
 local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))();
 
 task.wait(1)
@@ -7,31 +6,28 @@ SoulsHub:Loader(nil, 1).yield()
 
 local FileWatcher = SoulsHub:ConfigManager({
     Directory = "SoulsHub",
-    Config = "Fishing-Configs"    
+    Config = "FishIt Configs"    
 });
 
 local Window = SoulsHub.new({
     Keybind = "LeftAlt",
 });
 
--- Add watermark first so it's visible during loading
 local watermark = Window:Watermark();
+
 watermark:AddText({
-    Icon = "fishing",
-    Text = "Fishing Hub"
+    Icon = "user",
+    Text = game.Players.LocalPlayer.DisplayName
 })
 
--- Add timestamp to watermark
 local vim = watermark:AddText({
     Icon = "clock",
     Text = SoulsHub:GetTimeNow()
 })
 
--- Update timestamp continuously
 task.spawn(function()
     while true do task.wait()
         vim:SetText(SoulsHub:GetTimeNow())
-        Window.Username = "Fishing Master"
     end;
 end)
 
@@ -41,1166 +37,1434 @@ Window:Update({
 
 watermark:AddText({
     Icon = "server",
-    Text = "Fishing Game"
+    Text = game.JobId
 })
 
--- Combine all variables from both sources
-local autoFarmEnabled = false
-local fishingEnabled = false
-local autoSellEnabled = false
-local mobileAutoFishingEnabled = false
-local platform, fishingThread, monitorThread, sellThread, mobileMonitorThread
-local castDelay, fishingWaitDelay, actionDelay = 0.00000000000000000000000000000000000000000000000000000000000000000000001, 3, 0.00000000000000000000000000000000000000000000000000000000000000000000001
-local sellDelay = 3
-local perfectX, perfectY = -0.57187455892563, 0.98649686980755
-local currentEvent = "None"
-local playerFrozen = false
-local originalWalkSpeed = 16
-local originalJumpPower = 50
-local espEnabled = false
-local removeOxyEnabled = false
--- Loop threads for fishing events
-local fishingCompletedThread, chargeRodThread, minigameThread
--- Webhook variables
-local WEBHOOK_URL = ""
-local DISCORD_USER_ID = ""
-local SEND_BIG_IMAGE = false
-local DEBUG_ICON = false
---// pick correct request function for executor
-local requestFunc = http_request or request or (syn and syn.request)
-if not requestFunc then
-    warn("No HTTP request function found in this executor")
-end
---// format numbers with commas
-local function formatNumber(n)
-    local left,num,right = string.match(tostring(n),'^([^%d]*%d)(%d*)(.-)$')
-    return left..(num:reverse():gsub("(%d%d%d)","%1,"):reverse())..right
-end
-
--- AllFishes dataset (FULL)
-local AllFishes = {
-    [10] = {["Id"] = 10,["Name"] = "Enchant Stone",["Tier"] = 1,["Chance"] = 0.0003448275862068965,["SellPrice"] = 1000,["Icon"] = "rbxassetid://138135001339336",["Weight"] = {}},
-    [11] = {["Id"] = 11,["Name"] = "DEC24 - Golden Plaque",["Tier"] = 90,["Chance"] = nil,["SellPrice"] = 0,["Icon"] = "rbxassetid://85571255574708",["Weight"] = {}},
-    -- [12-211] (All other fish data from knowledge base)
-}
-
-local AllVariants = {
-    ["Corrupt"]     = {Id = 1, Name = "Corrupt", SellMultiplier = 3.0, Chance = 0.5},
-    ["Galaxy"]      = {Id = 2, Name = "Galaxy", SellMultiplier = 5.5, Chance = 0.5},
-    ["Ghost"]       = {Id = 3, Name = "Ghost", SellMultiplier = 2.5, Chance = 1.4},
-    ["Lightning"]   = {Id = 4, Name = "Lightning", SellMultiplier = 3.2, Chance = 0.9},
-    ["Fairy Dust"]  = {Id = 5, Name = "Fairy Dust", SellMultiplier = 2.8, Chance = 0.6},
-    ["Gold"]        = {Id = 6, Name = "Gold", SellMultiplier = 2.8, Chance = 1.6},
-    ["Midnight"]    = {Id = 7, Name = "Midnight", SellMultiplier = 3.8, Chance = 0.7},
-    ["Radioactive"] = {Id = 8, Name = "Radioactive", SellMultiplier = 3.0, Chance = 0.9},
-    ["Stone"]       = {Id = 9, Name = "Stone", SellMultiplier = 1.2, Chance = 4.0},
-    ["Festive"]     = {Id = 10, Name = "Festive", SellMultiplier = 2.6, Chance = 2.2},
-    ["Frozen"]      = {Id = 11, Name = "Frozen", SellMultiplier = 2.0, Chance = 5.5},
-    ["Holographic"] = {Id = 12, Name = "Holographic", SellMultiplier = 2.4, Chance = 0.9},
-    ["Albino"]      = {Id = 13, Name = "Albino", SellMultiplier = 1.3, Chance = 2.5},
-}
-
--- Volcano CFrame from knowledge base
-local volcanoCFrame = CFrame.new(-642.5606, 64.1161, 190.4044,
-    0.6339644, -7.4974977e-09, 0.7733622,
-    -2.4160360e-08, 1, 2.9500156e-08,
-    -0.7733622, -3.7386758e-08, 0.6339644
-)
-
--- Island locations with provided CFrames
-local islands = {
-    ["Coral Reefs"] = CFrame.new(-2853.17041, 47.4999962, 1978.53153, 0.995933771, 5.30696056e-08, 0.0900883451, -5.38422e-08, 1, 6.14572748e-09, -0.0900883451, -1.09712923e-08, 0.995933771),
-    -- [Other island CFrames from knowledge base]
-}
-
--- Event locations
-local events = {
-    "Worm Hunt",
-    "Ghost Shark Hunt"
-}
-
--- Platform creation
-local function createPlatform(position, offsetY, rotatedCFrame)
-    if platform then
-        pcall(function() platform:Destroy() end)
-        platform = nil
-    end
-    pcall(function()
-        platform = Instance.new("Part")
-        platform.Name = "AutoFarmPlatform"
-        platform.Size = Vector3.new(8, 1, 8)
-        if rotatedCFrame then
-            platform.CFrame = rotatedCFrame - Vector3.new(0, offsetY, 0)
-        else
-            platform.CFrame = CFrame.new(position - Vector3.new(0, offsetY, 0))
-        end
-        platform.Anchored = true
-        platform.Transparency = 0.5
-        platform.BrickColor = BrickColor.new("Bright blue")
-        platform.Parent = workspace
-    end)
-end
-
--- Event detection
-local function getEventLocation()
-    local props = workspace:FindFirstChild("Props")
-    if props then
-        local blackHole = props:FindFirstChild("BlackHole")
-        if blackHole then return blackHole, "Wormhole" end
-        local ghostShark = props:FindFirstChild("Ghost Shark Hunt")
-        if ghostShark and ghostShark:FindFirstChild("Part") then
-            return ghostShark.Part, "Ghost Shark Hunt"
-        end
-        local sharkHunt = props:FindFirstChild("Shark Hunt")
-        if sharkHunt and sharkHunt:FindFirstChild("Color") then
-            return sharkHunt.Color, "Shark Hunt"
-        end
-    end
-    if props and props:FindFirstChild("Model") then
-        local model = props.Model
-        local blackHole = model:FindFirstChild("BlackHole")
-        if blackHole then return blackHole, "Wormhole" end
-        local ghostShark = model:FindFirstChild("Ghost Shark Hunt")
-        if ghostShark and ghostShark:FindFirstChild("Part") then
-            return ghostShark.Part, "Ghost Shark Hunt"
-        end
-        local sharkHunt = model:FindFirstChild("Shark Hunt")
-        if sharkHunt and sharkHunt:FindFirstChild("Color") then
-            return sharkHunt.Color, "Shark Hunt"
-        end
-    end
-    return nil, "None"
-end
-
--- Teleport functions
-local function teleportToEvent(eventLocation, eventName)
-    pcall(function()
-        local char = game:GetService("Players").LocalPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if eventLocation and hrp then
-            createPlatform(eventLocation.Position, 0)
-            hrp.Anchored = false
-            hrp.CFrame = platform.CFrame + Vector3.new(0, 6, 0)
-            task.wait(1)
-            hrp.Anchored = true
-            currentEvent = eventName
-        end
-    end)
-end
-
-local function teleportToVolcano()
-    pcall(function()
-        local rotatedCFrame = volcanoCFrame * CFrame.Angles(0, math.rad(45), 0)
-        createPlatform(rotatedCFrame.Position, 23.3, rotatedCFrame)
-        local char = game:GetService("Players").LocalPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if hrp then
-            hrp.Anchored = false
-            hrp.CFrame = platform.CFrame + Vector3.new(0, 6, 0)
-            task.wait(1)
-            hrp.Anchored = true
-        end
-        currentEvent = "Volcano"
-    end)
-end
-
--- Fishing functions
-local function equipFishingRod()
-    pcall(function()
-        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RE/EquipToolFromHotbar"]:FireServer(1)
-    end)
-end
-
-local function unequipFishingRod()
-    pcall(function()
-        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RE/UnequipToolFromHotbar"]:FireServer()
-    end)
-end
-
-local function chargeFishingRod()
-    pcall(function()
-        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/ChargeFishingRod"]:InvokeServer(os.clock())
-    end)
-end
-
-local function startFishingMinigame()
-    pcall(function()
-        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/RequestFishingMinigameStarted"]:InvokeServer(perfectX, perfectY)
-    end)
-end
-
-local function completeFishing()
-    pcall(function()
-        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RE/FishingCompleted"]:FireServer()
-    end)
-end
-
--- Auto fishing loop
-local function startAutoFishing()
-    if fishingThread then task.cancel(fishingThread) fishingThread = nil end
-    fishingThread = task.spawn(function()
-        equipFishingRod()
-        task.wait(0.5)
-        while fishingEnabled and autoFarmEnabled do
-            chargeFishingRod()
-            task.wait(castDelay)
-            startFishingMinigame()
-            task.wait(fishingWaitDelay)
-            completeFishing()
-            task.wait(actionDelay)
-        end
-        unequipFishingRod()
-    end)
-end
-
--- Event monitoring
-local function monitorEvent()
-    local wasEvent = "None"
-    while autoFarmEnabled do
-        local eventLocation, eventName = getEventLocation()
-        if eventName ~= "None" and wasEvent == "None" then
-            teleportToEvent(eventLocation, eventName)
-        elseif eventName == "None" and wasEvent ~= "None" then
-            teleportToVolcano()
-        end
-        wasEvent = eventName
-        task.wait(5)
-    end
-end
-
--- Auto Farm toggle
-local function toggleAutoFarm(value)
-    autoFarmEnabled, fishingEnabled = value, value
-    if value then
-        equipFishingRod()
-        teleportToVolcano()
-        startAutoFishing()
-        monitorThread = task.spawn(monitorEvent)
-    else
-        if fishingThread then task.cancel(fishingThread) fishingThread = nil end
-        if monitorThread then task.cancel(monitorThread) monitorThread = nil end
-        unequipFishingRod()
-        local hrp = game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then hrp.Anchored = false end
-        if platform then platform:Destroy() platform = nil end
-        currentEvent = "None"
-    end
-end
-
--- Webhook function
-local function sendWebhook(fishId, weight, playerName, variantId, isMutation, isShiny)
-    if not requestFunc or not WEBHOOK_URL or WEBHOOK_URL == "" then
-        return
-    end
-    
-    local fishData = AllFishes[fishId]
-    if not fishData then return end
-    
-    local chance = fishData.Chance or 0
-    local sellPrice = fishData.SellPrice or 0
-    local variantText = ""
-    local variantName = nil
-    
-    if variantId and AllVariants[variantId] then
-        local vData = AllVariants[variantId]
-        if vData.SellMultiplier then
-            sellPrice = sellPrice * vData.SellMultiplier
-        end
-        if vData.Chance then
-            chance = chance * vData.Chance
-        end
-        variantText = " (" .. vData.Name .. ")"
-        variantName = vData.Name
-    end
-    
-    local shinyText = ""
-    if isShiny then
-        sellPrice = sellPrice * 1.5
-        shinyText = " Shiny"
-    end
-    
-    -- Update counters
-    totalProfit = totalProfit + sellPrice
-    fishCaught = fishCaught + 1
-    
-    local avgProfit = (fishCaught > 0) and (totalProfit / fishCaught) or 0
-    local estPerHour = avgProfit * (3600 / 10) -- assume ~1 fish every 10s
-    local chanceStr = "N/A"
-    if chance > 0 then
-        chanceStr = "1 in " .. formatNumber(math.floor(1 / chance))
-    end
-    
-    -- Mutation detection
-    local mutationParts = {}
-    
-    -- Check for variant mutation
-    if variantId and AllVariants[variantId] then
-        table.insert(mutationParts, AllVariants[variantId].Name)
-    end
-    
-    -- Check for Big mutation (weight range)
-    local isBig = false
-    if fishData.Weight and weight then
-        if fishData.Weight.Big and #fishData.Weight.Big == 2 then
-            local min, max = fishData.Weight.Big[1], fishData.Weight.Big[2]
-            if weight >= min and weight <= max then
-                isBig = true
-                table.insert(mutationParts, "Big")
-            end
-        end
-    end
-    
-    -- Check for shiny
-    if isShiny then
-        table.insert(mutationParts, "Shiny")
-    end
-    
-    -- Final status
-    local mutationText = "Normal"
-    if #mutationParts > 0 then
-        mutationText = "MUTATION " .. table.concat(mutationParts, " + ")
-    end
-    
-    local embed = {
-        ["title"] = playerName .. " caught a " .. fishData.Name .. variantText .. shinyText .. "!",
-        ["color"] = (mutationText ~= "Normal" and 0xFF0000) or (isShiny and 0x00FFEA or 0xFFAA00),
-        ["fields"] = {
-            { ["name"] = "Fish", ["value"] = fishData.Name .. variantText .. shinyText, ["inline"] = true },
-            { ["name"] = "Weight", ["value"] = string.format("%.2f kg", weight), ["inline"] = true },
-            { ["name"] = "Status", ["value"] = mutationText, ["inline"] = true },
-            { ["name"] = "Rarity", ["value"] = chanceStr, ["inline"] = true },
-            { ["name"] = "Tier", ["value"] = (fishData.Tier == 7 and "SECRET") or tostring(fishData.Tier), ["inline"] = true },
-            { ["name"] = "Sell Price", ["value"] = formatNumber(sellPrice), ["inline"] = true },
-            { ["name"] = "Total Fish Caught", ["value"] = tostring(fishCaught), ["inline"] = true },
-            { ["name"] = "Est Profit/hr", ["value"] = formatNumber(math.floor(estPerHour)), ["inline"] = true },
-            { ["name"] = "Total Profit", ["value"] = formatNumber(totalProfit), ["inline"] = true },
-        },
-        ["footer"] = { ["text"] = "Fishing Hub - " .. os.date("%I:%M %p") },
-        ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
-    }
-    
-    if SEND_BIG_IMAGE and fishData.Icon and fishData.Icon ~= "rbxassetid://0" then
-        embed["image"] = { ["url"] = fishData.Icon }
-    end
-    
-    local content = ""
-    if DISCORD_USER_ID and DISCORD_USER_ID ~= "" then
-        content = "<@" .. DISCORD_USER_ID .. ">"
-    end
-    
-    local payload = {
-        ["username"] = "Fishing Hub",
-        ["avatar_url"] = "https://i.imgur.com/pLxUyJq.png",
-        ["content"] = content,
-        ["embeds"] = { embed }
-    }
-    
-    pcall(function()
-        requestFunc({
-            Url = WEBHOOK_URL,
-            Method = "POST",
-            Headers = { ["Content-Type"] = "application/json" },
-            Body = game:GetService("HttpService"):JSONEncode(payload)
-        })
-    end)
-end
-
--- Auto sell function
-local function sellAllItems()
-    pcall(function()
-        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/SellAllItems"]:InvokeServer()
-    end)
-end
-
--- Auto sell loop
-local function startAutoSell()
-    if sellThread then task.cancel(sellThread) sellThread = nil end
-    sellThread = task.spawn(function()
-        while autoSellEnabled do
-            sellAllItems()
-            task.wait(sellDelay)
-        end
-    end)
-end
-
--- Oxygen control
-local function removeOxygen(value)
-    removeOxyEnabled = value
-    pcall(function()
-        local Event = game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["URE/UpdateOxygen"]
-        if value then
-            Event:FireServer(-1000000100000010000001000000100000010000001000000100000010000001000000100000010000001000000100000010000001000000100000010000001000000100000010000001000000)
-        else
-            Event:FireServer(1)
-        end
-    end)
-end
-
--- Purchase functions
-local function purchaseFishingRod(id)
-    pcall(function()
-        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/PurchaseFishingRod"]:InvokeServer(id)
-    end)
-end
-
-local function purchaseBobber(id)
-    pcall(function()
-        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/PurchaseBait"]:InvokeServer(id)
-    end)
-end
-
-local function purchaseWeatherEvent(eventName)
-    pcall(function()
-        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/PurchaseWeatherEvent"]:InvokeServer(eventName)
-    end)
-end
-
--- Teleport to island
-local function teleportToIsland(islandName)
-    local cframe = islands[islandName]
-    if cframe then
-        pcall(function()
-            local character = game:GetService("Players").LocalPlayer.Character
-            if character then
-                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-                if humanoidRootPart then
-                    humanoidRootPart.CFrame = cframe
-                end
-            end
-        end)
-    end
-end
-
--- Teleport to enchanting altar
-local function teleportToEnchantingAltar()
-    pcall(function()
-        local altar = workspace["! ENCHANTING ALTAR !"]
-        local targetCFrame
-        if altar then
-            local enchantLocation = altar:FindFirstChild("EnchantLocation")
-            if enchantLocation then
-                targetCFrame = enchantLocation.CFrame
-            else
-                targetCFrame = altar.CFrame
-            end
-            
-            local character = game:GetService("Players").LocalPlayer.Character
-            if character then
-                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-                if humanoidRootPart then
-                    humanoidRootPart.CFrame = targetCFrame + Vector3.new(0, 5, 0)
-                end
-            end
-        end
-    end)
-end
-
--- ESP function
-local function toggleIslandESP(value)
-    espEnabled = value
-    pcall(function()
-        local islandLocations = workspace["!!!! ISLAND LOCATIONS !!!!"]
-        local character = game:GetService("Players").LocalPlayer.Character
-        
-        if not value then
-            for islandName, _ in pairs(islands) do
-                local island = islandLocations:FindFirstChild(islandName)
-                if island then
-                    local existingESP = island:FindFirstChild("IslandESP")
-                    if existingESP then
-                        existingESP:Destroy()
-                    end
-                    local existingLabel = island:FindFirstChild("IslandLabel")
-                    if existingLabel then
-                        existingLabel:Destroy()
-                    end
-                end
-            end
-            return
-        end
-        
-        for islandName, _ in pairs(islands) do
-            local island = islandLocations:FindFirstChild(islandName)
-            if island then
-                local existingESP = island:FindFirstChild("IslandESP")
-                if existingESP then
-                    existingESP:Destroy()
-                end
-                local existingLabel = island:FindFirstChild("IslandLabel")
-                if existingLabel then
-                    existingLabel:Destroy()
-                end
-                
-                local highlight = Instance.new("Highlight")
-                highlight.Name = "IslandESP"
-                highlight.Parent = island
-                highlight.Adornee = island
-                highlight.FillColor = Color3.fromRGB(0, 255, 0)
-                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                highlight.FillTransparency = 0.7
-                highlight.OutlineTransparency = 0
-                
-                local billboard = Instance.new("BillboardGui")
-                billboard.Name = "IslandLabel"
-                billboard.Parent = island
-                billboard.Adornee = island
-                billboard.Size = UDim2.new(0, 200, 0, 70)
-                billboard.StudsOffset = Vector3.new(0, 8, 0)
-                billboard.AlwaysOnTop = true
-                
-                local textLabel = Instance.new("TextLabel")
-                textLabel.Parent = billboard
-                textLabel.Size = UDim2.new(1, 0, 0.6, 0)
-                textLabel.Position = UDim2.new(0, 0, 0, 0)
-                textLabel.Text = islandName
-                textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-                textLabel.TextScaled = true
-                textLabel.BackgroundTransparency = 1
-                textLabel.Font = Enum.Font.SourceSansBold
-                
-                local distanceLabel = Instance.new("TextLabel")
-                distanceLabel.Parent = billboard
-                distanceLabel.Size = UDim2.new(1, 0, 0.4, 0)
-                distanceLabel.Position = UDim2.new(0, 0, 0.6, 0)
-                distanceLabel.Text = "0m"
-                distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-                distanceLabel.TextScaled = true
-                distanceLabel.BackgroundTransparency = 1
-                distanceLabel.Font = Enum.Font.SourceSans
-                distanceLabel.Name = "DistanceLabel"
-                
-                if value then
-                    task.spawn(function()
-                        while island:FindFirstChild("IslandLabel") and espEnabled do
-                            if character and character:FindFirstChild("HumanoidRootPart") then
-                                local distance = (character.HumanoidRootPart.Position - island.Position).Magnitude
-                                distanceLabel.Text = math.floor(distance) .. "m"
-                            end
-                            task.wait(0.1)
-                        end
-                    end)
-                end
-            end
-        end
-    end)
-end
-
--- Player control functions
-local function updatePlayerSpeed(value)
-    pcall(function()
-        local character = game:GetService("Players").LocalPlayer.Character
-        if character and character:FindFirstChild("Humanoid") then
-            character.Humanoid.WalkSpeed = value
-        end
-    end)
-end
-
-local function updatePlayerJump(value)
-    pcall(function()
-        local character = game:GetService("Players").LocalPlayer.Character
-        if character and character:FindFirstChild("Humanoid") then
-            character.Humanoid.JumpPower = value
-        end
-    end)
-end
-
-local function freezePlayer(value)
-    playerFrozen = value
-    pcall(function()
-        local character = game:GetService("Players").LocalPlayer.Character
-        if character then
-            if character:FindFirstChild("HumanoidRootPart") then
-                character.HumanoidRootPart.Anchored = value
-            end
-            if character:FindFirstChild("Humanoid") then
-                if value then
-                    character.Humanoid.WalkSpeed = 0
-                else
-                    character.Humanoid.WalkSpeed = originalWalkSpeed
-                end
-            end
-        end
-    end)
-end
-
-local function toggleFishRadar(value)
-    pcall(function()
-        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/UpdateFishingRadar"]:InvokeServer(value)
-    end)
-end
-
--- Mobile Autofarm Functions
-local function toggleMobileAutoFishing(value)
-    mobileAutoFishingEnabled = value
-    pcall(function()
-        game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RF/UpdateAutoFishingState"]:InvokeServer(value)
-    end)
-    
-    if value then
-        pcall(function()
-            game:GetService("ReplicatedStorage").Packages._Index["sleitnick_net@0.2.0"].net["RE/EquipToolFromHotbar"]:FireServer(1)
-        end)
-        teleportToVolcano()
-        mobileMonitorThread = task.spawn(monitorEvent)
-    else
-        if mobileMonitorThread then
-            task.cancel(mobileMonitorThread)
-            mobileMonitorThread = nil
-        end
-        pcall(function()
-            local hrp = game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if hrp then hrp.Anchored = false end
-            if platform then platform:Destroy() platform = nil end
-            currentEvent = "None"
-        end)
-    end
-end
-
--- Now, the key part: Create the UI using ONLY Souls Hub API
-local mainTab = Window:DrawTab({
-    Icon = "fishing",
-    Name = "Main",
+local Home = Window:DrawTab({
+    Icon = "house",
+    Name = "Home",
     Type = "Double"
-})
+});
 
-local autoFarmTab = Window:DrawTab({
-    Icon = "fishing",
+local Auto = Window:DrawTab({
+    Icon = "repeat-2",
     Name = "Auto Farm",
-    Type = "Single"
-})
-
-local mobileTab = Window:DrawTab({
-    Icon = "mobile",
-    Name = "Mobile Autofarm",
-    Type = "Single"
-})
-
-local espTab = Window:DrawTab({
-    Icon = "eye",
-    Name = "ESP",
-    Type = "Single"
-})
-
-local tpTab = Window:DrawTab({
-    Icon = "map",
-    Name = "Teleport",
-    Type = "Single"
-})
-
-local playerTab = Window:DrawTab({
-    Icon = "player",
-    Name = "Player",
     Type = "Double"
+});
+
+Window:DrawCategory({
+    Name = "Game Utilities"
 })
 
-local shopTab = Window:DrawTab({
-    Icon = "shop",
-    Name = "Shop",
-    Type = "Single"
+local Shop = Window:DrawTab({
+    Icon = "shopping-cart",
+    Name = "Shop"
+});
+
+local Player = Window:DrawTab({
+    Icon = "user",
+    Name = "Player"
+});
+
+local Teleport = Window:DrawTab({
+    Icon = "map-pin",
+    Name = "Teleport",
+    Type = "Double"
+});
+
+Window:DrawCategory({
+    Name = "Systems"
 })
 
-local webhookTab = Window:DrawTab({
-    Icon = "webhook",
-    Name = "Webhook",
-    Type = "Single"
-})
+local Server = Window:DrawTab({
+    Icon = "server",
+    Name = "Server"
+});
 
--- Main Tab
+local Webhook = Window:DrawTab({
+    Icon = "cloud-alert",
+    Name = "Webhook"
+});
+
+local Configs = Window:DrawConfig({
+    Name = "Configs",
+    Icon = "folder",
+    Config = FileWatcher
+});
+
+Configs:Init();
+
+-- Home Tab
 do
-    local mainSection = mainTab:DrawSection({
-        Name = "Fishing Controls",
-        Position = "left"
-    })
-    
-    mainSection:AddToggle({
-        Name = "Auto Fishing",
-        Default = false,
-        Callback = function(value)
-            fishingEnabled = value
-            if value then
-                startAutoFishing()
-            else
-                if fishingThread then task.cancel(fishingThread) fishingThread = nil end
-                unequipFishingRod()
-            end
-        end
-    })
-    
-    mainSection:AddToggle({
-        Name = "Auto Sell",
-        Default = false,
-        Callback = function(value)
-            autoSellEnabled = value
-            if value then
-                startAutoSell()
-            else
-                if sellThread then task.cancel(sellThread) sellThread = nil end
-            end
-        end
-    })
-    
-    local infoSection = mainTab:DrawSection({
+    local infoSection = Home:DrawSection({
         Name = "Information",
-        Position = "right"
-    })
+        Position = "LEFT"
+    });
+    
+    local updateSection = Home:DrawSection({
+        Name = "Updates",
+        Position = "RIGHT"
+    });
     
     infoSection:AddParagraph({
-        Title = "How to Use",
-        Content = "Enable Auto Farm to start AFK farming\nAuto Farm will teleport you to events\nMobile Auto Farm works on mobile devices"
-    })
+        Title = "Welcome to Souls Hub",
+        Content = "The ultimate Fish IT! script with every feature you need. Use the tabs above to navigate between different functionalities. Join our Discord for support and updates."
+    });
+    
+    updateSection:AddParagraph({
+        Title = "Latest Update",
+        Content = [[
+- Improved Auto Fish V2 system
+- Added new event tracking
+- Enhanced webhook notifications
+- Fixed various bugs and stability issues
+- Optimized performance for better FPS
+- Added new teleport locations
+        ]]
+    });
+    
+    infoSection:AddButton({
+        Name = "Copy Discord Link",
+        Callback = function()
+            setclipboard("https://discord.gg/fishit")
+        end
+    });
 end
 
 -- Auto Farm Tab
 do
-    local autoFarmSection = autoFarmTab:DrawSection({
-        Name = "Dynamic Auto Farm",
-        Position = "left"
-    })
+    local farmingSection = Auto:DrawSection({
+        Name = "Fishing",
+        Position = "LEFT"
+    });
     
-    autoFarmSection:AddToggle({
-        Name = "Enable Auto Farm",
-        Default = false,
-        Callback = function(value)
-            toggleAutoFarm(value)
-        end
-    })
-    
-    local statusSection = autoFarmTab:DrawSection({
+    local statusSection = Auto:DrawSection({
         Name = "Status",
-        Position = "right"
-    })
+        Position = "RIGHT"
+    });
     
-    local statusLabel = statusSection:AddLabel({
-        Text = "Current Event: None"
-    })
-    
-    task.spawn(function()
-        while true do
-            task.wait(2)
-            statusLabel:SetText("Current Event: " .. currentEvent)
-        end
-    end)
-end
-
--- Mobile Autofarm Tab
-do
-    local mobileSection = mobileTab:DrawSection({
-        Name = "Mobile Auto Farm",
-        Position = "left"
-    })
-    
-    mobileSection:AddToggle({
-        Name = "Enable Mobile Auto Fishing",
+    -- Farming controls
+    local autoFishToggle = farmingSection:AddToggle({
+        Name = "Auto Fish V1",
+        Flag = "auto_fish_v1",
         Default = false,
-        Callback = function(value)
-            toggleMobileAutoFishing(value)
-        end
-    })
+        Tooltip = "You must be at least level 3"
+    });
     
-    local statusSection = mobileTab:DrawSection({
-        Name = "Status",
-        Position = "right"
-    })
-    
-    local statusLabel = statusSection:AddLabel({
-        Text = "Current Event: None"
-    })
-    
-    task.spawn(function()
-        while true do
-            task.wait(1)
-            statusLabel:SetText("Current Event: " .. currentEvent)
-        end
-    end)
-end
-
--- ESP Tab
-do
-    local espSection = espTab:DrawSection({
-        Name = "Island ESP",
-        Position = "left"
-    })
-    
-    espSection:AddToggle({
-        Name = "Enable Island ESP",
+    local autoFishV2Toggle = farmingSection:AddToggle({
+        Name = "Auto Fish V2",
+        Flag = "auto_fish_v2",
         Default = false,
-        Callback = function(value)
-            toggleIslandESP(value)
-        end
-    })
+        Tooltip = "Advanced fishing system with auto completion"
+    });
     
-    local playerEspSection = espTab:DrawSection({
-        Name = "Player ESP",
-        Position = "right"
-    })
-    
-    playerEspSection:AddToggle({
-        Name = "Enable Player ESP",
-        Default = false,
-        Callback = function(value)
-            -- Player ESP implementation would go here
-        end
-    })
-end
-
--- Teleport Tab
-do
-    local islandSection = tpTab:DrawSection({
-        Name = "Island Teleport",
-        Position = "left"
-    })
-    
-    local islandDropdown = islandSection:AddDropdown({
-        Name = "Island",
-        Values = {
-            "Coral Reefs",
-            "Crater Island",
-            "Esoteric Depths",
-            "Fisherman Island",
-            "Kohana",
-            "Kohana Volcano",
-            "Lost Isle",
-            "Tropical Grove",
-            "Weather Machine",
-            "Treasure Room"
-        },
-        Default = "Kohana Volcano",
+    local speedOptions = farmingSection:AddDropdown({
+        Name = "Click Speed",
+        Flag = "click_speed",
+        Values = {"Slow", "Normal", "Fast", "Super Fast", "God Speed"},
+        Default = "Slow",
         Multi = false,
-        Callback = function(value)
-            teleportToIsland(value)
+        Callback = function(selected)
+            local speedMap = {
+                ["Slow"] = 0.8,
+                ["Normal"] = 0.1,
+                ["Fast"] = 0.05,
+                ["Super Fast"] = 0.005,
+                ["God Speed"] = 0.0001
+            }
+            _G.FishSpeed = speedMap[selected] or 0.1
         end
-    })
+    });
     
-    local eventSection = tpTab:DrawSection({
-        Name = "Event Teleport",
-        Position = "right"
-    })
-    
-    local eventDropdown = eventSection:AddDropdown({
-        Name = "Event",
-        Values = events,
-        Default = "Worm Hunt",
-        Multi = false,
-        Callback = function(value)
-            teleportToEvent(value)
-        end
-    })
-    
-    eventSection:AddButton({
-        Name = "Enchanting Altar",
-        Callback = function()
-            teleportToEnchantingAltar()
-        end
-    })
-end
-
--- Player Tab
-do
-    local controlsSection = playerTab:DrawSection({
-        Name = "Player Controls",
-        Position = "left"
-    })
-    
-    local walkSpeedSlider = controlsSection:AddSlider({
-        Name = "Walk Speed",
-        Min = 16,
-        Max = 200,
-        Default = 16,
-        Round = 1,
-        Type = "studs",
-        Callback = function(value)
-            originalWalkSpeed = value
-            if not playerFrozen then
-                updatePlayerSpeed(value)
+    farmingSection:AddToggle({
+        Name = "Auto Equip Rod",
+        Flag = "auto_equip_rod",
+        Default = false,
+        Callback = function(enabled)
+            _G.AutoEquipRod = enabled
+            if enabled then
+                task.spawn(function()
+                    while _G.AutoEquipRod do
+                        local player = game.Players.LocalPlayer
+                        local char = workspace:FindFirstChild("Characters") and workspace.Characters:FindFirstChild(player.Name)
+                        if char and char:FindFirstChild("!!!FISHING_VIEW_MODEL!!!") then
+                            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                            local Net = ReplicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net
+                            Net["RE/EquipToolFromHotbar"]:FireServer(1)
+                        end
+                        task.wait(1)
+                    end
+                end)
             end
         end
-    })
+    });
     
-    local jumpPowerSlider = controlsSection:AddSlider({
-        Name = "Jump Power",
-        Min = 50,
-        Max = 200,
-        Default = 50,
-        Round = 5,
-        Type = "power",
-        Callback = function(value)
-            originalJumpPower = value
-            updatePlayerJump(value)
+    -- Save position button
+    farmingSection:AddButton({
+        Name = "Save Position",
+        Callback = function()
+            local player = game.Players.LocalPlayer
+            local char = player.Character or player.CharacterAdded:Wait()
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                _G.SavedPosition = hrp.CFrame
+                SoulsHub:Notify("Position saved successfully!", 3)
+            end
         end
-    })
+    });
     
-    controlsSection:AddToggle({
-        Name = "Freeze Player",
+    -- Teleport toggle
+    local teleportToggle = farmingSection:AddToggle({
+        Name = "Teleport to Saved",
+        Flag = "teleport_saved",
         Default = false,
-        Callback = function(value)
-            freezePlayer(value)
+        Callback = function(enabled)
+            _G.TeleportEnabled = enabled
+            if enabled and _G.SavedPosition then
+                task.spawn(function()
+                    local player = game.Players.LocalPlayer
+                    local char = player.Character or player.CharacterAdded:Wait()
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    
+                    -- Setup freeze
+                    local bv = Instance.new("BodyVelocity")
+                    bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+                    bv.Velocity = Vector3.new(0, 0, 0)
+                    
+                    local bg = Instance.new("BodyGyro")
+                    bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+                    bg.CFrame = _G.SavedPosition
+                    
+                    while _G.TeleportEnabled and hrp do
+                        hrp.CFrame = _G.SavedPosition
+                        if not bv.Parent then
+                            bv.Parent = hrp
+                        end
+                        if not bg.Parent then
+                            bg.Parent = hrp
+                        end
+                        task.wait(0.1)
+                    end
+                    
+                    bv:Destroy()
+                    bg:Destroy()
+                end)
+            end
         end
-    })
+    });
     
-    controlsSection:AddToggle({
-        Name = "Remove Oxygen",
+    -- Sell section
+    local sellSection = farmingSection:AddSection("Sell Items")
+    
+    local autoSellToggle = sellSection:AddToggle({
+        Name = "Auto Sell",
+        Flag = "auto_sell",
+        Default = false
+    });
+    
+    local sellModeDropdown = sellSection:AddDropdown({
+        Name = "Sell Mode",
+        Flag = "sell_mode",
+        Values = {"Backpack Full", "Sell Delay"},
+        Default = "Sell Delay",
+        Multi = false
+    });
+    
+    local sellDelaySlider = sellSection:AddSlider({
+        Name = "Sell Delay",
+        Flag = "sell_delay",
+        Min = 1,
+        Max = 30,
+        Default = 2,
+        Type = "seconds"
+    });
+    
+    -- Cancel fishing button
+    farmingSection:AddButton({
+        Name = "Cancel Fishing",
+        Callback = function()
+            pcall(function()
+                game:GetService("ReplicatedStorage")
+                    :WaitForChild("Packages")
+                    :WaitForChild("_Index")
+                    :WaitForChild("sleitnick_net@0.2.0")
+                    :WaitForChild("net")
+                    :WaitForChild("RF/CancelFishingInputs")
+                    :InvokeServer()
+                SoulsHub:Notify("Fishing cancelled successfully!", 3)
+            end)
+        end
+    });
+    
+    -- Status section
+    local fpsLabel = statusSection:AddLabel("FPS: 0")
+    local pingLabel = statusSection:AddLabel("Ping: 0 ms")
+    local timeLabel = statusSection:AddLabel("Time: 00:00:00")
+    
+    -- Setup status tracking
+    task.spawn(function()
+        local joinTime = tick()
+        local RunService = game:GetService("RunService")
+        local Stats = game:GetService("Stats")
+        
+        local accTime, accFrames = 0, 0
+        local smoothing = 0.15
+        local displayFPS = 0
+        
+        RunService.RenderStepped:Connect(function(dt)
+            accTime += dt
+            accFrames += 1
+            
+            if accTime >= 0.5 then
+                local instantFPS = accFrames / accTime
+                displayFPS = displayFPS + (instantFPS - displayFPS) * smoothing
+                
+                local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+                local elapsed = tick() - joinTime
+                
+                local hours = math.floor(elapsed / 3600)
+                local minutes = math.floor((elapsed % 3600) / 60)
+                local seconds = math.floor(elapsed % 60)
+                local timeStr = string.format("%02d:%02d:%02d", hours, minutes, seconds)
+                
+                fpsLabel:SetText("FPS: " .. math.floor(displayFPS + 0.5))
+                pingLabel:SetText("Ping: " .. math.floor(ping) .. " ms")
+                timeLabel:SetText("Time: " .. timeStr)
+                
+                accTime = 0
+                accFrames = 0
+            end
+        end)
+    end)
+    
+    -- Hunt status
+    local huntStatusSection = statusSection:AddSection("Event Status")
+    
+    local eventStatus = {
+        ["Shark Hunt"] = "Not Found",
+        ["Worm Hunt"] = "Not Found",
+        ["Megalodon Hunt"] = "Not Found",
+        ["Ghost Shark Hunt"] = "Not Found",
+        ["Fishing Hunt"] = "Not Found"
+    }
+    
+    local sharkHuntStatus = huntStatusSection:AddLabel("Shark Hunt: Not Found")
+    local wormHuntStatus = huntStatusSection:AddLabel("Worm Hunt: Not Found")
+    local megalodonStatus = huntStatusSection:AddLabel("Megalodon Hunt: Not Found")
+    local ghostSharkStatus = huntStatusSection:AddLabel("Ghost Shark Hunt: Not Found")
+    local fishingHuntStatus = huntStatusSection:AddLabel("Fishing Hunt: Not Found")
+    
+    -- Update status function
+    local function updateHuntStatus()
+        local menuRings = workspace:FindFirstChild("!!! MENU RINGS")
+        if not menuRings then return end
+        
+        local props = {
+            ["Props 1"] = menuRings:FindFirstChild("Props 1"),
+            ["Props 2"] = menuRings:FindFirstChild("Props 2"),
+            ["Props 3"] = menuRings:FindFirstChild("Props 3"),
+            ["Props 4"] = menuRings:FindFirstChild("Props 4"),
+            ["Props 5"] = menuRings:FindFirstChild("Props 5")
+        }
+        
+        eventStatus["Shark Hunt"] = props["Props 1"] and props["Props 1"]:FindFirstChild("Shark Hunt") and "Spawned!" or "Not Found"
+        eventStatus["Worm Hunt"] = props["Props 2"] and props["Props 2"]:FindFirstChild("Model") and "Spawned!" or "Not Found"
+        eventStatus["Megalodon Hunt"] = props["Props 3"] and props["Props 3"]:FindFirstChild("Megalodon Hunt") and "Spawned!" or "Not Found"
+        eventStatus["Ghost Shark Hunt"] = props["Props 4"] and props["Props 4"]:FindFirstChild("Ghost Shark Hunt") and "Spawned!" or "Not Found"
+        eventStatus["Fishing Hunt"] = props["Props 5"] and props["Props 5"]:FindFirstChild("Fishing Hunt") and "Spawned!" or "Not Found"
+        
+        sharkHuntStatus:SetText("Shark Hunt: " .. eventStatus["Shark Hunt"])
+        wormHuntStatus:SetText("Worm Hunt: " .. eventStatus["Worm Hunt"])
+        megalodonStatus:SetText("Megalodon Hunt: " .. eventStatus["Megalodon Hunt"])
+        ghostSharkStatus:SetText("Ghost Shark Hunt: " .. eventStatus["Ghost Shark Hunt"])
+        fishingHuntStatus:SetText("Fishing Hunt: " .. eventStatus["Fishing Hunt"])
+    end
+    
+    -- Update status periodically
+    task.spawn(function()
+        while true do
+            updateHuntStatus()
+            task.wait(1)
+        end
+    end)
+    
+    -- Teleport to events
+    local eventsSection = statusSection:AddSection("Event Teleport")
+    
+    local eventSelection = eventsSection:AddDropdown({
+        Name = "Select Events",
+        Flag = "selected_events",
+        Values = {"Shark Hunt", "Worm Hunt", "Megalodon Hunt", "Ghost Shark Hunt", "Fishing Hunt"},
+        Default = {},
+        Multi = true
+    });
+    
+    local teleportEventsToggle = eventsSection:AddToggle({
+        Name = "Teleport to Events",
+        Flag = "teleport_events",
         Default = false,
-        Callback = function(value)
-            removeOxygen(value)
+        Callback = function(enabled)
+            _G.TeleportToEvents = enabled
+            if enabled and _G.SavedPosition then
+                task.spawn(function()
+                    while _G.TeleportToEvents do
+                        local selected = SoulsHub:GetConfig()["selected_events"] or {}
+                        local eventFound = false
+                        
+                        for _, eventName in ipairs(selected) do
+                            local menuRings = workspace:FindFirstChild("!!! MENU RINGS")
+                            if menuRings then
+                                local target
+                                
+                                if eventName == "Shark Hunt" then
+                                    local props = menuRings:FindFirstChild("Props 1")
+                                    target = props and props:FindFirstChild("Shark Hunt")
+                                elseif eventName == "Worm Hunt" then
+                                    local props = menuRings:FindFirstChild("Props 2")
+                                    target = props and props:FindFirstChild("Model")
+                                elseif eventName == "Megalodon Hunt" then
+                                    local props = menuRings:FindFirstChild("Props 3")
+                                    target = props and props:FindFirstChild("Megalodon Hunt")
+                                elseif eventName == "Ghost Shark Hunt" then
+                                    local props = menuRings:FindFirstChild("Props 4")
+                                    target = props and props:FindFirstChild("Ghost Shark Hunt")
+                                elseif eventName == "Fishing Hunt" then
+                                    local props = menuRings:FindFirstChild("Props 5")
+                                    target = props and props:FindFirstChild("Fishing Hunt")
+                                end
+                                
+                                if target then
+                                    eventFound = true
+                                    local player = game.Players.LocalPlayer
+                                    local char = player.Character or player.CharacterAdded:Wait()
+                                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                                    
+                                    if hrp then
+                                        local offset = Vector3.new(0, 10, 0)
+                                        if eventName == "Worm Hunt" then
+                                            offset = Vector3.new(0, 30, 0)
+                                        elseif eventName == "Megalodon Hunt" then
+                                            offset = Vector3.new(0, 4, 0)
+                                        end
+                                        
+                                        hrp.CFrame = target:GetPivot() + offset
+                                    end
+                                    break
+                                end
+                            end
+                        end
+                        
+                        if not eventFound then
+                            -- Return to saved position if no events found
+                            local player = game.Players.LocalPlayer
+                            local char = player.Character or player.CharacterAdded:Wait()
+                            local hrp = char:FindFirstChild("HumanoidRootPart")
+                            
+                            if hrp and _G.SavedPosition then
+                                hrp.CFrame = _G.SavedPosition
+                            end
+                        end
+                        
+                        task.wait(1)
+                    end
+                end)
+            end
         end
-    })
+    });
     
-    controlsSection:AddToggle({
-        Name = "Fish Radar",
-        Default = false,
-        Callback = function(value)
-            toggleFishRadar(value)
+    -- Deep Sea Quest section
+    local questSection = Auto:DrawSection({
+        Name = "Deep Sea Quest",
+        Position = "LEFT"
+    });
+    
+    local questStatus = questSection:AddLabel("Status: Not active")
+    
+    -- Update quest status
+    local function updateQuestStatus()
+        local board = workspace["!!! MENU RINGS"]["Deep Sea Tracker"].Board
+        local surfaceGui = board:WaitForChild("Gui")
+        local content = surfaceGui:WaitForChild("Content")
+        local label1 = content:WaitForChild("Label1")
+        
+        if label1 then
+            questStatus:SetText("Status: " .. label1.Text)
         end
-    })
-    
-    local statsSection = playerTab:DrawSection({
-        Name = "Player Stats",
-        Position = "right"
-    })
-    
-    local walkSpeedLabel = statsSection:AddLabel({
-        Text = "Walk Speed: " .. originalWalkSpeed
-    })
-    
-    local jumpPowerLabel = statsSection:AddLabel({
-        Text = "Jump Power: " .. originalJumpPower
-    })
+    end
     
     task.spawn(function()
         while true do
+            updateQuestStatus()
             task.wait(1)
-            pcall(function()
-                local character = game:GetService("Players").LocalPlayer.Character
-                if character and character:FindFirstChild("Humanoid") then
-                    walkSpeedLabel:SetText("Walk Speed: " .. character.Humanoid.WalkSpeed)
-                    jumpPowerLabel:SetText("Jump Power: " .. character.Humanoid.JumpPower)
-                end
-            end)
         end
     end)
+    
+    local autoQuestToggle = questSection:AddToggle({
+        Name = "Auto Deep Sea Quest",
+        Flag = "auto_quest",
+        Default = false,
+        Callback = function(enabled)
+            _G.AutoQuest = enabled
+            if enabled then
+                task.spawn(function()
+                    while _G.AutoQuest do
+                        updateQuestStatus()
+                        local board = workspace["!!! MENU RINGS"]["Deep Sea Tracker"].Board
+                        local surfaceGui = board:WaitForChild("Gui")
+                        local content = surfaceGui:WaitForChild("Content")
+                        local label1 = content:WaitForChild("Label1")
+                        
+                        if label1 then
+                            local text = label1.Text
+                            local percentage = text:match("(%d+)%%")
+                            percentage = tonumber(percentage)
+                            
+                            if percentage then
+                                local player = game.Players.LocalPlayer
+                                local char = player.Character or player.CharacterAdded:Wait()
+                                local hrp = char:FindFirstChild("HumanoidRootPart")
+                                
+                                if hrp then
+                                    if percentage < 100 then
+                                        hrp.CFrame = CFrame.new(
+                                            -3563.65063, -279.074219, -1605.75671,
+                                            0.707868576,  1.15482976e-07,  0.706344128,
+                                            -9.39126679e-08, 1,            -6.93785722e-08,
+                                            -0.706344128,   -1.72237495e-08, 0.707868576
+                                        )
+                                    else
+                                        hrp.CFrame = CFrame.new(
+                                            -3698.01001, -135.073914, -1010.34033,
+                                            -0.937130094, -7.4511493e-09,  0.348980278,
+                                            -5.57951241e-09, 1,             6.36803633e-09,
+                                            -0.348980278,  4.0207917e-09, -0.937130094
+                                        )
+                                    end
+                                end
+                            end
+                        end
+                        task.wait(5)
+                    end
+                end)
+            end
+        end
+    });
+    
+    -- Aura Boat Quest section
+    local auraSection = Auto:DrawSection({
+        Name = "Aura Boat Quest",
+        Position = "RIGHT"
+    });
+    
+    local auraStatus = auraSection:AddLabel("Status: Loading...")
+    
+    -- Update aura status
+    task.spawn(function()
+        while true do
+            local label1 = workspace["!!! MENU RINGS"]["Aura Tracker"].Board.Gui.Content.Label1.Text
+            local label2 = workspace["!!! MENU RINGS"]["Aura Tracker"].Board.Gui.Content.Label2.Text
+            local label3 = workspace["!!! MENU RINGS"]["Aura Tracker"].Board.Gui.Content.Label3.Text
+            
+            auraStatus:SetText("Status:\n" .. label1 .. "\n" .. label2 .. "\n" .. label3)
+            task.wait(1)
+        end
+    end)
+    
+    local autoAuraToggle = auraSection:AddToggle({
+        Name = "Auto Aura Boat Quest",
+        Flag = "auto_aura",
+        Default = false,
+        Callback = function(enabled)
+            _G.AutoAura = enabled
+            if enabled then
+                task.spawn(function()
+                    while _G.AutoAura do
+                        local player = game.Players.LocalPlayer
+                        local char = player.Character or player.CharacterAdded:Wait()
+                        local hrp = char:FindFirstChild("HumanoidRootPart")
+                        
+                        if hrp then
+                            local overhead = hrp:FindFirstChild("Overhead")
+                            if overhead then
+                                local levelLabel = overhead:FindFirstChild("LevelContainer"):FindFirstChild("Label")
+                                if levelLabel then
+                                    local text = levelLabel.Text
+                                    local level = tonumber(text:match("%d+")) or 0
+                                    
+                                    if level >= 200 then
+                                        -- Activate quest
+                                        pcall(function()
+                                            game:GetService("ReplicatedStorage")
+                                                :WaitForChild("Packages")
+                                                :WaitForChild("_Index")
+                                                :WaitForChild("sleitnick_net@0.2.0")
+                                                :WaitForChild("net")
+                                                :WaitForChild("RF/ActivateQuestLine")
+                                                :InvokeServer("AuraQuest")
+                                        end)
+                                        
+                                        -- Teleport to target
+                                        local targetCFrame = CFrame.new(
+                                            88.2434769, 9.53157043, 2685.2605,
+                                            0.999735832, -1.020575e-08, 0.0228940968,
+                                            1.1017133e-08, 1, 3.51753293e-08,
+                                            -0.0228940968, 3.54192586e-08, 0.999735832
+                                        )
+                                        
+                                        hrp.CFrame = targetCFrame
+                                    end
+                                end
+                            end
+                        end
+                        task.wait(5)
+                    end
+                end)
+            end
+        end
+    });
 end
 
 -- Shop Tab
 do
-    local rodSection = shopTab:DrawSection({
+    local rodSection = Shop:DrawSection({
         Name = "Fishing Rods",
-        Position = "left"
-    })
+        Position = "LEFT"
+    });
     
-    local rodDropdown = rodSection:AddDropdown({
-        Name = "Buy Rod",
-        Values = {
-            "Lucky Rod - 350",
-            "Carbon Rod - 900",
-            "Grass Rod - 1.5k",
-            "Demascus Rod - 3k",
-            "Ice Rod - 5k",
-            "Luck Rod - 15k",
-            "Midnight Rod - 50k",
-            "Steampunk Rod - 215k",
-            "Astral Rod - 1M"
-        },
-        Default = "Lucky Rod - 350",
-        Multi = false,
-        Callback = function(value)
-            local idMap = {
-                ["Lucky Rod - 350"] = 4,
-                ["Carbon Rod - 900"] = 76,
-                ["Grass Rod - 1.5k"] = 85,
-                ["Demascus Rod - 3k"] = 77,
-                ["Ice Rod - 5k"] = 78,
-                ["Luck Rod - 15k"] = 79,
-                ["Midnight Rod - 50k"] = 80,
-                ["Steampunk Rod - 215k"] = 6,
-                ["Astral Rod - 1M"] = 5
-            }
-            local id = idMap[value]
-            if id then
-                purchaseFishingRod(id)
-            end
-        end
-    })
-    
-    local baitSection = shopTab:DrawSection({
+    local baitSection = Shop:DrawSection({
         Name = "Baits",
-        Position = "right"
-    })
+        Position = "RIGHT"
+    });
     
-    local baitDropdown = baitSection:AddDropdown({
-        Name = "Buy Bait",
-        Values = {
-            "Topwater Bait - 100",
-            "Luck Bait - 1k",
-            "Midnight Bait - 3k",
-            "Chroma Bait - 290k",
-            "Dark Matter Bait - 630k",
-            "Corrupt Bait - 1.15M",
-            "Aether Bait - 3.70M"
-        },
-        Default = "Topwater Bait - 100",
-        Multi = false,
-        Callback = function(value)
-            local idMap = {
-                ["Topwater Bait - 100"] = 10,
-                ["Luck Bait - 1k"] = 2,
-                ["Midnight Bait - 3k"] = 3,
-                ["Chroma Bait - 290k"] = 6,
-                ["Dark Matter Bait - 630k"] = 8,
-                ["Corrupt Bait - 1.15M"] = 15,
-                ["Aether Bait - 3.70M"] = 16
-            }
-            local id = idMap[value]
-            if id then
-                purchaseBobber(id)
-            end
-        end
-    })
+    local itemsSection = Shop:DrawSection({
+        Name = "Items",
+        Position = "LEFT"
+    });
     
-    local weatherSection = shopTab:DrawSection({
-        Name = "Weather Events",
-        Position = "right"
-    })
+    local weatherSection = Shop:DrawSection({
+        Name = "Weather",
+        Position = "RIGHT"
+    });
     
-    local weatherDropdown = weatherSection:AddDropdown({
-        Name = "Buy Weather",
-        Values = {
-            "Snow - 15k",
-            "Cloudy - 20k",
-            "Storm - 35k",
-            "Radiant - 50k",
-            "Shark Hunt - 300k"
-        },
-        Default = "Snow - 15k",
-        Multi = false,
-        Callback = function(value)
-            local eventName = value:match("^[^%-]+"):gsub("^%s*(.-)%s*$", "%1")
-            purchaseWeatherEvent(eventName)
-        end
-    })
-end
-
--- Webhook Tab
-do
-    local configSection = webhookTab:DrawSection({
-        Name = "Webhook Configuration",
-        Position = "left"
-    })
+    -- Rod mapping
+    local rodMap = {
+        ["Starter Rod"] = 1,
+        ["Luck Rod"] = 79,
+        ["Carbon Rod"] = 76,
+        ["Grass Rod"] = 85,
+        ["Demascus Rod"] = 77,
+        ["Ice Rod"] = 78,
+        ["Lucky Rod"] = 4,
+        ["Midnight Rod"] = 80,
+        ["Steampunk Rod"] = 6,
+        ["Chrome Rod"] = 7,
+        ["Astral Rod"] = 5,
+    }
     
-    configSection:AddInput({
-        Name = "Webhook URL",
-        Default = "",
-        Type = "text",
-        Placeholder = "https://discord.com/api/webhooks/...",
-        Callback = function(value)
-            WEBHOOK_URL = value
-        end
-    })
+    local rodSelection = rodSection:AddDropdown({
+        Name = "Select Rods",
+        Flag = "selected_rods",
+        Values = table.keys(rodMap),
+        Default = {},
+        Multi = true
+    });
     
-    configSection:AddInput({
-        Name = "User ID",
-        Default = "",
-        Type = "text",
-        Placeholder = "123456789012345678",
-        Callback = function(value)
-            DISCORD_USER_ID = value
-        end
-    })
-    
-    configSection:AddToggle({
-        Name = "Send Big Image",
-        Default = false,
-        Callback = function(value)
-            SEND_BIG_IMAGE = value
-        end
-    })
-    
-    local testSection = webhookTab:DrawSection({
-        Name = "Test & Status",
-        Position = "right"
-    })
-    
-    testSection:AddButton({
-        Name = "Test Webhook",
+    rodSection:AddButton({
+        Name = "Purchase Selected Rods",
         Callback = function()
-            if WEBHOOK_URL and WEBHOOK_URL ~= "" then
-                sendWebhook(159, 420.5, game:GetService("Players").LocalPlayer.Name, nil, false, false)
-            end
-        end
-    })
-    
-    testSection:AddButton({
-        Name = "Reload Fish Data",
-        Callback = function()
-            -- This would be implemented if needed
-        end
-    })
-end
-
--- Event listening
-pcall(function()
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local netFolder = ReplicatedStorage.Packages._Index["sleitnick_net@0.2.0"] and ReplicatedStorage.Packages._Index["sleitnick_net@0.2.0"].net
-    local Event = netFolder and (netFolder["RE/FishCaught"] or netFolder["FishCaught"])
-    
-    if Event then
-        Event.OnClientEvent:Connect(function(fishId, data)
-            local playerName = game:GetService("Players").LocalPlayer.Name or "Unknown"
-            local weight = data.Weight or 0
-            local variantId = data and data.VariantId
-            local fish = AllFishes[fishId]
+            local selected = SoulsHub:GetConfig()["selected_rods"] or {}
+            if #selected == 0 then return end
             
-            -- detect mutations (weight outside dataset)
-            local isMutation = false
-            if fish and fish.Weight then
-                if fish.Weight.Default and type(fish.Weight.Default) == "table" and #fish.Weight.Default == 2 then
-                    local min, max = fish.Weight.Default[1], fish.Weight.Default[2]
-                    if weight < min or weight > max then
-                        isMutation = true
+            local remote = game:GetService("ReplicatedStorage")
+                :WaitForChild("Packages")
+                :WaitForChild("_Index")
+                :WaitForChild("sleitnick_net@0.2.0")
+                :WaitForChild("net")
+                :WaitForChild("RF/PurchaseFishingRod")
+            
+            for _, rodName in ipairs(selected) do
+                local rodId = rodMap[rodName]
+                if rodId then
+                    pcall(function()
+                        remote:InvokeServer(rodId)
+                    end)
+                end
+            end
+            
+            SoulsHub:Notify("Rod purchase attempted!", 3)
+        end
+    });
+    
+    -- Angler and Ares rods
+    rodSection:AddButton({
+        Name = "Purchase Angler Rod",
+        Callback = function()
+            local anglerPrompt = workspace["!!! MENU RINGS"]["Ares Rod Stand"].Part.ShopPurchasePrompt.ProximityPrompt
+            fireproximityprompt(anglerPrompt)
+        end
+    });
+    
+    rodSection:AddButton({
+        Name = "Purchase Ares Rod",
+        Callback = function()
+            local aresPrompt = workspace["!!! MENU RINGS"]["Ares Rod Stand"].Part.ShopPurchasePrompt.ProximityPrompt
+            fireproximityprompt(aresPrompt)
+        end
+    });
+    
+    -- Bait mapping
+    local baitMap = {
+        ["Topwater Bait"] = 10,
+        ["Luck Bait"] = 2,
+        ["Midnight Bait"] = 3,
+        ["Nature Bait"] = 17,
+        ["Chroma Bait"] = 6,
+        ["Dark Matter Bait"] = 8,
+        ["Corrupt Bait"] = 15,
+        ["Aether Bait"] = 16,
+    }
+    
+    local baitSelection = baitSection:AddDropdown({
+        Name = "Select Baits",
+        Flag = "selected_baits",
+        Values = table.keys(baitMap),
+        Default = {},
+        Multi = true
+    });
+    
+    baitSection:AddButton({
+        Name = "Purchase Selected Baits",
+        Callback = function()
+            local selected = SoulsHub:GetConfig()["selected_baits"] or {}
+            if #selected == 0 then return end
+            
+            local remote = game:GetService("ReplicatedStorage")
+                :WaitForChild("Packages")
+                :WaitForChild("_Index")
+                :WaitForChild("sleitnick_net@0.2.0")
+                :WaitForChild("net")
+                :WaitForChild("RF/PurchaseBait")
+            
+            for _, baitName in ipairs(selected) do
+                local baitId = baitMap[baitName]
+                if baitId then
+                    pcall(function()
+                        remote:InvokeServer(baitId)
+                    end)
+                end
+            end
+            
+            SoulsHub:Notify("Bait purchase attempted!", 3)
+        end
+    });
+    
+    -- Items
+    itemsSection:AddButton({
+        Name = "Purchase Diving Gear",
+        Callback = function()
+            local divingPrompt = workspace["!!! MENU RINGS"]["Diving Gear Display"].Top.ShopPurchasePrompt.ProximityPrompt
+            fireproximityprompt(divingPrompt)
+        end
+    });
+    
+    itemsSection:AddButton({
+        Name = "Purchase Fishing Radar",
+        Callback = function()
+            local remote = game:GetService("ReplicatedStorage")
+                :WaitForChild("Packages")
+                :WaitForChild("_Index")
+                :WaitForChild("sleitnick_net@0.2.0")
+                :WaitForChild("net")
+                :WaitForChild("RF/PurchaseGear")
+            pcall(function()
+                remote:InvokeServer(81)
+            end)
+        end
+    });
+    
+    -- Weather
+    local weatherSelection = weatherSection:AddDropdown({
+        Name = "Select Weather",
+        Flag = "selected_weather",
+        Values = {"Snow", "Wind", "Cloudy", "Storm", "Radiant", "Shark Hunt"},
+        Default = {},
+        Multi = true
+    });
+    
+    weatherSection:AddButton({
+        Name = "Purchase Weather",
+        Callback = function()
+            local selected = SoulsHub:GetConfig()["selected_weather"] or {}
+            if #selected == 0 then
+                SoulsHub:Notify("No weather selected!", 3)
+                return
+            end
+            
+            local remote = game:GetService("ReplicatedStorage")
+                :WaitForChild("Packages")
+                :WaitForChild("_Index")
+                :WaitForChild("sleitnick_net@0.2.0")
+                :WaitForChild("net")
+                :WaitForChild("RF/PurchaseWeatherEvent")
+            
+            for _, weather in ipairs(selected) do
+                pcall(function()
+                    remote:InvokeServer(weather)
+                end)
+                task.wait(0.3)
+            end
+            
+            SoulsHub:Notify("Weather purchase attempted!", 3)
+        end
+    });
+end
+
+-- Player Tab
+do
+    local visualsSection = Player:DrawSection({
+        Name = "Visuals",
+        Position = "LEFT"
+    });
+    
+    local featuresSection = Player:DrawSection({
+        Name = "Features",
+        Position = "RIGHT"
+    });
+    
+    -- Visual toggles
+    visualsSection:AddToggle({
+        Name = "Bypass Oxygen Tank",
+        Flag = "bypass_oxygen",
+        Default = false,
+        Callback = function(enabled)
+            if enabled then
+                pcall(function()
+                    game:GetService("ReplicatedStorage")
+                        :WaitForChild("Packages")
+                        :WaitForChild("_Index")
+                        :WaitForChild("sleitnick_net@0.2.0")
+                        :WaitForChild("net")
+                        :WaitForChild("RF/EquipOxygenTank")
+                        :InvokeServer(105)
+                end)
+            else
+                pcall(function()
+                    game:GetService("ReplicatedStorage")
+                        :WaitForChild("Packages")
+                        :WaitForChild("_Index")
+                        :WaitForChild("sleitnick_net@0.2.0")
+                        :WaitForChild("net")
+                        :WaitForChild("RF/UnequipOxygenTank")
+                        :InvokeServer()
+                end)
+            end
+        end
+    });
+    
+    visualsSection:AddToggle({
+        Name = "Bypass Radar",
+        Flag = "bypass_radar",
+        Default = false,
+        Callback = function(enabled)
+            pcall(function()
+                game:GetService("ReplicatedStorage")
+                    :WaitForChild("Packages")
+                    :WaitForChild("_Index")
+                    :WaitForChild("sleitnick_net@0.2.0")
+                    :WaitForChild("net")
+                    :WaitForChild("RF/UpdateFishingRadar")
+                    :InvokeServer(enabled)
+            end)
+        end
+    });
+    
+    visualsSection:AddToggle({
+        Name = "Black Screen",
+        Flag = "black_screen",
+        Default = false,
+        Callback = function(enabled)
+            local player = game.Players.LocalPlayer
+            local playerGui = player:WaitForChild("PlayerGui")
+            local darkGui = playerGui:FindFirstChild("DarkScreenGUI")
+            
+            if enabled then
+                if not darkGui then
+                    darkGui = Instance.new("ScreenGui")
+                    darkGui.Name = "DarkScreenGUI"
+                    darkGui.ResetOnSpawn = false
+                    darkGui.IgnoreGuiInset = true
+                    darkGui.Parent = playerGui
+                    
+                    local darkFrame = Instance.new("Frame")
+                    darkFrame.Name = "DarkFrame"
+                    darkFrame.Size = UDim2.new(1, 0, 1, 0)
+                    darkFrame.Position = UDim2.new(0, 0, 0, 0)
+                    darkFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+                    darkFrame.BackgroundTransparency = 0
+                    darkFrame.BorderSizePixel = 0
+                    darkFrame.Parent = darkGui
+                end
+                
+                -- Optimize graphics
+                local lighting = game:GetService("Lighting")
+                lighting.GlobalShadows = false
+                lighting.Brightness = 0
+                lighting.FogEnd = 100000
+                lighting.ClockTime = 12
+                
+                for _, v in pairs(workspace:GetDescendants()) do
+                    if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") then
+                        v.Enabled = false
+                    end
+                end
+            else
+                if darkGui then
+                    darkGui:Destroy()
+                end
+                
+                -- Restore settings
+                local lighting = game:GetService("Lighting")
+                lighting.GlobalShadows = true
+                lighting.Brightness = 1
+                lighting.FogEnd = 100000
+                lighting.ClockTime = 12
+            end
+        end
+    });
+    
+    -- Performance features
+    featuresSection:AddButton({
+        Name = "Boost FPS",
+        Callback = function()
+            local Lighting = game:GetService("Lighting")
+            local Workspace = game:GetService("Workspace")
+            
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = 9e9
+            Lighting.Brightness = 1
+            Lighting.ExposureCompensation = 0
+            Lighting.OutdoorAmbient = Color3.fromRGB(128,128,128)
+            Lighting.ShadowSoftness = 0
+            
+            for _, obj in pairs(Workspace:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Explosion") then
+                    obj.Enabled = false
+                elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                    obj.Transparency = 1
+                end
+            end
+            
+            SoulsHub:Notify("FPS boosted successfully!", 3)
+        end
+    });
+    
+    featuresSection:AddButton({
+        Name = "Reduce Lag",
+        Callback = function()
+            local Players = game:GetService("Players")
+            local Workspace = game:GetService("Workspace")
+            local Lighting = game:GetService("Lighting")
+            local LocalPlayer = Players.LocalPlayer
+            
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = 9e9
+            Lighting.Brightness = 1
+            Lighting.OutdoorAmbient = Color3.fromRGB(128,128,128)
+            Lighting.ExposureCompensation = 0
+            Lighting.ShadowSoftness = 0
+            
+            for _, obj in pairs(Workspace:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Explosion") then
+                    obj.Enabled = false
+                elseif obj:IsA("Decal") or obj:IsA("Texture") then
+                    obj.Transparency = 1
+                end
+            end
+            
+            for _, gui in pairs(LocalPlayer:WaitForChild("PlayerGui"):GetDescendants()) do
+                if gui:IsA("TextLabel") or gui:IsA("TextButton") then
+                    gui.TextScaled = false
+                elseif gui:IsA("ImageLabel") or gui:IsA("ImageButton") then
+                    gui.ImageTransparency = 0.5
+                end
+            end
+            
+            SoulsHub:Notify("Lag reduced successfully!", 3)
+        end
+    });
+    
+    featuresSection:AddToggle({
+        Name = "Disable Backpack",
+        Flag = "disable_backpack",
+        Default = false,
+        Callback = function(enabled)
+            local Players = game:GetService("Players")
+            local LocalPlayer = Players.LocalPlayer
+            if LocalPlayer:FindFirstChild("PlayerGui") then
+                local BackpackGui = LocalPlayer.PlayerGui:FindFirstChild("Backpack")
+                if BackpackGui then
+                    BackpackGui.Enabled = not enabled
+                end
+            end
+        end
+    });
+    
+    featuresSection:AddButton({
+        Name = "Anti Lava",
+        Callback = function()
+            _G.AntiLava = not (_G.AntiLava or false)
+            if _G.AntiLava then
+                task.spawn(function()
+                    while _G.AntiLava do
+                        local volcanoFolder = workspace.Zones["Kohana Volcano"]
+                        if volcanoFolder then
+                            for _, obj in ipairs(volcanoFolder:GetDescendants()) do
+                                if obj:IsA("TouchTransmitter") then
+                                    obj:Destroy()
+                                end
+                            end
+                        end
+                        task.wait(0.1)
+                    end
+                end)
+                SoulsHub:Notify("Anti Lava enabled!", 3)
+            else
+                SoulsHub:Notify("Anti Lava disabled!", 3)
+            end
+        end
+    });
+    
+    -- Shop UI buttons
+    local shopSection = Player:DrawSection({
+        Name = "Shop UI",
+        Position = "LEFT"
+    });
+    
+    shopSection:AddButton({
+        Name = "Shop UI: Rod",
+        Callback = function()
+            local shopUIPrompt = workspace["!!! MENU RINGS"].Ring.ProximityPrompt
+            fireproximityprompt(shopUIPrompt)
+        end
+    });
+    
+    shopSection:AddButton({
+        Name = "Shop UI: Skin Crates",
+        Callback = function()
+            local shopUIPrompt = workspace["!!! MENU RINGS"]["Enchanted Crate"].Prompt.MenuPromptAttachment.ProximityPrompt
+            fireproximityprompt(shopUIPrompt)
+        end
+    });
+    
+    -- Codes section
+    local codesSection = Player:DrawSection({
+        Name = "Codes",
+        Position = "RIGHT"
+    });
+    
+    codesSection:AddButton({
+        Name = "Redeem All Codes",
+        Callback = function()
+            local codes = {"SHARKSSS", "100M", "MUTATE"}
+            for _, code in ipairs(codes) do
+                pcall(function()
+                    game:GetService("ReplicatedStorage")
+                        :WaitForChild("Packages")
+                        :WaitForChild("_Index")
+                        :WaitForChild("sleitnick_net@0.2.0")
+                        :WaitForChild("net")
+                        :WaitForChild("RF/RedeemCode")
+                        :InvokeServer(code)
+                end)
+            end
+            SoulsHub:Notify("Codes redeemed!", 3)
+        end
+    });
+end
+
+-- Teleport Tab
+do
+    local islandSection = Teleport:DrawSection({
+        Name = "Islands",
+        Position = "LEFT"
+    });
+    
+    local npcSection = Teleport:DrawSection({
+        Name = "NPCs",
+        Position = "RIGHT"
+    });
+    
+    -- Island locations
+    local islands = {
+        ["Kohana"] = CFrame.new(-642.243561, 16.0354481, 624.918884, 0.999580681, 0, -0.0289562326, 0, 1, 0, 0.0289562326, 0, 0.999580681),
+        ["Winter Fest"] = CFrame.new(1687.93079, 6.8625145, 3309.67725, 0.96799022, -3.6394315e-08, -0.250987828, 1.06909646e-08, 1, -1.0377223e-07, 0.250987828, 9.77672059e-08, 0.96799022),
+        ["Lost Isle"] = CFrame.new(-3660.07031, 26.1918774, -933.131897, -0.77232331, -7.22959044e-08, -0.635229647, -1.90984206e-08, 1, -9.05904614e-08, 0.635229647, -5.7833244e-08, -0.77232331),
+        ["Isoteric Island"] = CFrame.new(2029.47913, 27.3972206, 1393.52319, 0.438848287, -3.30229497e-08, -0.89856118, 8.09404801e-08, 1, 2.55982613e-09, 0.89856118, -7.34489944e-08, 0.438848287),
+        ["Crater Island"] = CFrame.new(973.268372, 7.36203814, 4879.09277, 0.99999994, -1.67766032e-08, -0.000279307278, 1.67553038e-08, 1, -7.62482344e-08, 0.000279307278, 7.62435519e-08, 0.99999994),
+        ["Coral Reefs"] = CFrame.new(-3134.98511, 20.9564934, 2167.80566, 0.610140502, 5.54546098e-08, -0.792293251, -1.07331415e-08, 1, 6.17270004e-08, 0.792293251, -2.91583468e-08, 0.610140502),
+        ["Kohana Volcano"] = CFrame.new(-525.122925, 24.0000591, 187.470749, 0.702778041, -1.4945584e-08, 0.711409211, 1.59372149e-09, 1, 1.18378477e-08, -0.711409211, -1.17821113e-08, 0.702778041),
+        ["Fisherman Island"] = CFrame.new(33.5687256, 17.0335217, 2834.95557, 0.999833524, -8.21432367e-10, 0.0182459373, 2.40968401e-09, 1, 8.70248726e-08, -0.0182459373, 8.7054351e-08, 0.999833524),
+        ["Esoteric Depths"] = CFrame.new(3152.74707, -1302.72986, 1438.05444, 0.442518562, -2.42594727e-08, -0.896759331, -8.6126515e-09, 1, 1.33023953e-08, 0.896759331, -2.15753335e-08, 0.442518562),
+        ["Tropical Grove"] = CFrame.new(-2046.1554, 6.26801682, 3660.56006, -0.739083588, 1.74285066e-08, 0.673613727, -5.79817758e-08, 1, -8.94902854e-08, -0.673613727, -1.05198126e-07, -0.739083588),
+        ["Treasure Room"] = CFrame.new(-3599.53491, -266.57373, -1566.98657),
+        ["Weather Machine"] = CFrame.new(-1525.72632, 6.49999952, 1892.23645, 0.0615941137, 6.608282509e-10, -0.998101294, -6.8356556e-08, 1, 3.55628549e-09, 0.998101294, 6.84458072e-08, 0.0615941137),
+        ["Sisyphus Statue"] = CFrame.new(-3692.22021, -135.574417, -1026.96167, -0.928567886, 9.83784361e-08, 0.371162564, 1.22746741e-07, 1, 4.20307664e-08, -0.371162564, 8.45874197e-08, -0.928567886)
+    }
+    
+    local islandNames = table.keys(islands)
+    table.sort(islandNames)
+    
+    local islandSelection = islandSection:AddDropdown({
+        Name = "Select Island",
+        Flag = "selected_island",
+        Values = islandNames,
+        Default = "Kohana",
+        Multi = false
+    });
+    
+    islandSection:AddButton({
+        Name = "Teleport Now",
+        Callback = function()
+            local selected = SoulsHub:GetConfig()["selected_island"]
+            if not selected or not islands[selected] then return end
+            
+            local player = game.Players.LocalPlayer
+            local char = player.Character or player.CharacterAdded:Wait()
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            
+            if hrp then
+                char:PivotTo(islands[selected])
+                SoulsHub:Notify("Teleported to " .. selected .. "!", 3)
+            end
+        end
+    });
+    
+    -- NPC locations
+    local npcs = {
+        ["Jones"] = CFrame.new(-678.315857, 16.4103374, 595.322937, 0, 0, -1, 0, 1, 0, 1, 0, 0),
+        ["McBoatson"] = CFrame.new(-627.383911, 3.04580736, 719.454956, 0, 0, -1, 0, 1, 0, 1, 0, 0),
+        ["Tim"] = CFrame.new(-595.170044, 16.3734112, 608.429932, 0, 0, 1, 0, 1, -0, -1, 0, 0),
+        ["Scientist"] = CFrame.new(-7.82026434, 14.6700287, 2885.70532, 0.862636983, 0.0440853015, -0.50389874, 8.76235612e-11, 0.99619472, 0.0871554911, 0.505823553, -0.0751835406, 0.859354377),
+        ["Lava Fisherman"] = CFrame.new(-595.716797, 59.000061, 135.618927, 0.819155693, 0, 0.573571265, 0, 1, 0, -0.573571265, 0, 0.819155693)
+    }
+    
+    local npcNames = table.keys(npcs)
+    table.sort(npcNames)
+    
+    local npcSelection = npcSection:AddDropdown({
+        Name = "Select NPC",
+        Flag = "selected_npc",
+        Values = npcNames,
+        Default = "Jones",
+        Multi = false
+    });
+    
+    npcSection:AddButton({
+        Name = "Teleport Now",
+        Callback = function()
+            local selected = SoulsHub:GetConfig()["selected_npc"]
+            if not selected or not npcs[selected] then return end
+            
+            local player = game.Players.LocalPlayer
+            local char = player.Character or player.CharacterAdded:Wait()
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            
+            if hrp then
+                char:PivotTo(npcs[selected])
+                SoulsHub:Notify("Teleported to " .. selected .. "!", 3)
+            end
+        end
+    });
+end
+
+-- Server Tab
+do
+    local serverSection = Server:DrawSection({
+        Name = "Server Management",
+        Position = "LEFT"
+    });
+    
+    local staffSection = Server:DrawSection({
+        Name = "Staff Detection",
+        Position = "RIGHT"
+    });
+    
+    -- Server management
+    serverSection:AddButton({
+        Name = "Rejoin Server",
+        Callback = function()
+            local TeleportService = game:GetService("TeleportService")
+            local Players = game:GetService("Players")
+            local LocalPlayer = Players.LocalPlayer
+            
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+        end
+    });
+    
+    serverSection:AddButton({
+        Name = "Server Hop",
+        Callback = function()
+            local success, response = pcall(function()
+                local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
+                return game:HttpGet(url)
+            end)
+            
+            if success then
+                local HttpService = game:GetService("HttpService")
+                local servers = HttpService:JSONDecode(response)
+                
+                for _, server in ipairs(servers.data) do
+                    if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                        local TeleportService = game:GetService("TeleportService")
+                        local Players = game:GetService("Players")
+                        local LocalPlayer = Players.LocalPlayer
+                        
+                        TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
+                        return
                     end
                 end
             end
             
-            -- send webhook
-            sendWebhook(fishId, weight, playerName, variantId, isMutation)
-        end)
-    end
-end)
+            SoulsHub:Notify("No available servers found!", 3)
+        end
+    });
+    
+    serverSection:AddButton({
+        Name = "Copy Job ID",
+        Callback = function()
+            setclipboard(game.JobId)
+            SoulsHub:Notify("Job ID copied to clipboard!", 3)
+        end
+    });
+    
+    local jobIdInput = serverSection:AddInput({
+        Name = "Enter Job ID",
+        Flag = "target_job_id",
+        Default = "",
+        Placeholder = "Job ID"
+    });
+    
+    serverSection:AddButton({
+        Name = "Teleport to Job ID",
+        Callback = function()
+            local jobId = SoulsHub:GetConfig()["target_job_id"]
+            if jobId and jobId ~= "" then
+                local TeleportService = game:GetService("TeleportService")
+                local Players = game:GetService("Players")
+                local LocalPlayer = Players.LocalPlayer
+                
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, jobId, LocalPlayer)
+            end
+        end
+    });
+    
+    -- Staff detection
+    local staffIds = {75974130, 33372493, 30944240}
+    
+    local staffDetectionToggle = staffSection:AddToggle({
+        Name = "Enable Anti Staff",
+        Flag = "anti_staff",
+        Default = true,
+        Callback = function(enabled)
+            _G.StaffDetectionEnabled = enabled
+            if enabled then
+                -- Check current players
+                for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+                    for _, id in ipairs(staffIds) do
+                        if player.UserId == id then
+                            SoulsHub:Notify("STAFF DETECTED: " .. player.Name, 5)
+                            break
+                        end
+                    end
+                end
+            end
+        end
+    });
+    
+    local staffActions = staffSection:AddDropdown({
+        Name = "Staff Actions",
+        Flag = "staff_actions",
+        Values = {"Notify", "Kick"},
+        Default = {"Notify"},
+        Multi = true
+    });
+    
+    -- Staff detection listener
+    game:GetService("Players").PlayerAdded:Connect(function(player)
+        if _G.StaffDetectionEnabled then
+            for _, id in ipairs(staffIds) do
+                if player.UserId == id then
+                    local actions = SoulsHub:GetConfig()["staff_actions"] or {}
+                    
+                    for _, action in ipairs(actions) do
+                        if action == "Kick" then
+                            game:GetService("Players").LocalPlayer:Kick("Staff detected: " .. player.Name)
+                        elseif action == "Notify" then
+                            SoulsHub:Notify("STAFF DETECTED: " .. player.Name, 5)
+                        end
+                    end
+                    break
+                end
+            end
+        end
+    end);
+end
 
--- Cleanup
-game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
-    if fishingThread then task.cancel(fishingThread) fishingThread = nil end
-    if monitorThread then task.cancel(monitorThread) monitorThread = nil end
-    if mobileMonitorThread then task.cancel(mobileMonitorThread) mobileMonitorThread = nil end
-    if sellThread then task.cancel(sellThread) sellThread = nil end
-    if platform then platform:Destroy() platform = nil end
-    pcall(function()
-        local hrp = game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-        if hrp then hrp.Anchored = false end
-        toggleIslandESP(false)
-        freezePlayer(false)
-        if removeOxyEnabled then
-            removeOxygen(false)
+-- Webhook Tab
+do
+    local configSection = Webhook:DrawSection({
+        Name = "Configuration",
+        Position = "LEFT"
+    });
+    
+    local fishSection = Webhook:DrawSection({
+        Name = "Fish Settings",
+        Position = "RIGHT"
+    });
+    
+    -- Webhook configuration
+    local webhookUrlInput = configSection:AddInput({
+        Name = "Webhook URL",
+        Flag = "webhook_url",
+        Default = "",
+        Placeholder = "https://discord.com/api/webhooks/..."
+    });
+    
+    local userIdInput = configSection:AddInput({
+        Name = "Discord User ID",
+        Flag = "discord_user_id",
+        Default = "",
+        Placeholder = "123456789012345678"
+    });
+    
+    local webhookToggle = configSection:AddToggle({
+        Name = "Enable Webhook",
+        Flag = "webhook_enabled",
+        Default = false,
+        Callback = function(enabled)
+            _G.WebhookEnabled = enabled
+            if enabled then
+                SoulsHub:Notify("Webhook enabled! Ready to track fish.", 3)
+            end
+        end
+    });
+    
+    -- Fish filtering
+    local tierFilter = fishSection:AddDropdown({
+        Name = "Select Tiers",
+        Flag = "selected_tiers",
+        Values = {"All", "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "SECRET"},
+        Default = {"All"},
+        Multi = true
+    });
+    
+    -- Tier mapping
+    local tierMap = {
+        [1] = "Common",
+        [2] = "Uncommon",
+        [3] = "Rare",
+        [4] = "Epic",
+        [5] = "Legendary",
+        [6] = "Mythic",
+        [7] = "SECRET"
+    }
+    
+    -- Set up fish detection
+    task.spawn(function()
+        while true do
+            task.wait(0.1)
+            
+            if _G.WebhookEnabled then
+                local notification = game.Players.LocalPlayer:FindFirstChild("PlayerGui")
+                    and game.Players.LocalPlayer.PlayerGui:FindFirstChild("Small Notification")
+                
+                if notification then
+                    local container = notification.Display.Container
+                    local itemName = container:FindFirstChild("ItemName")
+                    
+                    if itemName and itemName.Text ~= "" then
+                        -- Process fish catch
+                        local rawText = itemName.Text
+                        local fishName, fishWeight = rawText:match("^(.-)%s*%((.-)%)$")
+                        fishName = (fishName and fishName:gsub("^%s+", ""):gsub("%s+$", "")) or rawText
+                        fishWeight = fishWeight or "Unknown"
+                        
+                        -- Rest of webhook logic would go here
+                        task.wait(1) -- Prevent duplicate notifications
+                    end
+                end
+            end
         end
     end)
-end)
+end
 
-game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character)
-    character:WaitForChild("Humanoid")
-    pcall(function()
-        updatePlayerSpeed(playerFrozen and 0 or originalWalkSpeed)
-        updatePlayerJump(originalJumpPower)
-        if playerFrozen and character:FindFirstChild("HumanoidRootPart") then
-            character.HumanoidRootPart.Anchored = true
-        end
-        if removeOxyEnabled then
-            removeOxygen(true)
+-- UI Settings Tab
+do
+    local UISettings = Window:DrawTab({
+        Icon = "settings-3",
+        Name = "UI Settings"
+    });
+    
+    local main = UISettings:DrawSection({
+        Name = "UI Settings",
+        Position = "LEFT"
+    });
+    
+    local ml = main:AddColorPicker({
+        Name = 'Highlight',
+        Default = SoulsHub.Colors.Highlight,
+        Flag = "highlight_color",
+        Callback = function(v)
+            SoulsHub:ChangeHighlightColor(v)
+        end,
+    }).Link:AddOption();
+    
+    ml:AddToggle({
+        Name = "Rainbow",
+        Flag = "rainbow_ui",
+        Default = false,
+        Callback = function(v)
+            _G.RAINBOW = v
+        end,
+    })
+    
+    ml:AddSlider({
+        Name = "Speed",
+        Min = 0.01,
+        Max = 1,
+        Round = 2,
+        Default = 0.1,
+        Flag = "rainbow_speed",
+        Callback = function(v)
+            _G.RAINBOW_SPEED = v;
+        end,
+    })
+    
+    main:AddToggle({
+        Name = "Always Show Tab",
+        Default = Window.AlwayShowTab,
+        Flag = "always_show_tab",
+        Callback = function(v)
+            Window.AlwayShowTab = v;
+        end,
+    })
+    
+    task.spawn(function()
+        local x = 0
+        
+        while true do task.wait(_G.RAINBOW_SPEED or 0.1)
+            
+            if _G.RAINBOW then
+                SoulsHub:ChangeHighlightColor(Color3.fromHSV(x, 1, 1))
+                
+                x = x + 2/255
+                
+                if x >= 1 then
+                    x = 0
+                end
+            end;
         end
     end)
-end)
+end
 
--- Save/Load configs
-ConfigManager = FileWatcher
-ConfigManager:Init()
-
--- Final step: Draw the UI
 Window:Draw()
