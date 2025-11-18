@@ -1,19 +1,107 @@
-local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
+-- non
 
-task.wait(1)
+local function safeCall(func, ...)
+    local success, result = pcall(function()
+        return func(...)
+    end)
+    if success then
+        return result
+    end
+    return nil
+end
 
-SoulsHub:Loader(nil, 1).yield()
+local function getRemote(remotePath)
+    local parts = {}
+    for part in string.gmatch(remotePath, "[^%.]+") do
+        table.insert(parts, part)
+    end
+    
+    local current = game
+    for _, part in ipairs(parts) do
+        current = current:FindFirstChild(part)
+        if not current then break end
+    end
+    return current
+end
 
-local FileWatcher = SoulsHub:ConfigManager({
-    Directory = "SoulsHub",
-    Config = "FishIt"
-})
+local function safeInvoke(remote, ...)
+    if not remote or typeof(remote) ~= "Instance" then
+        return nil
+    end
+    return safeCall(function()
+        return remote:InvokeServer(...)
+    end)
+end
 
-local Window = SoulsHub.new({
-    Keybind = "LeftAlt",
-})
+local function safeFire(remote, ...)
+    if not remote or typeof(remote) ~= "Instance" then
+        return
+    end
+    return safeCall(function()
+        return remote:FireServer(...)
+    end)
+end
 
-local watermark = Window:Watermark()
+-- Initialize Souls Hub UI with proper error handling
+local success, SoulsHub = pcall(function()
+    return loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
+end)
+
+if not success or not SoulsHub then
+    error("Failed to load Souls Hub UI library: " .. tostring(SoulsHub or "Unknown error"))
+end
+
+-- Add proper delay for UI to load
+task.wait(1.5)
+
+-- Check if Loader method exists before calling it
+if type(SoulsHub.Loader) ~= "function" then
+    error("Souls Hub Loader method not found. UI library might be outdated or modified.")
+end
+
+-- Initialize UI loader
+local loader = safeCall(function()
+    return SoulsHub:Loader(nil, 1)
+end)
+
+if loader then
+    safeCall(function()
+        loader:yield()
+    end)
+else
+    error("Failed to initialize Souls Hub UI loader")
+end
+
+-- Create ConfigManager with proper fallbacks
+local FileWatcher = safeCall(function()
+    return SoulsHub:ConfigManager({
+        Directory = "SoulsHub",
+        Config = "FishIt"
+    })
+end) or {
+    Save = function() end,
+    Load = function() return {} end,
+    Init = function() end
+}
+
+-- Create UI window with proper error handling
+local Window = safeCall(function()
+    return SoulsHub.new({
+        Keybind = "LeftAlt",
+    })
+end)
+
+if not Window then
+    error("Failed to create Souls Hub UI window")
+end
+
+-- Watermark setup with fallbacks
+local watermark = safeCall(function()
+    return Window:Watermark()
+end) or {
+    AddText = function() end,
+    Remove = function() end
+}
 
 watermark:AddText({
     Icon = "user",
@@ -75,10 +163,6 @@ _G.FeatureStates = _G.FeatureStates or {
     AutoBait = false,
     AutoRods = false,
     AutoCodes = false,
-    AutoWeatherSelection = {},
-    AutoRodsSelection = {},
-    AutoBaitSelection = {},
-    AutoEventSelection = {},
     AutoShop = false,
     AutoEvent = false,
     EventDetection = false,
@@ -106,86 +190,12 @@ _G.FeatureStates = _G.FeatureStates or {
     AutoFishingV1Enabled = false,
     AutoFishingV2Enabled = false,
     AutoFishingV2Hold = 0.4,
-    AutoFishingV2Loop = 0.2,
-    AutoFishingV2Enabled = false,
-    AutoFishingV1Enabled = false,
-    AutoFishingV1Delay = 0.1,
-    AutoFishingV1Enabled = false,
-    AutoFishingV2Enabled = false,
-    AutoFishingV2Hold = 0.4,
-    AutoFishingV2Loop = 0.2,
-    AutoFishingV2Enabled = false,
-    AutoFishingV1Enabled = false,
-    AutoFishingV1Delay = 0.1,
-    AutoFishingV1Enabled = false,
-    AutoFishingV2Enabled = false,
-    AutoFishingV2Hold = 0.4,
-    AutoFishingV2Loop = 0.2,
-    AutoFishingV2Enabled = false,
-    AutoFishingV1Enabled = false,
-    AutoFishingV1Delay = 0.1,
-    AutoFishingV1Enabled = false,
-    AutoFishingV2Enabled = false,
-    AutoFishingV2Hold = 0.4,
-    AutoFishingV2Loop = 0.2,
-    AutoFishingV2Enabled = false,
-    AutoFishingV1Enabled = false,
-    AutoFishingV1Delay = 0.1,
-    AutoFishingV1Enabled = false,
+    AutoFishingV2Loop = 0.2
 }
 
 -- Initialize global settings
 _G.RAINBOW = false
 _G.RAINBOW_SPEED = 0.1
-
--- Fallback functions
-local function safeCall(func, ...)
-    local success, result = pcall(func, ...)
-    if not success then
-        return nil
-    end
-    return result
-end
-
-local function getRemote(remotePath)
-    local success, remote = safeCall(function()
-        local parts = {}
-        for part in string.gmatch(remotePath, "[^%.]+") do
-            table.insert(parts, part)
-        end
-        
-        local current = game
-        for i, part in ipairs(parts) do
-            current = current:FindFirstChild(part)
-            if not current then break end
-        end
-        return current
-    end)
-    
-    if success and remote then
-        return remote
-    end
-    
-    return nil
-end
-
-local function safeInvoke(remote, ...)
-    if not remote or typeof(remote) ~= "Instance" then
-        return nil
-    end
-    return safeCall(function()
-        return remote:InvokeServer(...)
-    end)
-end
-
-local function safeFire(remote, ...)
-    if not remote or typeof(remote) ~= "Instance" then
-        return
-    end
-    return safeCall(function()
-        return remote:FireServer(...)
-    end)
-end
 
 -- Get critical game services with fallbacks
 local Players = safeCall(function() return game:GetService("Players") end) or {}
@@ -266,11 +276,6 @@ local AutoFishingV2 = AutoFarm:DrawSection({
 local AutoEvent = AutoFarm:DrawSection({
     Name = "Auto Events",
     Position = "LEFT"
-})
-
-local AutoFishingSettings = AutoFarming:DrawSection({
-    Name = "Fishing Settings",
-    Position = "RIGHT"
 })
 
 local AutoSell = AutoFarm:DrawSection({
@@ -361,9 +366,11 @@ local Configs = Window:DrawConfig({
     Name = "Configs",
     Icon = "folder",
     Config = FileWatcher
-});
+})
 
-Configs:Init();
+safeCall(function()
+    Configs:Init()
+end)
 
 -- Auto Fishing Toggle
 local autoFishingToggle = AutoFishing:AddToggle({
@@ -423,9 +430,11 @@ local autoFishingV2Toggle = AutoFishingV2:AddToggle({
                     
                     local clickX = 5
                     local clickY = game:GetService("Workspace").CurrentCamera.ViewportSize.Y - 5
-                    VirtualInputManager:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
-                    task.wait(0.4)
-                    VirtualInputManager:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
+                    safeCall(function()
+                        VirtualInputManager:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
+                        task.wait(0.4)
+                        VirtualInputManager:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
+                    end)
                     
                     task.wait(0.2)
                 end
@@ -924,7 +933,9 @@ local highlightColor = Movement:AddColorPicker({
     Default = SoulsHub.Colors.Highlight,
     Flag = "highlight_color",
     Callback = function(v)
-        SoulsHub:ChangeHighlightColor(v)
+        safeCall(function()
+            SoulsHub:ChangeHighlightColor(v)
+        end)
     end
 })
 
@@ -953,7 +964,9 @@ task.spawn(function()
     while true do 
         task.wait(_G.RAINBOW_SPEED or 0.1)
         if _G.RAINBOW then
-            SoulsHub:ChangeHighlightColor(Color3.fromHSV(x,1,1))
+            safeCall(function()
+                SoulsHub:ChangeHighlightColor(Color3.fromHSV(x,1,1))
+            end)
             x = x + 2/255
             if x >= 1 then
                 x = 0
@@ -981,7 +994,9 @@ local antiLavaToggle = Anti:AddToggle({
                     if volcanoFolder then
                         for _, obj in ipairs(volcanoFolder:GetDescendants()) do
                             if obj:IsA("TouchTransmitter") then
-                                obj:Destroy()
+                                safeCall(function()
+                                    obj:Destroy()
+                                end)
                             end
                         end
                     end
