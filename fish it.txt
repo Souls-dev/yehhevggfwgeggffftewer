@@ -1,134 +1,141 @@
--- non
-
 local function safeCall(func, ...)
     local success, result = pcall(function()
         return func(...)
     end)
-    if success then
-        return result
+    if not success then
+        return nil, result
     end
-    return nil
+    return result
 end
 
-local function getRemote(remotePath)
-    local parts = {}
-    for part in string.gmatch(remotePath, "[^%.]+") do
-        table.insert(parts, part)
-    end
-    
-    local current = game
-    for _, part in ipairs(parts) do
-        current = current:FindFirstChild(part)
-        if not current then break end
-    end
-    return current
-end
-
-local function safeInvoke(remote, ...)
-    if not remote or typeof(remote) ~= "Instance" then
-        return nil
-    end
-    return safeCall(function()
-        return remote:InvokeServer(...)
-    end)
-end
-
-local function safeFire(remote, ...)
-    if not remote or typeof(remote) ~= "Instance" then
-        return
-    end
-    return safeCall(function()
-        return remote:FireServer(...)
-    end)
-end
-
--- Initialize Souls Hub UI with proper error handling
-local success, SoulsHub = pcall(function()
-    return loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
+-- Safe initialization of Souls Hub UI
+local SoulsHub
+local success, result = pcall(function()
+    return loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a", true))()
 end)
 
 if not success or not SoulsHub then
-    error("Failed to load Souls Hub UI library: " .. tostring(SoulsHub or "Unknown error"))
+    warn("Failed to load Souls Hub UI library. Error: " .. (result or "Unknown"))
+    
+    -- Create a simple fallback UI system
+    local function createSimpleUI()
+        local ScreenGui = Instance.new("ScreenGui")
+        ScreenGui.Name = "SimpleUI"
+        ScreenGui.Parent = game:GetService("CoreGui")
+        
+        local Frame = Instance.new("Frame")
+        Frame.Size = UDim2.new(0.3, 0, 0.4, 0)
+        Frame.Position = UDim2.new(0.5, -150, 0.5, -150)
+        Frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        Frame.BorderColor3 = Color3.fromRGB(0, 0, 0)
+        Frame.Parent = ScreenGui
+        
+        local Title = Instance.new("TextLabel")
+        Title.Text = "UI Error: Library Failed to Load"
+        Title.Size = UDim2.new(0.9, 0, 0.15, 0)
+        Title.Position = UDim2.new(0.05, 0, 0.05, 0)
+        Title.BackgroundTransparency = 1
+        Title.TextColor3 = Color3.fromRGB(255, 0, 0)
+        Title.Font = Enum.Font.SourceSansBold
+        Title.Parent = Frame
+        
+        local Message = Instance.new("TextLabel")
+        Message.Text = "The UI library failed to load properly. Some features might be limited or unavailable."
+        Message.Size = UDim2.new(0.9, 0, 0.3, 0)
+        Message.Position = UDim2.new(0.05, 0, 0.2, 0)
+        Message.BackgroundTransparency = 1
+        Message.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Message.Font = Enum.Font.SourceSans
+        Message.Parent = Frame
+        
+        local Close = Instance.new("TextButton")
+        Close.Text = "Close"
+        Close.Size = UDim2.new(0.3, 0, 0.1, 0)
+        Close.Position = UDim2.new(0.35, 0, 0.6, 0)
+        Close.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        Close.Parent = Frame
+        
+        Close.MouseButton1Click:Connect(function()
+            ScreenGui:Destroy()
+        end)
+        
+        return {
+            Initialize = function() return true end,
+            new = function() return { 
+                DrawTab = function() return {
+                    DrawSection = function() return {
+                        AddToggle = function(options) return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+                        AddSlider = function(options) return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+                        AddDropdown = function(options) return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+                        AddColorPicker = function(options) return { Link = { AddOption = function() return { AddToggle = function() end } } } end
+                    }
+                }
+            }
+        }
+    end
 end
 
--- Add proper delay for UI to load
-task.wait(1.5)
-
--- Check if Loader method exists before calling it
-if type(SoulsHub.Loader) ~= "function" then
-    error("Souls Hub Loader method not found. UI library might be outdated or modified.")
-end
-
--- Initialize UI loader
-local loader = safeCall(function()
-    return SoulsHub:Loader(nil, 1)
-end)
-
-if loader then
-    safeCall(function()
-        loader:yield()
-    end)
+-- Initialize the UI system
+if success then
+    SoulsHub = result
+    if not SoulsHub or type(SoulsHub) ~= "table" then
+        SoulsHub = createSimpleUI()
+    end
 else
-    error("Failed to initialize Souls Hub UI loader")
+    SoulsHub = createSimpleUI()
 end
 
--- Create ConfigManager with proper fallbacks
-local FileWatcher = safeCall(function()
-    return SoulsHub:ConfigManager({
-        Directory = "SoulsHub",
-        Config = "FishIt"
-    })
-end) or {
-    Save = function() end,
-    Load = function() return {} end,
-    Init = function() end
-}
-
--- Create UI window with proper error handling
-local Window = safeCall(function()
-    return SoulsHub.new({
+-- Safe UI initialization
+local Window
+local initSuccess = safeCall(function()
+    task.wait(1)
+    
+    -- Check if Loader method exists and is a function
+    if SoulsHub.Loader and type(SoulsHub.Loader) == "function" then
+        local loader = SoulsHub:Loader(nil, 1)
+        if loader and type(loader) == "table" and loader.yield and type(loader.yield) == "function" then
+            loader:yield()
+        end
+    end
+    
+    Window = SoulsHub.new({
         Keybind = "LeftAlt",
     })
+    
+    return true
 end)
 
-if not Window then
-    error("Failed to create Souls Hub UI window")
+if not initSuccess or not Window then
+    warn("Failed to initialize UI window. Creating simple UI.")
+    Window = {
+        DrawTab = function() return {
+            DrawSection = function() return {
+                AddToggle = function(options) return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+                AddSlider = function(options) return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+                AddDropdown = function(options) return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+                AddColorPicker = function(options) return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+                AddParagraph = function() return {} end
+            }
+        }
+    }
 end
 
--- Watermark setup with fallbacks
-local watermark = safeCall(function()
-    return Window:Watermark()
+-- Create the UI window with proper error handling
+local Window = safeCall(function()
+    return Window or SoulsHub.new({
+        Keybind = "LeftAlt",
+    })
 end) or {
-    AddText = function() end,
-    Remove = function() end
+    DrawTab = function() return {
+        DrawSection = function() return {
+            AddToggle = function(options) return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+            AddSlider = function(options) return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+            AddDropdown = function(options) return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+            AddColorPicker = function(options) return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+            AddParagraph = function() return {} end
+        }
+    }
 }
-
-watermark:AddText({
-    Icon = "user",
-    Text = "Souls Hub"
-})
-
-local vim = watermark:AddText({
-    Icon = "clock",
-    Text = SoulsHub:GetTimeNow()
-})
-
-task.spawn(function()
-    while true do 
-        task.wait()
-        vim:SetText(SoulsHub:GetTimeNow())
-        Window.Username = "Fish It"
-    end
-end)
-
-Window:Update({
-    ExpireDate = SoulsHub:GetDate(tick() + 84000)
-})
-
-watermark:AddText({
-    Icon = "server",
-    Text = "Fishing Expert"
-})
 
 -- Global feature states
 _G.FeatureStates = _G.FeatureStates or {
@@ -197,6 +204,47 @@ _G.FeatureStates = _G.FeatureStates or {
 _G.RAINBOW = false
 _G.RAINBOW_SPEED = 0.1
 
+-- Fallback functions
+local function getRemote(remotePath)
+    local success, remote = safeCall(function()
+        local parts = {}
+        for part in string.gmatch(remotePath, "[^%.]+") do
+            table.insert(parts, part)
+        end
+        
+        local current = game
+        for i, part in ipairs(parts) do
+            current = current:FindFirstChild(part)
+            if not current then break end
+        end
+        return current
+    end)
+    
+    if success and remote then
+        return remote
+    end
+    
+    return nil
+end
+
+local function safeInvoke(remote, ...)
+    if not remote or typeof(remote) ~= "Instance" then
+        return nil
+    end
+    return safeCall(function()
+        return remote:InvokeServer(...)
+    end)
+end
+
+local function safeFire(remote, ...)
+    if not remote or typeof(remote) ~= "Instance" then
+        return
+    end
+    return safeCall(function()
+        return remote:FireServer(...)
+    end)
+end
+
 -- Get critical game services with fallbacks
 local Players = safeCall(function() return game:GetService("Players") end) or {}
 local ReplicatedStorage = safeCall(function() return game:GetService("ReplicatedStorage") end) or {}
@@ -256,8 +304,29 @@ local function getPlayerHrp()
     return safeCall(function() return character:WaitForChild("HumanoidRootPart", 5) end) or character:FindFirstChild("HumanoidRootPart")
 end
 
--- UI Sections
-local AutoFarm = Window:DrawTab({
+-- Safe UI Element Creation
+local function safeCreateTab(tabName, tabData)
+    local tab = safeCall(function()
+        return Window:DrawTab(tabData)
+    end)
+    
+    if not tab then
+        warn("Failed to create tab: " .. tabName)
+        return {
+            DrawSection = function() return {
+                AddToggle = function() return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+                AddSlider = function() return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+                AddDropdown = function() return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+                AddColorPicker = function() return { Link = { AddOption = function() return { AddToggle = function() end } } } end,
+                AddParagraph = function() return {} end
+            }
+        }
+    end
+    return tab
+end
+
+-- Create UI tabs with error handling
+local AutoFarm = safeCreateTab("Auto Farm", {
     Icon = "fish",
     Name = "Auto Farm",
     Type = "Double"
@@ -288,7 +357,7 @@ local AutoShop = AutoFarm:DrawSection({
     Position = "RIGHT"
 })
 
-local Teleport = Window:DrawTab({
+local Teleport = safeCreateTab("Teleport", {
     Icon = "map-pin",
     Name = "Teleport",
     Type = "Double"
@@ -304,7 +373,7 @@ local Events = Teleport:DrawSection({
     Position = "RIGHT"
 })
 
-local Player = Window:DrawTab({
+local Player = safeCreateTab("Player", {
     Icon = "user",
     Name = "Player",
     Type = "Double"
@@ -320,7 +389,7 @@ local Visual = Player:DrawSection({
     Position = "RIGHT"
 })
 
-local Shop = Window:DrawTab({
+local Shop = safeCreateTab("Shop", {
     Icon = "shopping-cart",
     Name = "Shop",
     Type = "Double"
@@ -346,7 +415,7 @@ local Boats = Shop:DrawSection({
     Position = "RIGHT"
 })
 
-local Misc = Window:DrawTab({
+local Misc = safeCreateTab("Misc", {
     Icon = "settings",
     Name = "Misc",
     Type = "Double"
@@ -362,14 +431,30 @@ local Anti = Misc:DrawSection({
     Position = "RIGHT"
 })
 
-local Configs = Window:DrawConfig({
-    Name = "Configs",
-    Icon = "folder",
-    Config = FileWatcher
-})
+-- Config Manager with fallback
+local FileWatcher = safeCall(function()
+    return SoulsHub:ConfigManager({
+        Directory = "SoulsHub",
+        Config = "FishIt"
+    })
+end) or {
+    Save = function() end,
+    Load = function() return {} end,
+    Init = function() end
+}
+
+local Configs = safeCall(function()
+    return Window:DrawConfig({
+        Name = "Configs",
+        Icon = "folder",
+        Config = FileWatcher
+    })
+end)
 
 safeCall(function()
-    Configs:Init()
+    if Configs then
+        Configs:Init()
+    end
 end)
 
 -- Auto Fishing Toggle
@@ -447,7 +532,7 @@ local autoFishingV2Toggle = AutoFishingV2:AddToggle({
 })
 
 -- Auto Fishing Instant
-local autoFishingInstantToggle = AutoFishingSettings:AddToggle({
+local autoFishingInstantToggle = AutoFishing:AddToggle({
     Name = "Auto Instant Fishing",
     Flag = "auto_instant_fishing",
     Default = false,
@@ -930,7 +1015,7 @@ local redeemAllCodes = Webhook:AddButton({
 -- Highlight Color
 local highlightColor = Movement:AddColorPicker({
     Name = "Highlight",
-    Default = SoulsHub.Colors.Highlight,
+    Default = safeCall(function() return SoulsHub.Colors.Highlight end) or Color3.new(0.3, 0.3, 0.3),
     Flag = "highlight_color",
     Callback = function(v)
         safeCall(function()
@@ -1158,7 +1243,7 @@ local autoBoatSpeedToggle = Movement:AddToggle({
 })
 
 -- Auto Equip Rod
-local autoEquipRodToggle = AutoFishingSettings:AddToggle({
+local autoEquipRodToggle = AutoFishing:AddToggle({
     Name = "Auto Equip Rod",
     Flag = "auto_equip_rod",
     Default = false,
@@ -1209,7 +1294,7 @@ local autoSellDelaySlider = AutoSell:AddSlider({
     end
 })
 
--- Helper functions
+-- Helper functions with error handling
 local function getEventLocation()
     local menuRings = Workspace:FindFirstChild("!!! MENU RINGS")
     if not menuRings then return nil, "None" end
@@ -1296,7 +1381,7 @@ local function teleportToEvent(eventLocation, eventName)
     teleportToPosition(eventLocation.CFrame + Vector3.new(0, 5, 0))
 end
 
--- ESP functions
+-- ESP functions with error handling
 local espVisuals = {}
 
 local function createBoxESP(character, color)
@@ -1473,5 +1558,4 @@ task.spawn(function()
         end
     end
 end)
-
 Window:Draw()
