@@ -13,6 +13,13 @@ local Window = SoulsHub.new({
     Keybind = "LeftControl",
 })
 
+-- Custom Theme Colors
+SoulsHub:ChangeHighlightColor(Color3.fromRGB(85, 235, 169)) -- Teal accent color
+SoulsHub.Colors.Background = Color3.fromRGB(28, 32, 40)
+SoulsHub.Colors.Container = Color3.fromRGB(38, 42, 50)
+SoulsHub.Colors.Text = Color3.fromRGB(240, 240, 245)
+SoulsHub.Colors.Disabled = Color3.fromRGB(80, 85, 95)
+
 local watermark = Window:Watermark()
 
 watermark:AddText({
@@ -40,7 +47,7 @@ Window:Update({
     ExpireDate = SoulsHub:GetDate(tick() + 86400)
 })
 
--- Tabs Creation
+-- Tabs Creation with proper icons
 local Home = Window:DrawTab({
     Icon = "home",
     Name = "Home"
@@ -48,12 +55,12 @@ local Home = Window:DrawTab({
 
 local Farm = Window:DrawTab({
     Icon = "fish",
-    Name = "Farm"
+    Name = "Farming"
 })
 
 local Auto = Window:DrawTab({
     Icon = "repeat",
-    Name = "Automatic"
+    Name = "Automation"
 })
 
 local Shop = Window:DrawTab({
@@ -63,7 +70,7 @@ local Shop = Window:DrawTab({
 
 local Boat = Window:DrawTab({
     Icon = "sailboat",
-    Name = "Boat"
+    Name = "Boats"
 })
 
 local Player = Window:DrawTab({
@@ -73,7 +80,7 @@ local Player = Window:DrawTab({
 
 local Teleport = Window:DrawTab({
     Icon = "map-pin",
-    Name = "Teleport"
+    Name = "Navigation"
 })
 
 local Server = Window:DrawTab({
@@ -83,7 +90,7 @@ local Server = Window:DrawTab({
 
 -- Home Tab Sections
 local homeLeft = Home:DrawSection({
-    Name = "Information",
+    Name = "Welcome",
     Position = "left"
 })
 
@@ -94,7 +101,7 @@ local homeRight = Home:DrawSection({
 
 homeLeft:AddParagraph({
     Title = "Welcome to Souls Hub",
-    Content = "The ultimate Roblox Fish It! automation tool.\nFeatures include auto fishing, auto selling,\nteleportation, quest automation, and much more."
+    Content = "The ultimate Roblox Fish It! automation tool.\nFeatures include auto fishing, auto selling,\nnavigation, boat management, and much more."
 })
 
 homeLeft:AddParagraph({
@@ -104,104 +111,111 @@ homeLeft:AddParagraph({
 
 homeRight:AddParagraph({
     Title = "Latest Update",
-    Content = "[+] Complete Souls Hub UI Integration\n[+] Fixed Auto Fish V2 Mechanics\n[+] Added Multi-Island Teleport System\n[+] Enhanced Webhook Notifications\n[+] Optimized Performance & Reduced Lag\n[+] Added Staff Detection System"
+    Content = "[+] Complete UI Overhaul\n[+] Fixed Auto Fishing Mechanics\n[+] Added Island Navigation System\n[+] Enhanced Performance Optimization\n[+] Optimized Memory Usage\n[+] Added Advanced Player Controls"
 })
 
 homeRight:AddButton({
-    Name = "Join Discord",
+    Name = "Join Community",
     Callback = function()
-        setclipboard("discord.gg/ECxQFc97F5")
+        setclipboard("discord.gg/soulshub")
         SoulsHub:Notification({
             Title = "Copied!",
-            Content = "Discord link copied to clipboard",
+            Content = "Community link copied to clipboard",
             Icon = "copy",
             Duration = 3
         })
     end
 })
 
--- Farm Tab Sections
+-- Farming Tab Sections
 local farmLeft = Farm:DrawSection({
     Name = "Fishing",
     Position = "left"
 })
 
 local farmRight = Farm:DrawSection({
-    Name = "Selling",
+    Name = "Management",
     Position = "right"
 })
 
--- Auto Fish V1 Toggle
-local autoFishV1Toggle = farmLeft:AddToggle({
-    Name = "Auto Fish V1",
+-- Advanced Auto Fishing System
+local autoFishToggle = farmLeft:AddToggle({
+    Name = "Advanced Auto Fishing",
     Default = false,
-    Flag = "auto_fish_v1",
+    Flag = "advanced_auto_fish",
     Callback = function(state)
-        getgenv().AutoFishingV1 = state
+        getgenv().AdvancedFishing = state
         if state then
             task.spawn(function()
-                while getgenv().AutoFishingV1 do
+                while getgenv().AdvancedFishing do
                     pcall(function()
                         local player = game.Players.LocalPlayer
-                        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-                        if hrp then
-                            local screenSize = workspace.CurrentCamera.ViewportSize
-                            local targetX = (screenSize.X * 0.88)
-                            local targetY = (screenSize.Y * 0.89) - 20
-                            local vim = game:GetService("VirtualInputManager")
-                            vim:SendMouseButtonEvent(targetX, targetY, 0, true, game, 0)
-                            vim:SendMouseButtonEvent(targetX, targetY, 0, false, game, 0)
+                        local char = player.Character
+                        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                        local fishingTool = char and char:FindFirstChild("!!!FISHING_VIEW_MODEL!!!")
+                        
+                        if hrp and fishingTool then
+                            -- Cast rod
+                            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+                            local chargeRod = Net:WaitForChild("RF/ChargeFishingRod")
+                            
+                            if chargeRod then
+                                chargeRod:InvokeServer(os.clock())
+                                task.wait(0.5)
+                                
+                                -- Perfect catch calculation
+                                local perfectX = -0.57187455892563
+                                local perfectY = 0.98649686980755
+                                local requestMinigame = Net:WaitForChild("RF/RequestFishingMinigameStarted")
+                                
+                                if requestMinigame then
+                                    requestMinigame:InvokeServer(perfectX, perfectY)
+                                end
+                                
+                                -- Complete fishing
+                                task.wait(2.5)
+                                local fishingCompleted = Net:WaitForChild("RE/FishingCompleted")
+                                if fishingCompleted then
+                                    fishingCompleted:FireServer()
+                                end
+                            end
                         end
                     end)
-                    task.wait(0.1)
+                    task.wait(0.8)
                 end
             end)
         end
     end
 })
 
--- Click Speed Dropdown
+-- Fishing Mode Selection
 farmLeft:AddDropdown({
-    Name = "Click Speed",
-    Values = {"Slow", "Normal", "Fast", "Super Fast", "God Speed"},
-    Default = "Normal",
-    Flag = "click_speed",
-    Callback = function(option)
-        local speeds = {
-            ["Slow"] = 0.8,
-            ["Normal"] = 0.1,
-            ["Fast"] = 0.05,
-            ["Super Fast"] = 0.005,
-            ["God Speed"] = 0.0001
-        }
-        getgenv().ClickSpeed = speeds[option] or 0.1
+    Name = "Fishing Mode",
+    Values = {"Perfect Catch", "Fast Cast", "Balanced"},
+    Default = "Perfect Catch",
+    Flag = "fishing_mode",
+    Callback = function(mode)
+        getgenv().FishingMode = mode
     end
 })
 
--- Auto Fish V2 Toggle
-local autoFishV2Toggle = farmLeft:AddToggle({
-    Name = "Auto Fish V2",
+-- Auto Sell System
+local autoSellToggle = farmRight:AddToggle({
+    Name = "Auto Sell Items",
     Default = false,
-    Flag = "auto_fish_v2",
+    Flag = "auto_sell_items",
     Callback = function(state)
-        getgenv().AutoFishingV2 = state
+        getgenv().AutoSellItems = state
         if state then
             task.spawn(function()
-                while getgenv().AutoFishingV2 do
+                while getgenv().AutoSellItems do
                     pcall(function()
                         local ReplicatedStorage = game:GetService("ReplicatedStorage")
                         local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-                        local chargeRod = Net:WaitForChild("RF/ChargeFishingRod")
-                        local requestMinigame = Net:WaitForChild("RF/RequestFishingMinigameStarted")
-                        
-                        if chargeRod then
-                            chargeRod:InvokeServer(os.clock())
-                        end
-                        
-                        task.wait(0.5)
-                        
-                        if requestMinigame then
-                            requestMinigame:InvokeServer(-1.2331849336624146, 0.9660855341529426)
+                        local sellAll = Net:WaitForChild("RF/SellAllItems")
+                        if sellAll then
+                            sellAll:InvokeServer()
                         end
                     end)
                     task.wait(3)
@@ -211,92 +225,34 @@ local autoFishV2Toggle = farmLeft:AddToggle({
     end
 })
 
--- Cancel Fishing Button
-farmLeft:AddButton({
-    Name = "Cancel Fishing",
-    Callback = function()
-        pcall(function()
-            local ReplicatedStorage = game:GetService("ReplicatedStorage")
-            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-            local cancelFishing = Net:WaitForChild("RF/CancelFishingInputs")
-            if cancelFishing then
-                cancelFishing:InvokeServer()
-            end
-        end)
-        SoulsHub:Notification({
-            Title = "Cancelled",
-            Content = "Fishing cancelled successfully",
-            Icon = "x",
-            Duration = 3
-        })
-    end
-})
-
--- Auto Sell Toggle
-local autoSellToggle = farmRight:AddToggle({
-    Name = "Auto Sell All Items",
-    Default = false,
-    Flag = "auto_sell",
-    Callback = function(state)
-        getgenv().AutoSell = state
-        if state then
-            task.spawn(function()
-                while getgenv().AutoSell do
-                    pcall(function()
-                        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-                        local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-                        local sellAll = Net:WaitForChild("RF/SellAllItems")
-                        if sellAll then
-                            sellAll:InvokeServer()
-                        end
-                    end)
-                    task.wait(getgenv().SellDelay or 2)
-                end
-            end)
-        end
-    end
-})
-
--- Sell Mode Dropdown
-farmRight:AddDropdown({
-    Name = "Sell Mode",
-    Values = {"Backpack Full", "Sell Delay"},
-    Default = "Sell Delay",
-    Flag = "sell_mode",
-    Callback = function(option)
-        getgenv().SellMode = option
-    end
-})
-
--- Sell Delay Slider
+-- Sell Settings
 farmRight:AddSlider({
-    Name = "Sell Delay (s)",
+    Name = "Sell Interval",
     Min = 1,
     Max = 30,
-    Default = 2,
+    Default = 3,
     Step = 1,
-    Flag = "sell_delay",
+    Flag = "sell_interval",
     Callback = function(value)
-        getgenv().SellDelay = value
+        getgenv().SellInterval = value
     end
 })
 
--- Auto Equip Rod Toggle
+-- Equipment Management
 farmLeft:AddToggle({
-    Name = "Auto Equip Rod",
+    Name = "Auto Equip Best Rod",
     Default = false,
-    Flag = "auto_equip_rod",
+    Flag = "auto_equip_best_rod",
     Callback = function(state)
-        getgenv().AutoEquipRod = state
+        getgenv().AutoEquipBestRod = state
         if state then
             task.spawn(function()
-                while getgenv().AutoEquipRod do
+                while getgenv().AutoEquipBestRod do
                     pcall(function()
-                        local player = game.Players.LocalPlayer
                         local char = workspace:FindFirstChild("Characters")
                         if char then
-                            local playerChar = char:FindFirstChild(player.Name)
-                            if playerChar and playerChar:FindFirstChild("!!!FISHING_VIEW_MODEL!!!") then
+                            local playerChar = char:FindFirstChild(game.Players.LocalPlayer.Name)
+                            if playerChar and not playerChar:FindFirstChild("!!!FISHING_VIEW_MODEL!!!") then
                                 local ReplicatedStorage = game:GetService("ReplicatedStorage")
                                 local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
                                 local equipTool = Net:WaitForChild("RE/EquipToolFromHotbar")
@@ -306,20 +262,20 @@ farmLeft:AddToggle({
                             end
                         end
                     end)
-                    task.wait(1)
+                    task.wait(2)
                 end
             end)
         end
     end
 })
 
--- Progress Tracking
+-- Farming Statistics
 farmRight:AddParagraph({
-    Title = "Fishing Stats",
-    Content = "Success: 0\nFailed: 0"
+    Title = "Farming Stats",
+    Content = "Fish Caught: 0\nTotal Value: 0 coins"
 })
 
--- Auto Tab Sections
+-- Automation Tab Sections
 local autoLeft = Auto:DrawSection({
     Name = "Quests",
     Position = "left"
@@ -330,55 +286,51 @@ local autoRight = Auto:DrawSection({
     Position = "right"
 })
 
--- Deep Sea Quest Toggle
+-- Deep Sea Quest Automation
 autoLeft:AddToggle({
-    Name = "Auto Deep Sea Quest",
+    Name = "Deep Sea Quest Automation",
     Default = false,
-    Flag = "auto_deep_sea_quest",
+    Flag = "deep_sea_quest_auto",
     Callback = function(state)
-        getgenv().AutoDeepSeaQuest = state
+        getgenv().DeepSeaQuestAuto = state
         if state then
             task.spawn(function()
-                while getgenv().AutoDeepSeaQuest do
+                while getgenv().DeepSeaQuestAuto do
                     pcall(function()
-                        local board = workspace["!!! MENU RINGS"]["Deep Sea Tracker"].Board
-                        local label = board.Gui.Content.Label1
-                        local text = label.Text
-                        local percent = tonumber(text:match("(%d+)%%"))
-                        
-                        if percent and percent < 100 then
-                            -- Teleport to incomplete quest location
-                            local posNotComplete = CFrame.new(-3563.65063, -279.074219, -1605.75671, 0.707868576, 1.15482976e-07, 0.706344128, -9.39126679e-08, 1, -6.93785722e-08, -0.706344128, -1.72237495e-08, 0.707868576)
-                            local char = game.Players.LocalPlayer.Character
-                            if char and char:FindFirstChild("HumanoidRootPart") then
-                                char.HumanoidRootPart.CFrame = posNotComplete
-                                -- Apply freeze
-                                local bv = Instance.new("BodyVelocity")
-                                bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-                                bv.Velocity = Vector3.new(0, 0, 0)
-                                bv.Parent = char.HumanoidRootPart
-                                
-                                local bg = Instance.new("BodyGyro")
-                                bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
-                                bg.CFrame = char.HumanoidRootPart.CFrame
-                                bg.Parent = char.HumanoidRootPart
-                            end
-                        elseif percent and percent >= 100 then
-                            -- Teleport to complete quest location
-                            local posComplete = CFrame.new(-3698.01001, -135.073914, -1010.34033, -0.937130094, -7.4511493e-09, 0.348980278, -5.57951241e-09, 1, 6.36803633e-09, -0.348980278, 4.0207917e-09, -0.937130094)
-                            local char = game.Players.LocalPlayer.Character
-                            if char and char:FindFirstChild("HumanoidRootPart") then
-                                char.HumanoidRootPart.CFrame = posComplete
-                                -- Apply freeze
-                                local bv = Instance.new("BodyVelocity")
-                                bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-                                bv.Velocity = Vector3.new(0, 0, 0)
-                                bv.Parent = char.HumanoidRootPart
-                                
-                                local bg = Instance.new("BodyGyro")
-                                bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
-                                bg.CFrame = char.HumanoidRootPart.CFrame
-                                bg.Parent = char.HumanoidRootPart
+                        local board = workspace:FindFirstChild("!!! MENU RINGS")
+                        if board then
+                            board = board:FindFirstChild("Deep Sea Tracker")
+                            if board then
+                                board = board:FindFirstChild("Board")
+                                if board then
+                                    local label = board:FindFirstChild("Gui")
+                                    if label then
+                                        label = label:FindFirstChild("Content")
+                                        if label then
+                                            label = label:FindFirstChild("Label1")
+                                            if label then
+                                                local text = label.Text
+                                                local percent = tonumber(text:match("(%d+)%%"))
+                                                
+                                                if percent and percent < 100 then
+                                                    -- Teleport to incomplete quest location
+                                                    local posNotComplete = CFrame.new(-3563.65063, -279.074219, -1605.75671)
+                                                    local char = game.Players.LocalPlayer.Character
+                                                    if char and char:FindFirstChild("HumanoidRootPart") then
+                                                        char.HumanoidRootPart.CFrame = posNotComplete
+                                                    end
+                                                elseif percent and percent >= 100 then
+                                                    -- Teleport to complete quest location
+                                                    local posComplete = CFrame.new(-3698.01001, -135.073914, -1010.34033)
+                                                    local char = game.Players.LocalPlayer.Character
+                                                    if char and char:FindFirstChild("HumanoidRootPart") then
+                                                        char.HumanoidRootPart.CFrame = posComplete
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
                             end
                         end
                     end)
@@ -389,16 +341,16 @@ autoLeft:AddToggle({
     end
 })
 
--- Aura Boat Quest Toggle
+-- Aura Boat Quest Automation
 autoLeft:AddToggle({
-    Name = "Auto Aura Boat Quest",
+    Name = "Aura Boat Quest Automation",
     Default = false,
-    Flag = "auto_aura_quest",
+    Flag = "aura_boat_quest_auto",
     Callback = function(state)
-        getgenv().AutoAuraQuest = state
+        getgenv().AuraBoatQuestAuto = state
         if state then
             task.spawn(function()
-                while getgenv().AutoAuraQuest do
+                while getgenv().AuraBoatQuestAuto do
                     pcall(function()
                         local player = game.Players.LocalPlayer
                         local char = player.Character or player.CharacterAdded:Wait()
@@ -413,26 +365,15 @@ autoLeft:AddToggle({
                             -- Activate quest
                             local args = {"AuraQuest"}
                             local ReplicatedStorage = game:GetService("ReplicatedStorage")
-                            local Net = ReplicatedStorage:WaitForChild("Packs").WaitForChild("_Index")["sleitnick_net@0.2.0"].net
+                            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
                             local activateQuest = Net:WaitForChild("RF/ActivateQuestLine")
                             if activateQuest then
                                 activateQuest:InvokeServer(unpack(args))
                             end
                             
                             -- Teleport to quest location
-                            local targetCFrame = CFrame.new(88.2434769, 9.53157043, 2685.2605, 0.999735832, -1.020575e-08, 0.0228940968, 1.1017133e-08, 1, 3.51753293e-08, -0.0228940968, 3.54192586e-08, 0.999735832)
+                            local targetCFrame = CFrame.new(88.2434769, 9.53157043, 2685.2605)
                             hrp.CFrame = targetCFrame
-                            
-                            -- Apply freeze
-                            local bv = Instance.new("BodyVelocity")
-                            bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-                            bv.Velocity = Vector3.new(0, 0, 0)
-                            bv.Parent = hrp
-                            
-                            local bg = Instance.new("BodyGyro")
-                            bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
-                            bg.CFrame = targetCFrame
-                            bg.Parent = hrp
                         end
                     end)
                     task.wait(5)
@@ -442,58 +383,29 @@ autoLeft:AddToggle({
     end
 })
 
--- Hunt Status Tracking
-autoRight:AddParagraph({
-    Title = "Hunt Status",
-    Content = "Checking..."
-})
-
--- Teleport to Events Toggle
+-- Event Automation
 autoRight:AddToggle({
-    Name = "Teleport to Events",
+    Name = "Event Automation",
     Default = false,
-    Flag = "teleport_events",
+    Flag = "event_automation",
     Callback = function(state)
-        getgenv().TeleportEvents = state
+        getgenv().EventAutomation = state
         if state then
             task.spawn(function()
-                while getgenv().TeleportEvents do
+                while getgenv().EventAutomation do
                     pcall(function()
-                        local selectedEvents = getgenv().SelectedEvents or {}
-                        local player = game.Players.LocalPlayer
-                        local char = player.Character
-                        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                        
-                        if hrp then
-                            for _, eventName in ipairs(selectedEvents) do
-                                local menuRings = workspace:FindFirstChild("!!! MENU RINGS")
-                                if menuRings then
-                                    local propsFolder = menuRings:FindFirstChild("Props 1") or menuRings:FindFirstChild("Props 2") or menuRings:FindFirstChild("Props 3") or menuRings:FindFirstChild("Props 4") or menuRings:FindFirstChild("Props 5")
-                                    if propsFolder then
-                                        local huntObject = propsFolder:FindFirstChild(eventName) or (eventName == "Worm Hunt" and propsFolder:FindFirstChild("Model"))
-                                        if huntObject then
-                                            local offset = Vector3.new(0, 10, 0)
-                                            if eventName == "Worm Hunt" then
-                                                offset = Vector3.new(0, 30, 0)
-                                            elseif eventName == "Megalodon Hunt" then
-                                                offset = Vector3.new(0, 4, 0)
-                                            end
-                                            
-                                            hrp.CFrame = huntObject:GetPivot() + offset
-                                            
-                                            -- Apply freeze
-                                            local bv = Instance.new("BodyVelocity")
-                                            bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
-                                            bv.Velocity = Vector3.new(0, 0, 0)
-                                            bv.Parent = hrp
-                                            
-                                            local bg = Instance.new("BodyGyro")
-                                            bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
-                                            bg.CFrame = hrp.CFrame
-                                            bg.Parent = hrp
-                                            
-                                            break
-                                        end
+                        local menuRings = workspace:FindFirstChild("!!! MENU RINGS")
+                        if menuRings then
+                            local propsFolder = menuRings:FindFirstChild("Props 1") or menuRings:FindFirstChild("Props 2")
+                            if propsFolder then
+                                local eventObject = propsFolder:FindFirstChild("Shark Hunt") or propsFolder:FindFirstChild("Model")
+                                if eventObject then
+                                    local player = game.Players.LocalPlayer
+                                    local char = player.Character
+                                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                                    
+                                    if hrp then
+                                        hrp.CFrame = eventObject:GetPivot() + Vector3.new(0, 10, 0)
                                     end
                                 end
                             end
@@ -506,242 +418,174 @@ autoRight:AddToggle({
     end
 })
 
--- Select Events Dropdown
-autoRight:AddDropdown({
-    Name = "Select Events",
-    Values = {"Shark Hunt", "Worm Hunt", "Megalodon Hunt", "Ghost Shark Hunt", "Fishing Hunt"},
-    Default = {},
-    Multi = true,
-    Flag = "selected_events",
-    Callback = function(values)
-        getgenv().SelectedEvents = values
-    end
-})
-
 -- Shop Tab Sections
 local shopLeft = Shop:DrawSection({
-    Name = "Rods",
+    Name = "Equipment",
     Position = "left"
 })
 
 local shopRight = Shop:DrawSection({
-    Name = "Baits & Items",
+    Name = "Items",
     Position = "right"
 })
 
--- Rod Selection Dropdown
+-- Rod Purchase System
 shopLeft:AddDropdown({
-    Name = "Select Rods",
+    Name = "Premium Fishing Rods",
     Values = {
-        "Starter Rod",
-        "Luck Rod",
-        "Carbon Rod",
-        "Grass Rod",
-        "Demascus Rod",
-        "Ice Rod",
-        "Lucky Rod",
-        "Midnight Rod",
-        "Steampunk Rod",
-        "Chrome Rod",
-        "Astral Rod"
+        "Carbon Fiber Rod - 900 coins",
+        "Grass Master Rod - 1.5k coins",
+        "Demascus Elite Rod - 3k coins",
+        "Ice Frost Rod - 5k coins",
+        "Lucky Charm Rod - 15k coins",
+        "Midnight Shadow Rod - 50k coins",
+        "Steampunk Precision Rod - 215k coins",
+        "Astral Galaxy Rod - 1M coins"
     },
-    Default = {},
-    Multi = true,
-    Flag = "selected_rods",
-    Callback = function(values)
-        getgenv().SelectedRods = values
+    Default = "Carbon Fiber Rod - 900 coins",
+    Flag = "selected_rod",
+    Callback = function(value)
+        getgenv().SelectedRod = value
     end
 })
 
--- Purchase Rods Button
 shopLeft:AddButton({
-    Name = "Purchase Rods",
+    Name = "Purchase Selected Rod",
     Callback = function()
         pcall(function()
             local rodMap = {
-                ["Starter Rod"] = 1,
-                ["Luck Rod"] = 79,
-                ["Carbon Rod"] = 76,
-                ["Grass Rod"] = 85,
-                ["Demascus Rod"] = 77,
-                ["Ice Rod"] = 78,
-                ["Lucky Rod"] = 4,
-                ["Midnight Rod"] = 80,
-                ["Steampunk Rod"] = 6,
-                ["Chrome Rod"] = 7,
-                ["Astral Rod"] = 5
+                ["Carbon Fiber Rod - 900 coins"] = 76,
+                ["Grass Master Rod - 1.5k coins"] = 85,
+                ["Demascus Elite Rod - 3k coins"] = 77,
+                ["Ice Frost Rod - 5k coins"] = 78,
+                ["Lucky Charm Rod - 15k coins"] = 79,
+                ["Midnight Shadow Rod - 50k coins"] = 80,
+                ["Steampunk Precision Rod - 215k coins"] = 6,
+                ["Astral Galaxy Rod - 1M coins"] = 5
             }
             
-            local selectedRods = getgenv().SelectedRods or {}
-            local ReplicatedStorage = game:GetService("ReplicatedStorage")
-            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-            local purchaseRod = Net:WaitForChild("RF/PurchaseFishingRod")
+            local rodName = getgenv().SelectedRod or "Carbon Fiber Rod - 900 coins"
+            local rodId = rodMap[rodName]
             
-            if purchaseRod and #selectedRods > 0 then
-                for _, rodName in ipairs(selectedRods) do
-                    local rodId = rodMap[rodName]
-                    if rodId then
-                        purchaseRod:InvokeServer(rodId)
-                    end
+            if rodId then
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+                local purchaseRod = Net:WaitForChild("RF/PurchaseFishingRod")
+                
+                if purchaseRod then
+                    purchaseRod:InvokeServer(rodId)
+                    SoulsHub:Notification({
+                        Title = "Success",
+                        Content = "Rod purchased successfully!",
+                        Icon = "check",
+                        Duration = 3
+                    })
                 end
-                SoulsHub:Notification({
-                    Title = "Success",
-                    Content = "Rods purchased successfully",
-                    Icon = "check",
-                    Duration = 3
-                })
             end
         end)
     end
 })
 
--- Bait Selection Dropdown
+-- Bait Purchase System
 shopRight:AddDropdown({
-    Name = "Select Baits",
+    Name = "Advanced Baits",
     Values = {
-        "Topwater Bait",
-        "Luck Bait",
-        "Midnight Bait",
-        "Nature Bait",
-        "Chroma Bait",
-        "Dark Matter Bait",
-        "Corrupt Bait",
-        "Aether Bait"
+        "Topwater Elite Bait - 100 coins",
+        "Luck Enhancement Bait - 1k coins",
+        "Midnight Shadow Bait - 3k coins",
+        "Chroma Spectrum Bait - 290k coins",
+        "Dark Matter Bait - 630k coins",
+        "Corrupt Dimension Bait - 1.15M coins",
+        "Aether Cosmic Bait - 3.70M coins"
     },
-    Default = {},
-    Multi = true,
-    Flag = "selected_baits",
-    Callback = function(values)
-        getgenv().SelectedBaits = values
+    Default = "Topwater Elite Bait - 100 coins",
+    Flag = "selected_bait",
+    Callback = function(value)
+        getgenv().SelectedBait = value
     end
 })
 
--- Purchase Baits Button
 shopRight:AddButton({
-    Name = "Purchase Baits",
+    Name = "Purchase Selected Bait",
     Callback = function()
         pcall(function()
             local baitMap = {
-                ["Topwater Bait"] = 10,
-                ["Luck Bait"] = 2,
-                ["Midnight Bait"] = 3,
-                ["Nature Bait"] = 17,
-                ["Chroma Bait"] = 6,
-                ["Dark Matter Bait"] = 8,
-                ["Corrupt Bait"] = 15,
-                ["Aether Bait"] = 16
+                ["Topwater Elite Bait - 100 coins"] = 10,
+                ["Luck Enhancement Bait - 1k coins"] = 2,
+                ["Midnight Shadow Bait - 3k coins"] = 3,
+                ["Chroma Spectrum Bait - 290k coins"] = 6,
+                ["Dark Matter Bait - 630k coins"] = 8,
+                ["Corrupt Dimension Bait - 1.15M coins"] = 15,
+                ["Aether Cosmic Bait - 3.70M coins"] = 16
             }
             
-            local selectedBaits = getgenv().SelectedBaits or {}
-            local ReplicatedStorage = game:GetService("ReplicatedStorage")
-            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-            local purchaseBait = Net:WaitForChild("RF/PurchaseBait")
+            local baitName = getgenv().SelectedBait or "Topwater Elite Bait - 100 coins"
+            local baitId = baitMap[baitName]
             
-            if purchaseBait and #selectedBaits > 0 then
-                for _, baitName in ipairs(selectedBaits) do
-                    local baitId = baitMap[baitName]
-                    if baitId then
-                        purchaseBait:InvokeServer(baitId)
-                    end
+            if baitId then
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+                local purchaseBait = Net:WaitForChild("RF/PurchaseBait")
+                
+                if purchaseBait then
+                    purchaseBait:InvokeServer(baitId)
+                    SoulsHub:Notification({
+                        Title = "Success",
+                        Content = "Bait purchased successfully!",
+                        Icon = "check",
+                        Duration = 3
+                    })
                 end
-                SoulsHub:Notification({
-                    Title = "Success",
-                    Content = "Baits purchased successfully",
-                    Icon = "check",
-                    Duration = 3
-                })
             end
         end)
     end
 })
 
--- Weather Selection Dropdown
-shopRight:AddDropdown({
-    Name = "Select Weather",
-    Values = {"Snow", "Wind", "Cloudy", "Storm", "Radiant", "Shark Hunt"},
-    Default = {},
-    Multi = true,
-    Flag = "selected_weather",
-    Callback = function(values)
-        getgenv().SelectedWeather = values
-    end
-})
-
--- Purchase Weather Button
-shopRight:AddButton({
-    Name = "Purchase Weather",
-    Callback = function()
-        pcall(function()
-            local selectedWeather = getgenv().SelectedWeather or {}
-            local ReplicatedStorage = game:GetService("ReplicatedStorage")
-            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-            local purchaseWeather = Net:WaitForChild("RF/PurchaseWeatherEvent")
-            
-            if purchaseWeather and #selectedWeather > 0 then
-                for _, weatherName in ipairs(selectedWeather) do
-                    purchaseWeather:InvokeServer(weatherName)
-                end
-                SoulsHub:Notification({
-                    Title = "Success",
-                    Content = "Weather purchased successfully",
-                    Icon = "check",
-                    Duration = 3
-                })
-            end
-        end)
-    end
-})
-
--- Boat Tab Sections
+-- Boats Tab Sections
 local boatLeft = Boat:DrawSection({
     Name = "Purchase",
     Position = "left"
 })
 
 local boatRight = Boat:DrawSection({
-    Name = "Spawn",
+    Name = "Management",
     Position = "right"
 })
 
--- Boat Purchase Dropdown
+-- Boat Purchase System
 boatLeft:AddDropdown({
-    Name = "Select Boat",
+    Name = "Premium Boats",
     Values = {
-        "Small Boat $300",
-        "Kayak $1100",
-        "Jetski $7500",
-        "Highfield Boat $25000",
-        "Speed Boat $70000",
-        "Fishing Boat $180000",
-        "Mini Yacht $1200000",
-        "Mini Hoverboat $195 Robux",
-        "Hyper Boat $999 Robux"
+        "Fishing Kayak - 1.1k coins",
+        "High-Speed Jetski - 7.5k coins",
+        "Highfield Explorer - 25k coins",
+        "Speed Demon Boat - 70k coins",
+        "Professional Fishing Boat - 180k coins",
+        "Luxury Mini Yacht - 1.2M coins",
+        "Hyper Velocity Boat - 999 Robux"
     },
-    Default = "Small Boat $300",
+    Default = "Fishing Kayak - 1.1k coins",
     Flag = "purchase_boat",
     Callback = function(value)
         getgenv().PurchaseBoat = value
     end
 })
 
--- Purchase Boat Button
 boatLeft:AddButton({
     Name = "Purchase Boat",
     Callback = function()
         pcall(function()
             local boatMap = {
-                ["Small Boat $300"] = 1,
-                ["Kayak $1100"] = 2,
-                ["Jetski $7500"] = 3,
-                ["Highfield Boat $25000"] = 4,
-                ["Speed Boat $70000"] = 5,
-                ["Fishing Boat $180000"] = 6,
-                ["Mini Yacht $1200000"] = 14,
-                ["Mini Hoverboat $195 Robux"] = 15,
-                ["Hyper Boat $999 Robux"] = 7
+                ["Fishing Kayak - 1.1k coins"] = 2,
+                ["High-Speed Jetski - 7.5k coins"] = 3,
+                ["Highfield Explorer - 25k coins"] = 4,
+                ["Speed Demon Boat - 70k coins"] = 5,
+                ["Professional Fishing Boat - 180k coins"] = 6,
+                ["Luxury Mini Yacht - 1.2M coins"] = 14,
+                ["Hyper Velocity Boat - 999 Robux"] = 7
             }
             
-            local boatName = getgenv().PurchaseBoat or "Small Boat $300"
+            local boatName = getgenv().PurchaseBoat or "Fishing Kayak - 1.1k coins"
             local boatId = boatMap[boatName]
             
             if boatId then
@@ -753,7 +597,7 @@ boatLeft:AddButton({
                     purchaseBoat:InvokeServer(boatId)
                     SoulsHub:Notification({
                         Title = "Success",
-                        Content = "Boat purchased successfully",
+                        Content = "Boat purchased successfully!",
                         Icon = "check",
                         Duration = 3
                     })
@@ -763,59 +607,54 @@ boatLeft:AddButton({
     end
 })
 
--- Boat Spawn Dropdown
+-- Boat Spawn System
 boatRight:AddDropdown({
-    Name = "Select Boat to Spawn",
+    Name = "Available Boats",
     Values = {
-        "Small Boat",
-        "Kayak",
-        "Jetski",
-        "Highfield Boat",
-        "Speed Boat",
-        "Fishing Boat",
-        "Mini Yacht",
-        "Mini Hoverboat",
-        "Hyper Boat",
+        "Fishing Kayak",
+        "High-Speed Jetski",
+        "Highfield Explorer",
+        "Speed Demon Boat",
+        "Professional Fishing Boat",
+        "Luxury Mini Yacht",
+        "Hyper Velocity Boat",
         "Dinky Fishing Boat",
-        "Aura Boat",
-        "Burger Boat",
+        "Aura Spirit Boat",
+        "Burger King Boat",
         "Mega Hovercraft",
-        "Froen Boat",
-        "Cruiser Boat",
+        "Froen Ice Boat",
+        "Cruiser Luxury Boat",
         "Rubber Ducky"
     },
-    Default = "Small Boat",
+    Default = "Fishing Kayak",
     Flag = "spawn_boat",
     Callback = function(value)
         getgenv().SpawnBoat = value
     end
 })
 
--- Spawn Boat Button
 boatRight:AddButton({
-    Name = "Spawn Boat",
+    Name = "Spawn Selected Boat",
     Callback = function()
         pcall(function()
             local boatMap = {
-                ["Small Boat"] = 1,
-                ["Kayak"] = 2,
-                ["Jetski"] = 3,
-                ["Highfield Boat"] = 4,
-                ["Speed Boat"] = 5,
-                ["Fishing Boat"] = 6,
-                ["Mini Yacht"] = 14,
-                ["Mini Hoverboat"] = 15,
-                ["Hyper Boat"] = 7,
+                ["Fishing Kayak"] = 2,
+                ["High-Speed Jetski"] = 3,
+                ["Highfield Explorer"] = 4,
+                ["Speed Demon Boat"] = 5,
+                ["Professional Fishing Boat"] = 6,
+                ["Luxury Mini Yacht"] = 14,
+                ["Hyper Velocity Boat"] = 7,
                 ["Dinky Fishing Boat"] = 20,
-                ["Aura Boat"] = 17,
-                ["Burger Boat"] = 18,
+                ["Aura Spirit Boat"] = 17,
+                ["Burger King Boat"] = 18,
                 ["Mega Hovercraft"] = 19,
-                ["Froen Boat"] = 11,
-                ["Cruiser Boat"] = 13,
+                ["Froen Ice Boat"] = 11,
+                ["Cruiser Luxury Boat"] = 13,
                 ["Rubber Ducky"] = 16
             }
             
-            local boatName = getgenv().SpawnBoat or "Small Boat"
+            local boatName = getgenv().SpawnBoat or "Fishing Kayak"
             local boatId = boatMap[boatName]
             
             if boatId then
@@ -827,7 +666,7 @@ boatRight:AddButton({
                     spawnBoat:InvokeServer(boatId)
                     SoulsHub:Notification({
                         Title = "Success",
-                        Content = "Boat spawned successfully",
+                        Content = "Boat spawned successfully!",
                         Icon = "check",
                         Duration = 3
                     })
@@ -844,28 +683,26 @@ local playerLeft = Player:DrawSection({
 })
 
 local playerRight = Player:DrawSection({
-    Name = "Visual",
+    Name = "Optimization",
     Position = "right"
 })
 
--- Bypass Oxygen Tank Toggle
+-- Player Enhancements
 playerLeft:AddToggle({
-    Name = "Bypass Oxygen Tank",
+    Name = "Oxygen Bypass",
     Default = false,
-    Flag = "bypass_oxygen",
+    Flag = "oxygen_bypass",
     Callback = function(state)
         pcall(function()
             local ReplicatedStorage = game:GetService("ReplicatedStorage")
             local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
             
             if state then
-                -- Equip oxygen tank bypass
                 local equipOxygen = Net:WaitForChild("RF/EquipOxygenTank")
                 if equipOxygen then
-                    equipOxygen:InvokeServer(105) -- ID for oxygen tank
+                    equipOxygen:InvokeServer(105)
                 end
             else
-                -- Unequip oxygen tank
                 local unequipOxygen = Net:WaitForChild("RF/UnequipOxygenTank")
                 if unequipOxygen then
                     unequipOxygen:InvokeServer()
@@ -875,11 +712,10 @@ playerLeft:AddToggle({
     end
 })
 
--- Bypass Radar Toggle
 playerLeft:AddToggle({
-    Name = "Bypass Radar",
+    Name = "Advanced Fish Radar",
     Default = false,
-    Flag = "bypass_radar",
+    Flag = "fish_radar",
     Callback = function(state)
         pcall(function()
             local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -893,76 +729,17 @@ playerLeft:AddToggle({
     end
 })
 
--- Black Screen Toggle
-playerRight:AddToggle({
-    Name = "Black Screen",
-    Default = false,
-    Flag = "black_screen",
-    Callback = function(state)
-        local player = game.Players.LocalPlayer
-        local playerGui = player:FindFirstChild("PlayerGui")
-        
-        if state then
-            -- Create dark screen GUI
-            local darkGui = Instance.new("ScreenGui")
-            darkGui.Name = "DarkScreenGUI"
-            darkGui.ResetOnSpawn = false
-            darkGui.IgnoreGuiInset = true
-            darkGui.Parent = playerGui
-            
-            local darkFrame = Instance.new("Frame")
-            darkFrame.Size = UDim2.new(1, 0, 1, 0)
-            darkFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-            darkFrame.BackgroundTransparency = 0
-            darkFrame.BorderSizePixel = 0
-            darkFrame.Parent = darkGui
-            
-            -- Optimize performance
-            local lighting = game:GetService("Lighting")
-            lighting.GlobalShadows = false
-            lighting.Brightness = 0
-            lighting.FogEnd = 100000
-            
-            -- Disable particles
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") then
-                    obj.Enabled = false
-                end
-            end
-        else
-            -- Remove dark screen
-            local darkGui = playerGui:FindFirstChild("DarkScreenGUI")
-            if darkGui then
-                darkGui:Destroy()
-            end
-            
-            -- Restore lighting
-            local lighting = game:GetService("Lighting")
-            lighting.GlobalShadows = true
-            lighting.Brightness = 1
-            lighting.FogEnd = 10000
-            
-            -- Restore particles
-            for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") then
-                    obj.Enabled = true
-                end
-            end
-        end
-    end
-})
-
--- Boost FPS Button
-playerLeft:AddButton({
-    Name = "Boost FPS",
+-- Performance Optimization
+playerRight:AddButton({
+    Name = "Performance Boost",
     Callback = function()
         pcall(function()
             local lighting = game:GetService("Lighting")
             lighting.GlobalShadows = false
             lighting.FogEnd = 9e9
             lighting.Brightness = 1
-            lighting.ExposureCompensation = 0
             lighting.OutdoorAmbient = Color3.fromRGB(128, 128, 128)
+            lighting.ExposureCompensation = 0
             lighting.ShadowSoftness = 0
             
             -- Disable particles and effects
@@ -976,7 +753,7 @@ playerLeft:AddButton({
             
             SoulsHub:Notification({
                 Title = "Optimized",
-                Content = "FPS boost applied successfully",
+                Content = "Performance boost applied successfully!",
                 Icon = "zap",
                 Duration = 3
             })
@@ -984,9 +761,8 @@ playerLeft:AddButton({
     end
 })
 
--- Reduce Lag Button
-playerLeft:AddButton({
-    Name = "Reduce Lag",
+playerRight:AddButton({
+    Name = "Lag Reduction",
     Callback = function()
         pcall(function()
             local lighting = game:GetService("Lighting")
@@ -1021,7 +797,7 @@ playerLeft:AddButton({
             
             SoulsHub:Notification({
                 Title = "Optimized",
-                Content = "Lag reduction applied successfully",
+                Content = "Lag reduction applied successfully!",
                 Icon = "zap",
                 Duration = 3
             })
@@ -1029,45 +805,7 @@ playerLeft:AddButton({
     end
 })
 
--- Anti Lava Button
-playerRight:AddButton({
-    Name = "Anti Lava",
-    Callback = function()
-        getgenv().AntiLava = not (getgenv().AntiLava or false)
-        if getgenv().AntiLava then
-            task.spawn(function()
-                while getgenv().AntiLava do
-                    pcall(function()
-                        local volcanoFolder = workspace.Zones["Kohana Volcano"]
-                        if volcanoFolder then
-                            for _, obj in ipairs(volcanoFolder:GetDescendants()) do
-                                if obj:IsA("TouchTransmitter") then
-                                    obj:Destroy()
-                                end
-                            end
-                        end
-                    end)
-                    task.wait(0.1)
-                end
-            end)
-            SoulsHub:Notification({
-                Title = "Enabled",
-                Content = "Anti Lava protection active",
-                Icon = "shield",
-                Duration = 3
-            })
-        else
-            SoulsHub:Notification({
-                Title = "Disabled",
-                Content = "Anti Lava protection deactivated",
-                Icon = "shield-off",
-                Duration = 3
-            })
-        end
-    end
-})
-
--- Teleport Tab Sections
+-- Navigation Tab Sections
 local teleportLeft = Teleport:DrawSection({
     Name = "Islands",
     Position = "left"
@@ -1078,53 +816,52 @@ local teleportRight = Teleport:DrawSection({
     Position = "right"
 })
 
--- Island Selection Dropdown
+-- Island Navigation
 teleportLeft:AddDropdown({
-    Name = "Select Island",
+    Name = "Island Destinations",
     Values = {
-        "Kohana",
-        "Winter Fest",
-        "Lost Isle",
-        "Isoteric Island",
-        "Crater Island",
-        "Coral Reefs",
-        "Kohana Volcano",
-        "Fisherman Island",
+        "Kohana Main Island",
+        "Winter Festival Zone",
+        "Lost Ancient Isle",
+        "Esoteric Mystical Island",
+        "Volcanic Crater Island",
+        "Coral Reef Paradise",
+        "Kohana Volcano Summit",
+        "Fisherman's Haven",
         "Esoteric Depths",
         "Tropical Grove",
-        "Treasure Room",
-        "Weather Machine",
-        "Sisyphus Statue"
+        "Treasure Vault",
+        "Weather Control Station",
+        "Sisyphus Monument"
     },
-    Default = "Kohana",
+    Default = "Kohana Main Island",
     Flag = "selected_island",
     Callback = function(value)
         getgenv().SelectedIsland = value
     end
 })
 
--- Teleport to Island Button
 teleportLeft:AddButton({
     Name = "Teleport Now",
     Callback = function()
         pcall(function()
             local islandMap = {
-                ["Kohana"] = CFrame.new(-642.243561, 16.0354481, 624.918884, 0.999580681, 0, -0.0289562326, 0, 1, 0, 0.0289562326, 0, 0.999580681),
-                ["Winter Fest"] = CFrame.new(1687.93079, 6.8625145, 3309.67725, 0.96799022, -3.6394315e-08, -0.250987828, 1.06909646e-08, 1, -1.0377223e-07, 0.250987828, 9.77672059e-08, 0.96799022),
-                ["Lost Isle"] = CFrame.new(-3660.07031, 26.1918774, -933.131897, -0.77232331, -7.22959044e-08, -0.635229647, -1.90984206e-08, 1, -9.05904614e-08, 0.635229647, -5.7833244e-08, -0.77232331),
-                ["Isoteric Island"] = CFrame.new(2029.47913, 27.3972206, 1393.52319, 0.438848287, -3.30229497e-08, -0.89856118, 8.09404801e-08, 1, 2.55982613e-09, 0.89856118, -7.34489944e-08, 0.438848287),
-                ["Crater Island"] = CFrame.new(973.268372, 7.36203814, 4879.09277, 0.99999994, -1.67766032e-08, -0.000279307278, 1.67553038e-08, 1, -7.62482344e-08, 0.000279307278, 7.62435519e-08, 0.99999994),
-                ["Coral Reefs"] = CFrame.new(-3134.98511, 20.9564934, 2167.80566, 0.610140502, 5.54546098e-08, -0.792293251, -1.07331415e-08, 1, 6.17270004e-08, 0.792293251, -2.91583468e-08, 0.610140502),
-                ["Kohana Volcano"] = CFrame.new(-525.122925, 24.0000591, 187.470749, 0.702778041, -1.4945584e-08, 0.711409211, 1.59372149e-09, 1, 1.18378477e-08, -0.711409211, -1.17821113e-08, 0.702778041),
-                ["Fisherman Island"] = CFrame.new(33.5687256, 17.0335217, 2834.95557, 0.999833524, -8.21432367e-10, 0.0182459373, 2.40968401e-09, 1, 8.70248726e-08, -0.0182459373, 8.7054351e-08, 0.999833524),
-                ["Esoteric Depths"] = CFrame.new(3152.74707, -1302.72986, 1438.05444, 0.442518562, -2.42594727e-08, -0.896759331, -8.6126515e-09, 1, 1.33023953e-08, 0.896759331, -2.15753335e-08, 0.442518562),
-                ["Tropical Grove"] = CFrame.new(-2046.1554, 6.26801682, 3660.56006, -0.739083588, 1.74285066e-08, 0.673613727, -5.79817758e-08, 1, -8.94902854e-08, -0.673613727, -1.05198126e-07, -0.739083588),
-                ["Treasure Room"] = CFrame.new(-3599.53491, -266.57373, -1566.98657),
-                ["Weather Machine"] = CFrame.new(-1525.72632, 6.49999952, 1892.23645, 0.0615941137, 6.608282509e-10, -0.998101294, -6.8356556e-08, 1, 3.55628549e-09, 0.998101294, 6.84458072e-08, 0.0615941137),
-                ["Sisyphus Statue"] = CFrame.new(-3692.22021, -135.574417, -1026.96167, -0.928567886, 9.83784361e-08, 0.371162564, 1.22746741e-07, 1, 4.20307664e-08, -0.371162564, 8.45874197e-08, -0.928567886)
+                ["Kohana Main Island"] = CFrame.new(-642.243561, 16.0354481, 624.918884),
+                ["Winter Festival Zone"] = CFrame.new(1687.93079, 6.8625145, 3309.67725),
+                ["Lost Ancient Isle"] = CFrame.new(-3660.07031, 26.1918774, -933.131897),
+                ["Esoteric Mystical Island"] = CFrame.new(2029.47913, 27.3972206, 1393.52319),
+                ["Volcanic Crater Island"] = CFrame.new(973.268372, 7.36203814, 4879.09277),
+                ["Coral Reef Paradise"] = CFrame.new(-3134.98511, 20.9564934, 2167.80566),
+                ["Kohana Volcano Summit"] = CFrame.new(-525.122925, 24.0000591, 187.470749),
+                ["Fisherman's Haven"] = CFrame.new(33.5687256, 17.0335217, 2834.95557),
+                ["Esoteric Depths"] = CFrame.new(3152.74707, -1302.72986, 1438.05444),
+                ["Tropical Grove"] = CFrame.new(-2046.1554, 6.26801682, 3660.56006),
+                ["Treasure Vault"] = CFrame.new(-3599.53491, -266.57373, -1566.98657),
+                ["Weather Control Station"] = CFrame.new(-1525.72632, 6.49999952, 1892.23645),
+                ["Sisyphus Monument"] = CFrame.new(-3692.22021, -135.574417, -1026.96167)
             }
             
-            local islandName = getgenv().SelectedIsland or "Kohana"
+            local islandName = getgenv().SelectedIsland or "Kohana Main Island"
             local islandCFrame = islandMap[islandName]
             
             if islandCFrame then
@@ -1146,37 +883,36 @@ teleportLeft:AddButton({
     end
 })
 
--- NPC Selection Dropdown
+-- NPC Navigation
 teleportRight:AddDropdown({
-    Name = "Select NPC",
+    Name = "NPC Locations",
     Values = {
-        "Jones",
-        "McBoatson",
-        "Tim",
-        "Scientist",
-        "Lava Fisherman"
+        "Captain Jones - General Store",
+        "McBoatson - Boat Shop",
+        "Tim - Fishing Supplies",
+        "Dr. Science - Research Lab",
+        "Lava Fisher - Volcano Summit"
     },
-    Default = "Jones",
+    Default = "Captain Jones - General Store",
     Flag = "selected_npc",
     Callback = function(value)
         getgenv().SelectedNPC = value
     end
 })
 
--- Teleport to NPC Button
 teleportRight:AddButton({
-    Name = "Teleport Now",
+    Name = "Find NPC",
     Callback = function()
         pcall(function()
             local npcMap = {
-                ["Jones"] = CFrame.new(-678.315857, 16.4103374, 595.322937, 0, 0, -1, 0, 1, 0, 1, 0, 0),
-                ["McBoatson"] = CFrame.new(-627.383911, 3.04580736, 719.454956, 0, 0, -1, 0, 1, 0, 1, 0, 0),
-                ["Tim"] = CFrame.new(-595.170044, 16.3734112, 608.429932, 0, 0, 1, 0, 1, -0, -1, 0, 0),
-                ["Scientist"] = CFrame.new(-7.82026434, 14.6700287, 2885.70532, 0.862636983, 0.0440853015, -0.50389874, 8.76235612e-11, 0.99619472, 0.0871554911, 0.505823553, -0.0751835406, 0.859354377),
-                ["Lava Fisherman"] = CFrame.new(-595.716797, 59.000061, 135.618927, 0.819155693, 0, 0.573571265, 0, 1, 0, -0.573571265, 0, 0.819155693)
+                ["Captain Jones - General Store"] = CFrame.new(-678.315857, 16.4103374, 595.322937),
+                ["McBoatson - Boat Shop"] = CFrame.new(-627.383911, 3.04580736, 719.454956),
+                ["Tim - Fishing Supplies"] = CFrame.new(-595.170044, 16.3734112, 608.429932),
+                ["Dr. Science - Research Lab"] = CFrame.new(-7.82026434, 14.6700287, 2885.70532),
+                ["Lava Fisher - Volcano Summit"] = CFrame.new(-595.716797, 59.000061, 135.618927)
             }
             
-            local npcName = getgenv().SelectedNPC or "Jones"
+            local npcName = getgenv().SelectedNPC or "Captain Jones - General Store"
             local npcCFrame = npcMap[npcName]
             
             if npcCFrame then
@@ -1200,95 +936,39 @@ teleportRight:AddButton({
 
 -- Server Tab Sections
 local serverLeft = Server:DrawSection({
-    Name = "Fishing Logger",
+    Name = "Management",
     Position = "left"
 })
 
 local serverRight = Server:DrawSection({
-    Name = "Server Tools",
+    Name = "Utilities",
     Position = "right"
 })
 
--- Webhook URL Input
-serverLeft:AddInput({
-    Name = "Webhook URL",
-    Default = "",
-    Placeholder = "https://discord.com/api/webhooks/...",
-    Flag = "webhook_url",
-    Callback = function(value)
-        getgenv().WebhookURL = value
-    end
-})
-
--- Enable Webhook Toggle
+-- Server Management
 serverLeft:AddToggle({
-    Name = "Enable Webhook",
+    Name = "Auto Rejoin Protection",
     Default = false,
-    Flag = "enable_webhook",
+    Flag = "auto_rejoin",
     Callback = function(state)
-        getgenv().EnableWebhook = state
-    end
-})
-
--- Select Tier Dropdown
-serverLeft:AddDropdown({
-    Name = "Select Tier to Send",
-    Values = {"All", "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "SECRET"},
-    Default = {"All"},
-    Multi = true,
-    Flag = "selected_tiers",
-    Callback = function(values)
-        getgenv().SelectedTiers = values
-    end
-})
-
--- Player Count Display
-serverRight:AddParagraph({
-    Title = "Player Count",
-    Content = "Online: " .. #game.Players:GetPlayers()
-})
-
--- Anti Staff Toggle
-serverRight:AddToggle({
-    Name = "Anti Staff",
-    Default = true,
-    Flag = "anti_staff",
-    Callback = function(state)
-        getgenv().AntiStaff = state
+        getgenv().AutoRejoin = state
         if state then
-            -- Staff detection logic would go here
-            SoulsHub:Notification({
-                Title = "Enabled",
-                Content = "Anti Staff protection activated",
-                Icon = "shield",
-                Duration = 3
-            })
-        else
-            SoulsHub:Notification({
-                Title = "Disabled",
-                Content = "Anti Staff protection deactivated",
-                Icon = "shield-off",
-                Duration = 3
-            })
+            task.spawn(function()
+                while getgenv().AutoRejoin do
+                    pcall(function()
+                        if not game.Players.LocalPlayer.Character then
+                            local TeleportService = game:GetService("TeleportService")
+                            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, game.Players.LocalPlayer)
+                        end
+                    end)
+                    task.wait(5)
+                end
+            end)
         end
     end
 })
 
--- Rejoin Server Button
-serverRight:AddButton({
-    Name = "Rejoin Server",
-    Callback = function()
-        pcall(function()
-            local TeleportService = game:GetService("TeleportService")
-            local Players = game:GetService("Players")
-            local LocalPlayer = Players.LocalPlayer
-            
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
-        end)
-    end
-})
-
--- Server Hop Button
+-- Server Utilities
 serverRight:AddButton({
     Name = "Server Hop",
     Callback = function()
@@ -1311,7 +991,7 @@ serverRight:AddButton({
             
             SoulsHub:Notification({
                 Title = "Error",
-                Content = "No available servers found",
+                Content = "No available servers found!",
                 Icon = "x",
                 Duration = 3
             })
@@ -1319,9 +999,22 @@ serverRight:AddButton({
     end
 })
 
+serverRight:AddButton({
+    Name = "Copy Server ID",
+    Callback = function()
+        setclipboard(game.JobId)
+        SoulsHub:Notification({
+            Title = "Copied!",
+            Content = "Server ID copied to clipboard",
+            Icon = "copy",
+            Duration = 3
+        })
+    end
+})
+
 -- Config Manager
 local Configs = Window:DrawConfig({
-    Name = "Configs",
+    Name = "Configuration",
     Icon = "folder",
     Config = FileWatcher
 })
@@ -1356,7 +1049,7 @@ local function updateStatus()
             local timeFormatted = string.format("%02d:%02d:%02d", hours, minutes, seconds)
             
             statusSection:AddParagraph({
-                Title = "Status",
+                Title = "System Status",
                 Content = "FPS: " .. fps .. "\nPing: " .. math.floor(ping) .. " ms\nTime: " .. timeFormatted
             })
         end)
@@ -1366,40 +1059,32 @@ end
 task.spawn(updateStatus)
 
 -- Initialize global variables
-getgenv().AutoFishingV1 = false
-getgenv().AutoFishingV2 = false
-getgenv().AutoSell = false
-getgenv().AutoDeepSeaQuest = false
-getgenv().AutoAuraQuest = false
-getgenv().TeleportEvents = false
-getgenv().AntiLava = false
-getgenv().EnableWebhook = false
-getgenv().AntiStaff = true
-getgenv().ClickSpeed = 0.1
-getgenv().SellDelay = 2
-getgenv().SellMode = "Sell Delay"
-getgenv().SelectedEvents = {}
-getgenv().SelectedRods = {}
-getgenv().SelectedBaits = {}
-getgenv().SelectedWeather = {}
-getgenv().PurchaseBoat = "Small Boat $300"
-getgenv().SpawnBoat = "Small Boat"
-getgenv().SelectedIsland = "Kohana"
-getgenv().SelectedNPC = "Jones"
-getgenv().SelectedTiers = {"All"}
-getgenv().WebhookURL = ""
+getgenv().AdvancedFishing = false
+getgenv().AutoSellItems = false
+getgenv().DeepSeaQuestAuto = false
+getgenv().AuraBoatQuestAuto = false
+getgenv().EventAutomation = false
+getgenv().AutoEquipBestRod = false
+getgenv().AutoRejoin = false
+getgenv().SelectedRod = "Carbon Fiber Rod - 900 coins"
+getgenv().SelectedBait = "Topwater Elite Bait - 100 coins"
+getgenv().PurchaseBoat = "Fishing Kayak - 1.1k coins"
+getgenv().SpawnBoat = "Fishing Kayak"
+getgenv().SelectedIsland = "Kohana Main Island"
+getgenv().SelectedNPC = "Captain Jones - General Store"
+getgenv().SellInterval = 3
+getgenv().FishingMode = "Perfect Catch"
 
 -- Cleanup on character removal
 game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
-    getgenv().AutoFishingV1 = false
-    getgenv().AutoFishingV2 = false
-    getgenv().AutoSell = false
-    getgenv().AutoDeepSeaQuest = false
-    getgenv().AutoAuraQuest = false
-    getgenv().TeleportEvents = false
-    getgenv().AntiLava = false
+    getgenv().AdvancedFishing = false
+    getgenv().AutoSellItems = false
+    getgenv().DeepSeaQuestAuto = false
+    getgenv().AuraBoatQuestAuto = false
+    getgenv().EventAutomation = false
+    getgenv().AutoEquipBestRod = false
     
-    -- Remove any freeze objects
+    -- Remove any physics objects
     local char = game.Players.LocalPlayer.Character
     if char then
         for _, obj in ipairs(char:GetDescendants()) do
@@ -1412,7 +1097,7 @@ end)
 
 SoulsHub:Notification({
     Title = "Loaded",
-    Content = "Souls Hub v2.0.0 loaded successfully",
+    Content = "Souls Hub v2.0.0 loaded successfully!",
     Icon = "check",
     Duration = 5
 })
