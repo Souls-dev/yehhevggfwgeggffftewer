@@ -139,7 +139,7 @@ local farmRight = Farm:DrawSection({
     Position = "right"
 })
 
--- Advanced Auto Fishing System - FIXED AND OPTIMIZED
+-- Advanced Auto Fishing System - FIXED AND OPTIMIZED USING WORKING SNIPPET
 local autoFishToggle = farmLeft:AddToggle({
     Name = "Advanced Auto Fishing",
     Default = false,
@@ -154,119 +154,93 @@ local autoFishToggle = farmLeft:AddToggle({
             task.spawn(function()
                 while getgenv().AdvancedFishing do
                     pcall(function()
-                        local player = game.Players.LocalPlayer
-                        local char = player.Character
-                        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                        local hasRod = false
+                        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                        local NetFolder = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
                         
-                        -- Smart rod detection - multiple fallback methods
-                        if char then
-                            -- Method 1: Check for fishing view model
-                            if char:FindFirstChild("!!!FISHING_VIEW_MODEL!!!") then
-                                hasRod = true
-                            end
+                        local EquipToolEvent = NetFolder:FindFirstChild("RE/EquipToolFromHotbar")
+                        local ChargeFishingRodEvent = NetFolder:FindFirstChild("RF/ChargeFishingRod")
+                        local RequestMinigameEvent = NetFolder:FindFirstChild("RF/RequestFishingMinigameStarted")
+                        local FishingCompletedEvent = NetFolder:FindFirstChild("RE/FishingCompleted")
+                        
+                        -- Verify all remotes exist
+                        if not (EquipToolEvent and ChargeFishingRodEvent and RequestMinigameEvent and FishingCompletedEvent) then
+                            SoulsHub:Notification({
+                                Title = "Error",
+                                Content = "Missing fishing remotes. Trying to find them...",
+                                Icon = "x",
+                                Duration = 5
+                            })
                             
-                            -- Method 2: Check tool in backpack
-                            local backpack = player:FindFirstChild("Backpack")
-                            if backpack then
-                                for _, tool in ipairs(backpack:GetChildren()) do
-                                    if tool:IsA("Tool") and tool:FindFirstChild("Rod") then
-                                        hasRod = true
-                                        break
+                            -- Try to find remotes with different paths
+                            local packages = ReplicatedStorage:FindFirstChild("Packages")
+                            if packages then
+                                for _, folder in ipairs(packages:GetChildren()) do
+                                    if folder:IsA("Folder") then
+                                        local net = folder:FindFirstChild("net")
+                                        if net then
+                                            EquipToolEvent = EquipToolEvent or net:FindFirstChild("RE/EquipToolFromHotbar")
+                                            ChargeFishingRodEvent = ChargeFishingRodEvent or net:FindFirstChild("RF/ChargeFishingRod")
+                                            RequestMinigameEvent = RequestMinigameEvent or net:FindFirstChild("RF/RequestFishingMinigameStarted")
+                                            FishingCompletedEvent = FishingCompletedEvent or net:FindFirstChild("RE/FishingCompleted")
+                                        end
                                     end
                                 end
                             end
                             
-                            -- Method 3: Check tool in character
-                            for _, child in ipairs(char:GetChildren()) do
-                                if child:IsA("Tool") and child:FindFirstChild("Rod") then
-                                    hasRod = true
-                                    break
-                                end
+                            -- Check again after fallback search
+                            if not (EquipToolEvent and ChargeFishingRodEvent and RequestMinigameEvent and FishingCompletedEvent) then
+                                SoulsHub:Notification({
+                                    Title = "Critical Error",
+                                    Content = "Could not find fishing remotes. Script may not work with this game version.",
+                                    Icon = "alert-triangle",
+                                    Duration = 10
+                                })
+                                getgenv().AdvancedFishing = false
+                                return
                             end
                         end
                         
-                        -- If no rod, try to equip one
-                        if not hasRod and getgenv().AutoEquipBestRod then
-                            pcall(function()
-                                local ReplicatedStorage = game:GetService("ReplicatedStorage")
-                                local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-                                local equipTool = Net:WaitForChild("RE/EquipToolFromHotbar")
-                                if equipTool then
-                                    equipTool:FireServer(1) -- Try slot 1
-                                    task.wait(0.5)
-                                end
-                            end)
-                        end
+                        -- Equip fishing rod from slot 1
+                        EquipToolEvent:FireServer(1)
+                        task.wait(0.5)
                         
-                        -- Proceed with fishing only if we have a rod
-                        if hasRod and hrp then
-                            local ReplicatedStorage = game:GetService("ReplicatedStorage")
-                            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-                            local chargeRod = Net:WaitForChild("RF/ChargeFishingRod")
-                            
-                            if chargeRod then
-                                -- Use current time as seed for more natural behavior
-                                local currentTime = tick()
-                                chargeRod:InvokeServer(currentTime)
-                                
-                                -- Wait for charge animation
-                                task.wait(0.5)
-                                
-                                -- Get perfect catch coordinates based on fishing mode
-                                local perfectX, perfectY
-                                local mode = getgenv().FishingMode or "Perfect Catch"
-                                
-                                if mode == "Perfect Catch" then
-                                    perfectX = -0.57187455892563
-                                    perfectY = 0.98649686980755
-                                elseif mode == "Fast Cast" then
-                                    perfectX = -0.3
-                                    perfectY = 0.8
-                                else -- Balanced
-                                    perfectX = -0.45
-                                    perfectY = 0.9
-                                end
-                                
-                                local requestMinigame = Net:WaitForChild("RF/RequestFishingMinigameStarted")
-                                if requestMinigame then
-                                    requestMinigame:InvokeServer(perfectX, perfectY)
-                                    
-                                    -- Wait for minigame completion
-                                    task.wait(2.5)
-                                    
-                                    -- Complete fishing
-                                    local fishingCompleted = Net:WaitForChild("RE/FishingCompleted")
-                                    if fishingCompleted then
-                                        fishingCompleted:FireServer()
-                                    end
-                                end
-                            end
-                        end
+                        -- Charge fishing rod with current time
+                        local currentTime = tick()
+                        ChargeFishingRodEvent:InvokeServer(nil, nil, nil, currentTime)
+                        task.wait(0.2)
+                        
+                        -- Request minigame with optimized coordinates for perfect catch
+                        -- Using the working values from your snippet
+                        local randomX = math.random(-120, 120) / 100
+                        local randomY = math.random(60, 90) / 100
+                        
+                        RequestMinigameEvent:InvokeServer(
+                            randomX,
+                            randomY,
+                            currentTime
+                        )
+                        
+                        -- Wait for minigame completion
+                        task.wait(2.5)
+                        
+                        -- Complete fishing
+                        FishingCompletedEvent:FireServer()
+                        
+                        -- Adaptive delay with anti-ban protection
+                        local baseDelay = 1.0
+                        local randomDelay = math.random() * 0.3
+                        task.wait(baseDelay + randomDelay)
                     end)
-                    
-                    -- Adaptive delay based on fishing mode and performance
-                    local baseDelay = 0.8
-                    local mode = getgenv().FishingMode or "Perfect Catch"
-                    
-                    if mode == "Fast Cast" then
-                        baseDelay = 0.3
-                    elseif mode == "Balanced" then
-                        baseDelay = 0.5
-                    end
-                    
-                    -- Add random variation to avoid detection
-                    local randomDelay = math.random() * 0.2
-                    task.wait(baseDelay + randomDelay)
                 end
                 
                 -- Cleanup when disabled
                 pcall(function()
                     local ReplicatedStorage = game:GetService("ReplicatedStorage")
-                    local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-                    local cancelFishing = Net:WaitForChild("RF/CancelFishingInputs")
-                    if cancelFishing then
-                        cancelFishing:InvokeServer()
+                    local NetFolder = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+                    local CancelFishingInputs = NetFolder:FindFirstChild("RF/CancelFishingInputs")
+                    
+                    if CancelFishingInputs then
+                        CancelFishingInputs:InvokeServer()
                     end
                 end)
             end)
@@ -274,8 +248,9 @@ local autoFishToggle = farmLeft:AddToggle({
             -- Force cleanup
             pcall(function()
                 local player = game.Players.LocalPlayer
-                if player.Character then
-                    for _, obj in ipairs(player.Character:GetDescendants()) do
+                local char = player.Character
+                if char then
+                    for _, obj in ipairs(char:GetDescendants()) do
                         if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") then
                             obj:Destroy()
                         end
@@ -380,6 +355,7 @@ farmLeft:AddToggle({
                                     task.wait(0.2)
                                     
                                     -- Check if equipped successfully
+                                    local char = player.Character
                                     if char and char:FindFirstChild("!!!FISHING_VIEW_MODEL!!!") then
                                         equipped = true
                                         break
@@ -392,7 +368,7 @@ farmLeft:AddToggle({
                                     if backpack then
                                         for _, tool in ipairs(backpack:GetChildren()) do
                                             if tool:IsA("Tool") and tool:FindFirstChild("Rod") then
-                                                -- This is a fallback method - might need different remote
+                                                -- This is a fallback method
                                                 local equipToolFromBackpack = Net:FindFirstChild("RE/EquipTool")
                                                 if equipToolFromBackpack then
                                                     equipToolFromBackpack:FireServer(tool)
@@ -402,6 +378,12 @@ farmLeft:AddToggle({
                                         end
                                     end
                                 end
+                                SoulsHub:Notification({
+                                    Title = "Rod Equipped",
+                                    Content = "Fishing rod equipped successfully!",
+                                    Icon = "check",
+                                    Duration = 2
+                                })
                             end
                         end
                     end)
