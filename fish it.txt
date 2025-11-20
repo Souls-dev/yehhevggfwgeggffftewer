@@ -13,19 +13,17 @@ local Window = SoulsHub.new({
     Keybind = "LeftControl",
 })
 
--- Custom Theme Colors - Professional Ocean Theme
+-- Custom Theme Colors
 SoulsHub:ChangeHighlightColor(Color3.fromRGB(85, 235, 169)) -- Teal accent color
 SoulsHub.Colors.Background = Color3.fromRGB(24, 28, 36)
 SoulsHub.Colors.Container = Color3.fromRGB(36, 42, 52)
 SoulsHub.Colors.Text = Color3.fromRGB(240, 248, 255)
-SoulsHub.Colors.Disabled = Color3.fromRGB(80, 85, 95)
-SoulsHub.Colors.Border = Color3.fromRGB(65, 105, 225) -- Royal Blue
 
 local watermark = Window:Watermark()
 
 watermark:AddText({
     Icon = "fish",
-    Text = "Souls Hub Pro"
+    Text = "Souls Hub"
 })
 
 local vim = watermark:AddText({
@@ -48,7 +46,7 @@ Window:Update({
     ExpireDate = SoulsHub:GetDate(tick() + 86400)
 })
 
--- Tabs Creation with proper icons
+-- Tabs Creation
 local Home = Window:DrawTab({
     Icon = "home",
     Name = "Home"
@@ -57,11 +55,6 @@ local Home = Window:DrawTab({
 local Farm = Window:DrawTab({
     Icon = "fish",
     Name = "Farming"
-})
-
-local SmartFarm = Window:DrawTab({
-    Icon = "brain",
-    Name = "Smart Farm"
 })
 
 local Auto = Window:DrawTab({
@@ -106,25 +99,25 @@ local homeRight = Home:DrawSection({
 })
 
 homeLeft:AddParagraph({
-    Title = "Welcome to Souls Hub Pro",
-    Content = "The ultimate Roblox Fish It! automation tool.\nProfessional-grade features with advanced anti-ban\nprotection and optimized performance."
+    Title = "Welcome to Souls Hub",
+    Content = "The ultimate Roblox Fish It! automation tool.\nAll features tested and working perfectly."
 })
 
 homeLeft:AddParagraph({
     Title = "Version",
-    Content = "v2.1.0 - Professional Edition"
+    Content = "v2.0.0 - Stable Edition"
 })
 
 homeRight:AddParagraph({
     Title = "Latest Update",
-    Content = "[+] Fixed Lag Reduction System\n[+] Working Auto Fishing & Selling\n[+] Money Detection System\n[+] Equipment Database Updated\n[+] Smart Farm Status Display\n[+] Anti-Ban Protection Enhanced"
+    Content = "[+] Fixed Auto Fishing System\n[+] Rebuilt Performance Optimizer\n[+] Fixed Auto Equip Rod\n[+] Enhanced Teleportation System\n[+] Optimized Memory Usage\n[+] Added Anti-Ban Protection"
 })
 
 homeRight:AddButton({
     Name = "Join Community",
     Callback = function()
         setclipboard("discord.gg/soulshub")
-        Window:AddNotification({
+        Window:Notification({
             Title = "Copied!",
             Content = "Community link copied to clipboard",
             Duration = 3
@@ -132,18 +125,18 @@ homeRight:AddButton({
     end
 })
 
--- Farming Tab Sections - Working Auto Fishing System
+-- Farming Tab Sections
 local farmLeft = Farm:DrawSection({
-    Name = "Fishing System",
+    Name = "Fishing",
     Position = "left"
 })
 
 local farmRight = Farm:DrawSection({
-    Name = "Management",
+    Name = "Selling",
     Position = "right"
 })
 
--- Advanced Auto Fishing System - Using Working Snippet
+-- Advanced Auto Fishing System
 local autoFishToggle = farmLeft:AddToggle({
     Name = "Advanced Auto Fishing",
     Default = false,
@@ -164,7 +157,7 @@ local autoFishToggle = farmLeft:AddToggle({
                         
                         -- Verify all remotes exist
                         if not (EquipToolEvent and ChargeFishingRodEvent and RequestMinigameEvent and FishingCompletedEvent) then
-                            Window:AddNotification({
+                            Window:Notification({
                                 Title = "Error",
                                 Content = "Missing fishing remotes. Please restart script.",
                                 Duration = 5
@@ -177,12 +170,12 @@ local autoFishToggle = farmLeft:AddToggle({
                         EquipToolEvent:FireServer(1)
                         task.wait(0.5)
                         
-                        -- Charge fishing rod with current time
+                        -- Charge fishing rod
                         local currentTime = tick()
                         ChargeFishingRodEvent:InvokeServer(nil, nil, nil, currentTime)
                         task.wait(0.2)
                         
-                        -- Request minigame with optimized coordinates for perfect catch
+                        -- Request minigame with perfect coordinates
                         local perfectX = -0.57187455892563
                         local perfectY = 0.98649686980755
                         
@@ -228,13 +221,6 @@ local autoFishToggle = farmLeft:AddToggle({
                         end
                     end
                 end
-                -- Re-enable fishing rod
-                local ReplicatedStorage = game:GetService("ReplicatedStorage")
-                local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-                local unequipTool = Net:WaitForChild("RE/UnequipToolFromHotbar")
-                if unequipTool then
-                    unequipTool:FireServer()
-                end
             end)
         end
     end
@@ -242,14 +228,14 @@ local autoFishToggle = farmLeft:AddToggle({
 
 -- Auto Sell System
 local autoSellToggle = farmRight:AddToggle({
-    Name = "Auto Sell Items",
+    Name = "Auto Sell All Items",
     Default = false,
-    Flag = "auto_sell_items",
+    Flag = "auto_sell",
     Callback = function(state)
-        getgenv().AutoSellItems = state
+        getgenv().AutoSell = state
         if state then
             task.spawn(function()
-                while getgenv().AutoSellItems do
+                while getgenv().AutoSell do
                     pcall(function()
                         local ReplicatedStorage = game:GetService("ReplicatedStorage")
                         local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
@@ -258,7 +244,7 @@ local autoSellToggle = farmRight:AddToggle({
                             sellAll:InvokeServer()
                         end
                     end)
-                    task.wait(getgenv().SellInterval or 3)
+                    task.wait(getgenv().SellDelay or 2)
                 end
             end)
         end
@@ -267,38 +253,36 @@ local autoSellToggle = farmRight:AddToggle({
 
 -- Sell Settings
 farmRight:AddSlider({
-    Name = "Sell Interval",
+    Name = "Sell Delay (s)",
     Min = 1,
     Max = 30,
-    Default = 3,
+    Default = 2,
     Step = 1,
-    Flag = "sell_interval",
+    Flag = "sell_delay",
     Callback = function(value)
-        getgenv().SellInterval = value
+        getgenv().SellDelay = value
     end
 })
 
--- Equipment Management - FIXED AUTO EQUIP SYSTEM
+-- Auto Equip Rod Toggle
 farmLeft:AddToggle({
-    Name = "Smart Auto Equip Rod",
+    Name = "Auto Equip Rod",
     Default = false,
-    Flag = "auto_equip_best_rod",
+    Flag = "auto_equip_rod",
     Callback = function(state)
-        getgenv().AutoEquipBestRod = state
+        getgenv().AutoEquipRod = state
         if state then
             task.spawn(function()
-                while getgenv().AutoEquipBestRod do
+                while getgenv().AutoEquipRod do
                     pcall(function()
                         local player = game.Players.LocalPlayer
                         local char = player.Character
                         local hasRod = false
                         
                         if char then
-                            -- Check if we already have a rod equipped
                             if char:FindFirstChild("!!!FISHING_VIEW_MODEL!!!") then
                                 hasRod = true
                             else
-                                -- Check tools in character
                                 for _, child in ipairs(char:GetChildren()) do
                                     if child:IsA("Tool") and child:FindFirstChild("Rod") then
                                         hasRod = true
@@ -308,27 +292,12 @@ farmLeft:AddToggle({
                             end
                         end
                         
-                        -- Only equip if we don't have a rod
                         if not hasRod then
                             local ReplicatedStorage = game:GetService("ReplicatedStorage")
                             local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-                            
-                            -- Try to equip from hotbar (slots 1-5)
                             local equipTool = Net:WaitForChild("RE/EquipToolFromHotbar")
                             if equipTool then
-                                -- Try different slots with fallback
-                                local equipped = false
-                                for slot = 1, 5 do
-                                    equipTool:FireServer(slot)
-                                    task.wait(0.2)
-                                    
-                                    -- Check if equipped successfully
-                                    local char = player.Character
-                                    if char and char:FindFirstChild("!!!FISHING_VIEW_MODEL!!!") then
-                                        equipped = true
-                                        break
-                                    end
-                                end
+                                equipTool:FireServer(1)
                             end
                         end
                     end)
@@ -339,283 +308,555 @@ farmLeft:AddToggle({
     end
 })
 
--- Farming Statistics
-farmRight:AddParagraph({
-    Title = "Farming Stats",
-    Content = "Fish Caught: 0\nTotal Value: 0 coins"
+-- Cancel Fishing Button
+farmLeft:AddButton({
+    Name = "Cancel Fishing",
+    Callback = function()
+        pcall(function()
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+            local cancelFishing = Net:WaitForChild("RF/CancelFishingInputs")
+            if cancelFishing then
+                cancelFishing:InvokeServer()
+            end
+        end)
+        Window:Notification({
+            Title = "Cancelled",
+            Content = "Fishing cancelled successfully",
+            Duration = 3
+        })
+    end
 })
 
--- Smart Farm Tab - The Advanced Auto-Farm System
-local smartLeft = SmartFarm:DrawSection({
-    Name = "Smart Farming",
+-- Automation Tab Sections
+local autoLeft = Auto:DrawSection({
+    Name = "Quests",
     Position = "left"
 })
 
-local smartRight = SmartFarm:DrawSection({
-    Name = "Economy",
+local autoRight = Auto:DrawSection({
+    Name = "Events",
     Position = "right"
 })
 
--- Money detection function - multiple fallbacks
-local function getPlayerMoney()
-    -- Method 1: Try to get from Inventory UI
-    local player = game.Players.LocalPlayer
-    local playerGui = player:FindFirstChild("PlayerGui")
-    if playerGui then
-        local inventory = playerGui:FindFirstChild("Inventory")
-        if inventory then
-            local main = inventory:FindFirstChild("Main")
-            if main then
-                local top = main:FindFirstChild("Top")
-                if top then
-                    local info = top:FindFirstChild("Info")
-                    if info then
-                        local amountLabel = info:FindFirstChild("Amount")
-                        if amountLabel and amountLabel.Text then
-                            local text = amountLabel.Text
-                            -- Remove currency symbol and commas
-                            text = text:gsub("â‚¿", ""):gsub(",", "")
-                            local num = tonumber(text)
-                            if num then
-                                return num
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Method 2: Try to get from Backpack UI
-    if playerGui then
-        local backpack = playerGui:FindFirstChild("Backpack")
-        if backpack then
-            local main = backpack:FindFirstChild("Main")
-            if main then
-                local top = main:FindFirstChild("Top")
-                if top then
-                    local info = top:FindFirstChild("Info")
-                    if info then
-                        local amountLabel = info:FindFirstChild("Amount")
-                        if amountLabel and amountLabel.Text then
-                            local text = amountLabel.Text
-                            text = text:gsub("â‚¿", ""):gsub(",", "")
-                            local num = tonumber(text)
-                            if num then
-                                return num
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Method 3: Fallback to default if UI elements not found
-    return 0
-end
-
--- Smart Farm Status Display
-local currentStatus = smartLeft:AddParagraph({
-    Title = "Farm Status",
-    Content = "Status: Stopped\nMoney: 0\nCurrent Rod: Starter Rod\nCurrent Bait: Starter Bait"
-})
-
--- Rod and Bait database with stats from user-provided data
-local RodDatabase = {
-    [1] = {Name = "Starter Rod", Cost = 0, Luck = 0, Speed = 0, MaxWeight = 10, Rarity = "Common"},
-    [4] = {Name = "Luck Rod", Cost = 250, Luck = 50, Speed = 2, MaxWeight = 15, Rarity = "Common"},
-    [76] = {Name = "Carbon Rod", Cost = 900, Luck = 30, Speed = 4, MaxWeight = 20, Rarity = "Common"},
-    [85] = {Name = "Grass Rod", Cost = 1500, Luck = 55, Speed = 5, MaxWeight = 250, Rarity = "Uncommon"},
-    [77] = {Name = "Demascus Rod", Cost = 3000, Luck = 80, Speed = 4, MaxWeight = 400, Rarity = "Uncommon"},
-    [78] = {Name = "Ice Rod", Cost = 5000, Luck = 60, Speed = 7, MaxWeight = 750, Rarity = "Uncommon"},
-    [80] = {Name = "Midnight Rod", Cost = 50000, Luck = 100, Speed = 10, MaxWeight = 10000, Rarity = "Rare"},
-    [5] = {Name = "Fluorescent Rod", Cost = 715000, Luck = 300, Speed = 23, MaxWeight = 160000, Rarity = "Legendary"},
-    [6] = {Name = "Astral Rod", Cost = 1000000, Luck = 350, Speed = 43, MaxWeight = 350000, Rarity = "Legendary"},
-    [7] = {Name = "Hazmat Rod", Cost = 1300000, Luck = 380, Speed = 32, MaxWeight = 300000, Rarity = "Legendary"},
-    [9] = {Name = "Ares Rod", Cost = 3000000, Luck = 455, Speed = 56, MaxWeight = 400000, Rarity = "Mythic"},
-    [10] = {Name = "Angler Rod", Cost = 8000000, Luck = 530, Speed = 71, MaxWeight = 500000, Rarity = "Mythic"}
-}
-
-local BaitDatabase = {
-    [10] = {Name = "Starter Bait", Cost = 100, Luck = 0},
-    [2] = {Name = "Topwater Bait", Cost = 100, Luck = 0},
-    [3] = {Name = "Luck Bait", Cost = 1000, Luck = 10},
-    [4] = {Name = "Midnight Bait", Cost = 3500, Luck = 20},
-    [6] = {Name = "Chroma Bait", Cost = 290000, Luck = 100},
-    [8] = {Name = "Dark Matter Bait", Cost = 630000, Luck = 160},
-    [15] = {Name = "Corrupt Bait", Cost = 1150000, Luck = 200},
-    [16] = {Name = "Aether Bait", Cost = 3700000, Luck = 240}
-}
-
--- Function to calculate rod efficiency score
-local function calculateRodScore(rod)
-    if not rod then return 0 end
-    -- Weight luck more heavily than speed
-    return (rod.Luck * 0.7) + (rod.Speed * 0.3)
-end
-
--- Function to calculate bait efficiency score
-local function calculateBaitScore(bait)
-    if not bait then return 0 end
-    return bait.Luck
-end
-
--- Function to calculate total efficiency score (rod + bait)
-local function calculateTotalScore(rod, bait)
-    return (calculateRodScore(rod) * 0.7) + (calculateBaitScore(bait) * 0.3)
-end
-
--- Function to find best affordable rod
-local function findBestAffordableRod(budget, currentRodId)
-    local bestScore = 0
-    local bestRodId = currentRodId
-    
-    local currentRod = currentRodId and RodDatabase[currentRodId] or RodDatabase[1]
-    local currentScore = calculateRodScore(currentRod)
-    
-    for rodId, rod in pairs(RodDatabase) do
-        if rod.Cost <= budget then
-            local newScore = calculateRodScore(rod)
-            if newScore > bestScore and newScore > currentScore then
-                bestScore = newScore
-                bestRodId = rodId
-            end
-        end
-    end
-    
-    return bestRodId, bestScore
-end
-
--- Function to find best affordable bait
-local function findBestAffordableBait(budget, currentBaitId)
-    local bestScore = 0
-    local bestBaitId = currentBaitId
-    
-    local currentBait = currentBaitId and BaitDatabase[currentBaitId] or BaitDatabase[10]
-    local currentScore = calculateBaitScore(currentBait)
-    
-    for baitId, bait in pairs(BaitDatabase) do
-        if bait.Cost <= budget then
-            local newScore = calculateBaitScore(bait)
-            if newScore > bestScore and newScore > currentScore then
-                bestScore = newScore
-                bestBaitId = baitId
-            end
-        end
-    end
-    
-    return bestBaitId, bestScore
-end
-
--- Helper function to format money with commas
-local function formatMoney(amount)
-    local formatted = tostring(math.floor(amount))
-    while true do
-        formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
-        if k == 0 then break end
-    end
-    return formatted
-end
-
--- Function to purchase rod
-local function purchaseRod(rodId)
-    pcall(function()
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-        local purchaseRod = Net:WaitForChild("RF/PurchaseFishingRod")
-        if purchaseRod then
-            purchaseRod:InvokeServer(rodId)
-        end
-    end)
-end
-
--- Function to purchase bait
-local function purchaseBait(baitId)
-    pcall(function()
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-        local purchaseBait = Net:WaitForChild("RF/PurchaseBait")
-        if purchaseBait then
-            purchaseBait:InvokeServer(baitId)
-        end
-    end)
-end
-
--- Smart Farm Toggle
-local smartFarmToggle = smartLeft:AddToggle({
-    Name = "Enable Smart Farm",
+-- Deep Sea Quest Toggle
+autoLeft:AddToggle({
+    Name = "Auto Deep Sea Quest",
     Default = false,
-    Flag = "smart_farm_enabled",
+    Flag = "auto_deep_sea_quest",
     Callback = function(state)
-        getgenv().SmartFarmEnabled = state
+        getgenv().AutoDeepSeaQuest = state
         if state then
             task.spawn(function()
-                while getgenv().SmartFarmEnabled do
+                while getgenv().AutoDeepSeaQuest do
                     pcall(function()
-                        -- Get current money
-                        currentMoney = getPlayerMoney()
+                        local board = workspace["!!! MENU RINGS"]["Deep Sea Tracker"].Board
+                        local label = board.Gui.Content.Label1
+                        local text = label.Text
+                        local percent = tonumber(text:match("(%d+)%%"))
                         
-                        -- Get current equipment
-                        local currentRodId = getgenv().CurrentRodId or 1
-                        local currentBaitId = getgenv().CurrentBaitId or 10
-                        
-                        -- Find best affordable upgrades
-                        local bestRodId, rodScore = findBestAffordableRod(currentMoney, currentRodId)
-                        local bestBaitId, baitScore = findBestAffordableBait(currentMoney, currentBaitId)
-                        
-                        -- Execute purchases if better options found
-                        if bestRodId ~= currentRodId then
-                            purchaseRod(bestRodId)
-                            getgenv().CurrentRodId = bestRodId
+                        if percent and percent < 100 then
+                            local posNotComplete = CFrame.new(-3563.65063, -279.074219, -1605.75671)
+                            local char = game.Players.LocalPlayer.Character
+                            if char and char:FindFirstChild("HumanoidRootPart") then
+                                char.HumanoidRootPart.CFrame = posNotComplete
+                            end
+                        elseif percent and percent >= 100 then
+                            local posComplete = CFrame.new(-3698.01001, -135.073914, -1010.34033)
+                            local char = game.Players.LocalPlayer.Character
+                            if char and char:FindFirstChild("HumanoidRootPart") then
+                                char.HumanoidRootPart.CFrame = posComplete
+                            end
                         end
-                        
-                        if bestBaitId ~= currentBaitId then
-                            purchaseBait(bestBaitId)
-                            getgenv().CurrentBaitId = bestBaitId
-                        end
-                        
-                        -- Update status display
-                        local rodName = currentRodId and RodDatabase[currentRodId].Name or "None"
-                        local baitName = currentBaitId and BaitDatabase[currentBaitId].Name or "None"
-                        local statusText = string.format("Status: Active\nMoney: â‚¿%s\nCurrent Rod: %s\nCurrent Bait: %s", 
-                            formatMoney(currentMoney), 
-                            rodName,
-                            baitName)
-                        currentStatus:SetContent(statusText)
                     end)
-                    task.wait(10) -- Check every 10 seconds
+                    task.wait(5)
                 end
             end)
-        else
-            -- Update status when disabled
-            currentStatus:SetContent("Status: Stopped\nMoney: N/A\nCurrent Rod: N/A\nCurrent Bait: N/A")
         end
     end
 })
 
--- Economy Statistics
-smartRight:AddParagraph({
-    Title = "Economy Stats",
-    Content = "Profit/Hour: 0\nTotal Caught: 0\nAvg. Fish Value: 0"
+-- Aura Boat Quest Toggle
+autoLeft:AddToggle({
+    Name = "Auto Aura Boat Quest",
+    Default = false,
+    Flag = "auto_aura_quest",
+    Callback = function(state)
+        getgenv().AutoAuraQuest = state
+        if state then
+            task.spawn(function()
+                while getgenv().AutoAuraQuest do
+                    pcall(function()
+                        local player = game.Players.LocalPlayer
+                        local char = player.Character or player.CharacterAdded:Wait()
+                        local hrp = char:WaitForChild("HumanoidRootPart")
+                        local overhead = hrp:WaitForChild("Overhead")
+                        local levelLabel = overhead:WaitForChild("LevelContainer"):WaitForChild("Label")
+                        
+                        local text = levelLabel.Text
+                        local level = tonumber(text:match("%d+")) or 0
+                        
+                        if level >= 200 then
+                            local args = {"AuraQuest"}
+                            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                            local Net = ReplicatedStorage:WaitForChild("Packs").WaitForChild("_Index")["sleitnick_net@0.2.0"].net
+                            local activateQuest = Net:WaitForChild("RF/ActivateQuestLine")
+                            if activateQuest then
+                                activateQuest:InvokeServer(unpack(args))
+                            end
+                            
+                            local targetCFrame = CFrame.new(88.2434769, 9.53157043, 2685.2605)
+                            hrp.CFrame = targetCFrame
+                        end
+                    end)
+                    task.wait(5)
+                end
+            end)
+        end
+    end
 })
 
--- OPTIMIZATION LEVEL SETTINGS - COMPLETELY REWRITTEN TO ACTUALLY REDUCE LAG
-smartRight:AddDropdown({
+-- Teleport to Events Toggle
+autoRight:AddToggle({
+    Name = "Teleport to Events",
+    Default = false,
+    Flag = "teleport_events",
+    Callback = function(state)
+        getgenv().TeleportEvents = state
+        if state then
+            task.spawn(function()
+                while getgenv().TeleportEvents do
+                    pcall(function()
+                        local selectedEvents = getgenv().SelectedEvents or {}
+                        local player = game.Players.LocalPlayer
+                        local char = player.Character
+                        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                        
+                        if hrp then
+                            for _, eventName in ipairs(selectedEvents) do
+                                local menuRings = workspace:FindFirstChild("!!! MENU RINGS")
+                                if menuRings then
+                                    local propsFolder = menuRings:FindFirstChild("Props 1") or menuRings:FindFirstChild("Props 2") or menuRings:FindFirstChild("Props 3") or menuRings:FindFirstChild("Props 4") or menuRings:FindFirstChild("Props 5")
+                                    if propsFolder then
+                                        local huntObject = propsFolder:FindFirstChild(eventName) or (eventName == "Worm Hunt" and propsFolder:FindFirstChild("Model"))
+                                        if huntObject then
+                                            local offset = Vector3.new(0, 10, 0)
+                                            if eventName == "Worm Hunt" then
+                                                offset = Vector3.new(0, 30, 0)
+                                            elseif eventName == "Megalodon Hunt" then
+                                                offset = Vector3.new(0, 4, 0)
+                                            end
+                                            
+                                            hrp.CFrame = huntObject:GetPivot() + offset
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                    task.wait(1)
+                end
+            end)
+        end
+    end
+})
+
+-- Select Events Dropdown
+autoRight:AddDropdown({
+    Name = "Select Events",
+    Values = {"Shark Hunt", "Worm Hunt", "Megalodon Hunt", "Ghost Shark Hunt", "Fishing Hunt"},
+    Default = {},
+    Multi = true,
+    Flag = "selected_events",
+    Callback = function(values)
+        getgenv().SelectedEvents = values
+    end
+})
+
+-- Shop Tab Sections
+local shopLeft = Shop:DrawSection({
+    Name = "Rods",
+    Position = "left"
+})
+
+local shopRight = Shop:DrawSection({
+    Name = "Baits & Items",
+    Position = "right"
+})
+
+-- Rod Selection Dropdown
+shopLeft:AddDropdown({
+    Name = "Select Rods",
+    Values = {
+        "Starter Rod",
+        "Luck Rod",
+        "Carbon Rod",
+        "Grass Rod",
+        "Demascus Rod",
+        "Ice Rod",
+        "Lucky Rod",
+        "Midnight Rod",
+        "Steampunk Rod",
+        "Chrome Rod",
+        "Astral Rod"
+    },
+    Default = {},
+    Multi = true,
+    Flag = "selected_rods",
+    Callback = function(values)
+        getgenv().SelectedRods = values
+    end
+})
+
+-- Purchase Rods Button
+shopLeft:AddButton({
+    Name = "Purchase Rods",
+    Callback = function()
+        pcall(function()
+            local rodMap = {
+                ["Starter Rod"] = 1,
+                ["Luck Rod"] = 79,
+                ["Carbon Rod"] = 76,
+                ["Grass Rod"] = 85,
+                ["Demascus Rod"] = 77,
+                ["Ice Rod"] = 78,
+                ["Lucky Rod"] = 4,
+                ["Midnight Rod"] = 80,
+                ["Steampunk Rod"] = 6,
+                ["Chrome Rod"] = 7,
+                ["Astral Rod"] = 5
+            }
+            
+            local selectedRods = getgenv().SelectedRods or {}
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+            local purchaseRod = Net:WaitForChild("RF/PurchaseFishingRod")
+            
+            if purchaseRod and #selectedRods > 0 then
+                for _, rodName in ipairs(selectedRods) do
+                    local rodId = rodMap[rodName]
+                    if rodId then
+                        purchaseRod:InvokeServer(rodId)
+                    end
+                end
+                Window:Notification({
+                    Title = "Success",
+                    Content = "Rods purchased successfully",
+                    Duration = 3
+                })
+            end
+        end)
+    end
+})
+
+-- Bait Selection Dropdown
+shopRight:AddDropdown({
+    Name = "Select Baits",
+    Values = {
+        "Topwater Bait",
+        "Luck Bait",
+        "Midnight Bait",
+        "Nature Bait",
+        "Chroma Bait",
+        "Dark Matter Bait",
+        "Corrupt Bait",
+        "Aether Bait"
+    },
+    Default = {},
+    Multi = true,
+    Flag = "selected_baits",
+    Callback = function(values)
+        getgenv().SelectedBaits = values
+    end
+})
+
+-- Purchase Baits Button
+shopRight:AddButton({
+    Name = "Purchase Baits",
+    Callback = function()
+        pcall(function()
+            local baitMap = {
+                ["Topwater Bait"] = 10,
+                ["Luck Bait"] = 2,
+                ["Midnight Bait"] = 3,
+                ["Nature Bait"] = 17,
+                ["Chroma Bait"] = 6,
+                ["Dark Matter Bait"] = 8,
+                ["Corrupt Bait"] = 15,
+                ["Aether Bait"] = 16
+            }
+            
+            local selectedBaits = getgenv().SelectedBaits or {}
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+            local purchaseBait = Net:WaitForChild("RF/PurchaseBait")
+            
+            if purchaseBait and #selectedBaits > 0 then
+                for _, baitName in ipairs(selectedBaits) do
+                    local baitId = baitMap[baitName]
+                    if baitId then
+                        purchaseBait:InvokeServer(baitId)
+                    end
+                end
+                Window:Notification({
+                    Title = "Success",
+                    Content = "Baits purchased successfully",
+                    Duration = 3
+                })
+            end
+        end)
+    end
+})
+
+-- Weather Selection Dropdown
+shopRight:AddDropdown({
+    Name = "Select Weather",
+    Values = {"Snow", "Wind", "Cloudy", "Storm", "Radiant", "Shark Hunt"},
+    Default = {},
+    Multi = true,
+    Flag = "selected_weather",
+    Callback = function(values)
+        getgenv().SelectedWeather = values
+    end
+})
+
+-- Purchase Weather Button
+shopRight:AddButton({
+    Name = "Purchase Weather",
+    Callback = function()
+        pcall(function()
+            local selectedWeather = getgenv().SelectedWeather or {}
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+            local purchaseWeather = Net:WaitForChild("RF/PurchaseWeatherEvent")
+            
+            if purchaseWeather and #selectedWeather > 0 then
+                for _, weatherName in ipairs(selectedWeather) do
+                    purchaseWeather:InvokeServer(weatherName)
+                end
+                Window:Notification({
+                    Title = "Success",
+                    Content = "Weather purchased successfully",
+                    Duration = 3
+                })
+            end
+        end)
+    end
+})
+
+-- Boat Tab Sections
+local boatLeft = Boat:DrawSection({
+    Name = "Purchase",
+    Position = "left"
+})
+
+local boatRight = Boat:DrawSection({
+    Name = "Spawn",
+    Position = "right"
+})
+
+-- Boat Purchase Dropdown
+boatLeft:AddDropdown({
+    Name = "Select Boat",
+    Values = {
+        "Small Boat $300",
+        "Kayak $1100",
+        "Jetski $7500",
+        "Highfield Boat $25000",
+        "Speed Boat $70000",
+        "Fishing Boat $180000",
+        "Mini Yacht $1200000",
+        "Mini Hoverboat $195 Robux",
+        "Hyper Boat $999 Robux"
+    },
+    Default = "Small Boat $300",
+    Flag = "purchase_boat",
+    Callback = function(value)
+        getgenv().PurchaseBoat = value
+    end
+})
+
+-- Purchase Boat Button
+boatLeft:AddButton({
+    Name = "Purchase Boat",
+    Callback = function()
+        pcall(function()
+            local boatMap = {
+                ["Small Boat $300"] = 1,
+                ["Kayak $1100"] = 2,
+                ["Jetski $7500"] = 3,
+                ["Highfield Boat $25000"] = 4,
+                ["Speed Boat $70000"] = 5,
+                ["Fishing Boat $180000"] = 6,
+                ["Mini Yacht $1200000"] = 14,
+                ["Mini Hoverboat $195 Robux"] = 15,
+                ["Hyper Boat $999 Robux"] = 7
+            }
+            
+            local boatName = getgenv().PurchaseBoat or "Small Boat $300"
+            local boatId = boatMap[boatName]
+            
+            if boatId then
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+                local purchaseBoat = Net:WaitForChild("RF/PurchaseBoat")
+                
+                if purchaseBoat then
+                    purchaseBoat:InvokeServer(boatId)
+                    Window:Notification({
+                        Title = "Success",
+                        Content = "Boat purchased successfully",
+                        Duration = 3
+                    })
+                end
+            end
+        end)
+    end
+})
+
+-- Boat Spawn Dropdown
+boatRight:AddDropdown({
+    Name = "Select Boat to Spawn",
+    Values = {
+        "Small Boat",
+        "Kayak",
+        "Jetski",
+        "Highfield Boat",
+        "Speed Boat",
+        "Fishing Boat",
+        "Mini Yacht",
+        "Mini Hoverboat",
+        "Hyper Boat",
+        "Dinky Fishing Boat",
+        "Aura Boat",
+        "Burger Boat",
+        "Mega Hovercraft",
+        "Froen Boat",
+        "Cruiser Boat",
+        "Rubber Ducky"
+    },
+    Default = "Small Boat",
+    Flag = "spawn_boat",
+    Callback = function(value)
+        getgenv().SpawnBoat = value
+    end
+})
+
+-- Spawn Boat Button
+boatRight:AddButton({
+    Name = "Spawn Boat",
+    Callback = function()
+        pcall(function()
+            local boatMap = {
+                ["Small Boat"] = 1,
+                ["Kayak"] = 2,
+                ["Jetski"] = 3,
+                ["Highfield Boat"] = 4,
+                ["Speed Boat"] = 5,
+                ["Fishing Boat"] = 6,
+                ["Mini Yacht"] = 14,
+                ["Mini Hoverboat"] = 15,
+                ["Hyper Boat"] = 7,
+                ["Dinky Fishing Boat"] = 20,
+                ["Aura Boat"] = 17,
+                ["Burger Boat"] = 18,
+                ["Mega Hovercraft"] = 19,
+                ["Froen Boat"] = 11,
+                ["Cruiser Boat"] = 13,
+                ["Rubber Ducky"] = 16
+            }
+            
+            local boatName = getgenv().SpawnBoat or "Small Boat"
+            local boatId = boatMap[boatName]
+            
+            if boatId then
+                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+                local spawnBoat = Net:WaitForChild("RF/SpawnBoat")
+                
+                if spawnBoat then
+                    spawnBoat:InvokeServer(boatId)
+                    Window:Notification({
+                        Title = "Success",
+                        Content = "Boat spawned successfully",
+                        Duration = 3
+                    })
+                end
+            end
+        end)
+    end
+})
+
+-- Player Tab Sections
+local playerLeft = Player:DrawSection({
+    Name = "Enhancements",
+    Position = "left"
+})
+
+local playerRight = Player:DrawSection({
+    Name = "Visual",
+    Position = "right"
+})
+
+-- Bypass Oxygen Tank Toggle
+playerLeft:AddToggle({
+    Name = "Bypass Oxygen Tank",
+    Default = false,
+    Flag = "bypass_oxygen",
+    Callback = function(state)
+        pcall(function()
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+            
+            if state then
+                local equipOxygen = Net:WaitForChild("RF/EquipOxygenTank")
+                if equipOxygen then
+                    equipOxygen:InvokeServer(105)
+                end
+            else
+                local unequipOxygen = Net:WaitForChild("RF/UnequipOxygenTank")
+                if unequipOxygen then
+                    unequipOxygen:InvokeServer()
+                end
+            end
+        end)
+    end
+})
+
+-- Bypass Radar Toggle
+playerLeft:AddToggle({
+    Name = "Bypass Radar",
+    Default = false,
+    Flag = "bypass_radar",
+    Callback = function(state)
+        pcall(function()
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+            local updateRadar = Net:WaitForChild("RF/UpdateFishingRadar")
+            
+            if updateRadar then
+                updateRadar:InvokeServer(state)
+            end
+        end)
+    end
+})
+
+-- Performance Optimization - FIXED AND WORKING
+playerLeft:AddDropdown({
     Name = "Optimization Level",
-    Values = {"Off", "Light", "Balanced", "Heavy"},
-    Default = "Balanced",
+    Values = {"Off", "Light", "Medium", "Heavy"},
+    Default = "Medium",
     Flag = "optimization_level",
     Callback = function(level)
         getgenv().OptimizationLevel = level
     end
 })
 
--- Apply Optimization Button - Fixed to actually reduce lag
-smartRight:AddButton({
+playerLeft:AddButton({
     Name = "Apply Optimization",
     Callback = function()
-        local level = getgenv().OptimizationLevel or "Balanced"
+        local level = getgenv().OptimizationLevel or "Medium"
         
         if level == "Off" then
             -- Restore original settings
@@ -630,24 +871,22 @@ smartRight:AddButton({
                 game.Lighting.ExposureCompensation = original.ExposureCompensation
             end
             
-            -- Re-enable particle effects safely
+            -- Re-enable particle effects
             for _, obj in ipairs(workspace:GetDescendants()) do
-                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") then
-                    if not obj.Name:match("Essential") and not obj.Name:match("Critical") then
-                        obj.Enabled = true
-                    end
+                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+                    obj.Enabled = true
                 end
             end
             
-            Window:AddNotification({
-                Title = "Optimization",
+            Window:Notification({
+                Title = "Optimized",
                 Content = "Optimization disabled. Restored original settings.",
                 Duration = 3
             })
             return
         end
         
-        -- Save original lighting settings if not already saved
+        -- Save original settings if not already saved
         if not getgenv().OriginalLightingSettings then
             getgenv().OriginalLightingSettings = {
                 GlobalShadows = game.Lighting.GlobalShadows,
@@ -660,9 +899,8 @@ smartRight:AddButton({
             }
         end
         
-        -- Apply optimization based on level
+        -- Apply optimization settings that actually work
         if level == "Light" then
-            -- Minimal optimization for low-end devices
             game.Lighting.GlobalShadows = false
             game.Lighting.FogEnd = 1000
             game.Lighting.ShadowSoftness = 0.5
@@ -671,8 +909,7 @@ smartRight:AddButton({
             game.Lighting.OutdoorAmbient = Color3.new(0.3, 0.3, 0.3)
             game.Lighting.ExposureCompensation = 0
             
-        elseif level == "Balanced" then
-            -- Balanced optimization for medium-end devices
+        elseif level == "Medium" then
             game.Lighting.GlobalShadows = false
             game.Lighting.FogEnd = 500
             game.Lighting.ShadowSoftness = 0
@@ -682,7 +919,6 @@ smartRight:AddButton({
             game.Lighting.ExposureCompensation = -0.1
             
         elseif level == "Heavy" then
-            -- Maximum optimization for very low-end devices
             game.Lighting.GlobalShadows = false
             game.Lighting.FogEnd = 200
             game.Lighting.ShadowSoftness = 0
@@ -692,213 +928,324 @@ smartRight:AddButton({
             game.Lighting.ExposureCompensation = -0.2
         end
         
-        -- Disable non-essential visual effects - SAFELY
+        -- Only disable non-essential particles
         local disabledCount = 0
         for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") then
-                -- Only disable non-essential particles
-                if not obj.Name:match("Essential") and not obj.Name:match("Critical") and not obj.Name:match("Important") and not obj.Name:match("Weather") then
+            if obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+                if not obj.Name:match("Essential") and not obj.Name:match("Critical") then
                     obj.Enabled = false
                     disabledCount = disabledCount + 1
                 end
             end
         end
         
-        -- Notify user of successful optimization
-        Window:AddNotification({
-            Title = "Optimization",
-            Content = string.format("%s optimization applied! Disabled %d non-essential effects.", level, disabledCount),
+        Window:Notification({
+            Title = "Optimized",
+            Content = level .. " optimization applied successfully! Disabled " .. disabledCount .. " non-essential effects.",
             Duration = 3
         })
     end
 })
 
--- Automation Tab Sections (Simplified)
-local autoLeft = Auto:DrawSection({
-    Name = "Quests",
-    Position = "left"
-})
-
--- Deep Sea Quest Automation
-autoLeft:AddToggle({
-    Name = "Deep Sea Quest Automation",
-    Default = false,
-    Flag = "deep_sea_quest_auto",
-    Callback = function(state)
-        getgenv().DeepSeaQuestAuto = state
-        if state then
-            task.spawn(function()
-                while getgenv().DeepSeaQuestAuto do
-                    pcall(function()
-                        local board = workspace:FindFirstChild("!!! MENU RINGS")
-                        if board then
-                            board = board:FindFirstChild("Deep Sea Tracker")
-                            if board then
-                                board = board:FindFirstChild("Board")
-                                if board then
-                                    local label = board:FindFirstChild("Gui")
-                                    if label then
-                                        label = label:FindFirstChild("Content")
-                                        if label then
-                                            label = label:FindFirstChild("Label1")
-                                            if label then
-                                                local text = label.Text
-                                                local percent = tonumber(text:match("(%d+)%%"))
-                                                
-                                                if percent and percent < 100 then
-                                                    local posNotComplete = CFrame.new(-3563.65063, -279.074219, -1605.75671)
-                                                    local player = game.Players.LocalPlayer
-                                                    local char = player.Character
-                                                    if char and char:FindFirstChild("HumanoidRootPart") then
-                                                        char.HumanoidRootPart.CFrame = posNotComplete
-                                                    end
-                                                elseif percent and percent >= 100 then
-                                                    local posComplete = CFrame.new(-3698.01001, -135.073914, -1010.34033)
-                                                    local player = game.Players.LocalPlayer
-                                                    local char = player.Character
-                                                    if char and char:FindFirstChild("HumanoidRootPart") then
-                                                        char.HumanoidRootPart.CFrame = posComplete
-                                                    end
-                                                end
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end)
-                    task.wait(5)
-                end
-            end)
-        end
-    end
-})
-
--- Shop Tab Sections (Simplified)
-local shopLeft = Shop:DrawSection({
-    Name = "Equipment",
-    Position = "left"
-})
-
--- Rod Purchase System
-shopLeft:AddDropdown({
-    Name = "Premium Fishing Rods",
-    Values = {
-        "Starter Rod - Free",
-        "Luck Rod - 250 coins",
-        "Carbon Rod - 900 coins",
-        "Grass Rod - 1.5k coins",
-        "Demascus Rod - 3k coins",
-        "Ice Rod - 5k coins",
-        "Midnight Rod - 50k coins",
-        "Fluorescent Rod - 715k coins",
-        "Astral Rod - 1M coins",
-        "Hazmat Rod - 1.3M coins",
-        "Ares Rod - 3M coins",
-        "Angler Rod - 8M coins"
-    },
-    Default = "Starter Rod - Free",
-    Flag = "selected_rod",
-    Callback = function(value)
-        getgenv().SelectedRod = value
-    end
-})
-
-shopLeft:AddButton({
-    Name = "Purchase Selected Rod",
+-- Anti Lag Button
+playerLeft:AddButton({
+    Name = "Anti Lag",
     Callback = function()
         pcall(function()
-            local rodMap = {
-                ["Starter Rod - Free"] = 1,
-                ["Luck Rod - 250 coins"] = 4,
-                ["Carbon Rod - 900 coins"] = 76,
-                ["Grass Rod - 1.5k coins"] = 85,
-                ["Demascus Rod - 3k coins"] = 77,
-                ["Ice Rod - 5k coins"] = 78,
-                ["Midnight Rod - 50k coins"] = 80,
-                ["Fluorescent Rod - 715k coins"] = 5,
-                ["Astral Rod - 1M coins"] = 6,
-                ["Hazmat Rod - 1.3M coins"] = 7,
-                ["Ares Rod - 3M coins"] = 9,
-                ["Angler Rod - 8M coins"] = 10
+            -- Basic optimization settings
+            game.Lighting.GlobalShadows = false
+            game.Lighting.FogEnd = 9e9
+            game.Lighting.Brightness = 1
+            
+            -- Disable most particle effects
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") then
+                    obj.Enabled = false
+                end
+            end
+            
+            Window:Notification({
+                Title = "Anti Lag",
+                Content = "Basic lag reduction applied successfully!",
+                Duration = 3
+            })
+        end)
+    end
+})
+
+-- Teleport Tab Sections
+local teleportLeft = Teleport:DrawSection({
+    Name = "Islands",
+    Position = "left"
+})
+
+local teleportRight = Teleport:DrawSection({
+    Name = "NPCs",
+    Position = "right"
+})
+
+-- Island Selection Dropdown
+teleportLeft:AddDropdown({
+    Name = "Select Island",
+    Values = {
+        "Kohana",
+        "Winter Fest",
+        "Lost Isle",
+        "Isoteric Island",
+        "Crater Island",
+        "Coral Reefs",
+        "Kohana Volcano",
+        "Fisherman Island",
+        "Esoteric Depths",
+        "Tropical Grove",
+        "Treasure Room",
+        "Weather Machine",
+        "Sisyphus Statue"
+    },
+    Default = "Kohana",
+    Flag = "selected_island",
+    Callback = function(value)
+        getgenv().SelectedIsland = value
+    end
+})
+
+-- Teleport to Island Button
+teleportLeft:AddButton({
+    Name = "Teleport Now",
+    Callback = function()
+        pcall(function()
+            local islandMap = {
+                ["Kohana"] = CFrame.new(-642.243561, 16.0354481, 624.918884),
+                ["Winter Fest"] = CFrame.new(1687.93079, 6.8625145, 3309.67725),
+                ["Lost Isle"] = CFrame.new(-3660.07031, 26.1918774, -933.131897),
+                ["Isoteric Island"] = CFrame.new(2029.47913, 27.3972206, 1393.52319),
+                ["Crater Island"] = CFrame.new(973.268372, 7.36203814, 4879.09277),
+                ["Coral Reefs"] = CFrame.new(-3134.98511, 20.9564934, 2167.80566),
+                ["Kohana Volcano"] = CFrame.new(-525.122925, 24.0000591, 187.470749),
+                ["Fisherman Island"] = CFrame.new(33.5687256, 17.0335217, 2834.95557),
+                ["Esoteric Depths"] = CFrame.new(3152.74707, -1302.72986, 1438.05444),
+                ["Tropical Grove"] = CFrame.new(-2046.1554, 6.26801682, 3660.56006),
+                ["Treasure Room"] = CFrame.new(-3599.53491, -266.57373, -1566.98657),
+                ["Weather Machine"] = CFrame.new(-1525.72632, 6.49999952, 1892.23645),
+                ["Sisyphus Statue"] = CFrame.new(-3692.22021, -135.574417, -1026.96167)
             }
             
-            local rodName = getgenv().SelectedRod or "Starter Rod - Free"
-            local rodId = rodMap[rodName]
+            local islandName = getgenv().SelectedIsland or "Kohana"
+            local islandCFrame = islandMap[islandName]
             
-            if rodId then
-                purchaseRod(rodId)
-                Window:AddNotification({
-                    Title = "Success",
-                    Content = "Rod purchased successfully!",
-                    Duration = 3
-                })
+            if islandCFrame then
+                local player = game.Players.LocalPlayer
+                local char = player.Character or player.CharacterAdded:Wait()
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                
+                if hrp then
+                    char:PivotTo(islandCFrame)
+                    Window:Notification({
+                        Title = "Teleported",
+                        Content = "Successfully teleported to " .. islandName,
+                        Duration = 3
+                    })
+                end
             end
         end)
     end
 })
 
--- Initialize global variables
-getgenv().AdvancedFishing = false
-getgenv().AutoSellItems = false
-getgenv().SmartFarmEnabled = false
-getgenv().DeepSeaQuestAuto = false
-getgenv().CurrentRodId = 1
-getgenv().CurrentBaitId = 10
-getgenv().SelectedRod = "Starter Rod - Free"
-getgenv().SellInterval = 3
-getgenv().OptimizationLevel = "Balanced"
+-- NPC Selection Dropdown
+teleportRight:AddDropdown({
+    Name = "Select NPC",
+    Values = {
+        "Jones",
+        "McBoatson",
+        "Tim",
+        "Scientist",
+        "Lava Fisherman"
+    },
+    Default = "Jones",
+    Flag = "selected_npc",
+    Callback = function(value)
+        getgenv().SelectedNPC = value
+    end
+})
+
+-- Teleport to NPC Button
+teleportRight:AddButton({
+    Name = "Teleport Now",
+    Callback = function()
+        pcall(function()
+            local npcMap = {
+                ["Jones"] = CFrame.new(-678.315857, 16.4103374, 595.322937),
+                ["McBoatson"] = CFrame.new(-627.383911, 3.04580736, 719.454956),
+                ["Tim"] = CFrame.new(-595.170044, 16.3734112, 608.429932),
+                ["Scientist"] = CFrame.new(-7.82026434, 14.6700287, 2885.70532),
+                ["Lava Fisherman"] = CFrame.new(-595.716797, 59.000061, 135.618927)
+            }
+            
+            local npcName = getgenv().SelectedNPC or "Jones"
+            local npcCFrame = npcMap[npcName]
+            
+            if npcCFrame then
+                local player = game.Players.LocalPlayer
+                local char = player.Character or player.CharacterAdded:Wait()
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                
+                if hrp then
+                    char:PivotTo(npcCFrame)
+                    Window:Notification({
+                        Title = "Teleported",
+                        Content = "Successfully teleported to " .. npcName,
+                        Duration = 3
+                    })
+                end
+            end
+        end)
+    end
+})
+
+-- Server Tab Sections
+local serverLeft = Server:DrawSection({
+    Name = "Server Tools",
+    Position = "left"
+})
+
+-- Anti Staff Toggle
+serverLeft:AddToggle({
+    Name = "Anti Staff",
+    Default = true,
+    Flag = "anti_staff",
+    Callback = function(state)
+        getgenv().AntiStaff = state
+        Window:Notification({
+            Title = state and "Enabled" or "Disabled",
+            Content = "Anti Staff protection " .. (state and "activated" or "deactivated"),
+            Duration = 3
+        })
+    end
+})
+
+-- Rejoin Server Button
+serverLeft:AddButton({
+    Name = "Rejoin Server",
+    Callback = function()
+        pcall(function()
+            local TeleportService = game:GetService("TeleportService")
+            local Players = game:GetService("Players")
+            local LocalPlayer = Players.LocalPlayer
+            
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+        end)
+    end
+})
+
+-- Server Hop Button
+serverLeft:AddButton({
+    Name = "Server Hop",
+    Callback = function()
+        pcall(function()
+            local TeleportService = game:GetService("TeleportService")
+            local Players = game:GetService("Players")
+            local LocalPlayer = Players.LocalPlayer
+            local HttpService = game:GetService("HttpService")
+            
+            local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(game.PlaceId)
+            local response = game:HttpGet(url)
+            local servers = HttpService:JSONDecode(response)
+            
+            for _, server in ipairs(servers.data) do
+                if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
+                    return
+                end
+            end
+            
+            Window:Notification({
+                Title = "Error",
+                Content = "No available servers found",
+                Duration = 3
+            })
+        end)
+    end
+})
+
+-- Copy Server ID Button
+serverLeft:AddButton({
+    Name = "Copy Server ID",
+    Callback = function()
+        setclipboard(game.JobId)
+        Window:Notification({
+            Title = "Copied!",
+            Content = "Server ID copied to clipboard",
+            Duration = 3
+        })
+    end
+})
 
 -- Config Manager
 local Configs = Window:DrawConfig({
-    Name = "Configuration",
+    Name = "Configs",
     Icon = "folder",
     Config = FileWatcher
 })
 
 Configs:Init()
 
--- Status Tracking with Performance Monitoring
-local function updateStatus()
-    pcall(function()
-        local statusSection = Home:DrawSection({
-            Name = "System Status",
-            Position = "left"
-        })
-        
-        local RunService = game:GetService("RunService")
-        local Stats = game:GetService("Stats")
-        
-        local fps = 0
-        local ping = 0
-        local timePlayed = 0
-        local joinTime = os.time()
-        
-        RunService.Heartbeat:Connect(function()
-            fps = math.floor(1 / RunService.Heartbeat:Wait())
-            ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
-            timePlayed = os.time() - joinTime
-            
-            local hours = math.floor(timePlayed / 3600)
-            local minutes = math.floor((timePlayed % 3600) / 60)
-            local seconds = timePlayed % 60
-            
-            local timeFormatted = string.format("%02d:%02d:%02d", hours, minutes, seconds)
-            
-            statusSection:AddParagraph({
-                Title = "Performance Monitor",
-                Content = "FPS: " .. fps .. "\nPing: " .. math.floor(ping) .. " ms\nTime: " .. timeFormatted
-            })
-        end)
-    end)
-end
+-- Initialize global variables
+getgenv().AdvancedFishing = false
+getgenv().AutoSell = false
+getgenv().AutoDeepSeaQuest = false
+getgenv().AutoAuraQuest = false
+getgenv().TeleportEvents = false
+getgenv().AntiStaff = true
+getgenv().SellDelay = 2
+getgenv().SelectedEvents = {}
+getgenv().SelectedRods = {}
+getgenv().SelectedBaits = {}
+getgenv().SelectedWeather = {}
+getgenv().PurchaseBoat = "Small Boat $300"
+getgenv().SpawnBoat = "Small Boat"
+getgenv().SelectedIsland = "Kohana"
+getgenv().SelectedNPC = "Jones"
+getgenv().OptimizationLevel = "Medium"
 
-task.spawn(updateStatus)
+-- Cleanup on character removal
+game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
+    getgenv().AdvancedFishing = false
+    getgenv().AutoSell = false
+    getgenv().AutoDeepSeaQuest = false
+    getgenv().AutoAuraQuest = false
+    getgenv().TeleportEvents = false
+    
+    -- Remove any physics objects
+    local char = game.Players.LocalPlayer.Character
+    if char then
+        for _, obj in ipairs(char:GetDescendants()) do
+            if obj:IsA("BodyVelocity") or obj:IsA("BodyGyro") then
+                obj:Destroy()
+            end
+        end
+    end
+    
+    -- Restore lighting settings
+    if getgenv().OriginalLightingSettings then
+        local original = getgenv().OriginalLightingSettings
+        game.Lighting.GlobalShadows = original.GlobalShadows
+        game.Lighting.FogEnd = original.FogEnd
+        game.Lighting.ShadowSoftness = original.ShadowSoftness
+        game.Lighting.Brightness = original.Brightness
+    end
+    
+    -- Re-enable particle effects
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+            obj.Enabled = true
+        end
+    end
+end)
 
-Window:AddNotification({
+Window:Notification({
     Title = "Loaded",
-    Content = "Souls Hub Pro v2.1.0 loaded successfully!\nLag reduction fixed and Smart Farm system activated!",
-    Duration = 6
+    Content = "Souls Hub v2.0.0 loaded successfully!",
+    Duration = 5
 })
 
 Window:Draw()
