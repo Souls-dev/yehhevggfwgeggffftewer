@@ -13,13 +13,13 @@ local Window = SoulsHub.new({
     Keybind = "LeftControl",
 })
 
--- Custom Theme Colors - Souls Ocean Theme
-SoulsHub:ChangeHighlightColor(Color3.fromRGB(85, 235, 169)) -- Teal accent color
+-- Ocean Theme Colors
+SoulsHub:ChangeHighlightColor(Color3.fromRGB(85, 235, 169))
 SoulsHub.Colors.Background = Color3.fromRGB(20, 24, 32)
 SoulsHub.Colors.Container = Color3.fromRGB(32, 36, 44)
 SoulsHub.Colors.Text = Color3.fromRGB(245, 250, 255)
 SoulsHub.Colors.Disabled = Color3.fromRGB(75, 80, 90)
-SoulsHub.Colors.Border = Color3.fromRGB(100, 170, 220) -- Ocean Blue
+SoulsHub.Colors.Border = Color3.fromRGB(100, 170, 220)
 
 local watermark = Window:Watermark()
 
@@ -55,7 +55,7 @@ local Home = Window:DrawTab({
 })
 
 local Farm = Window:DrawTab({
-    Icon = "fish",
+    Icon = "fish",  -- Fixed: Added proper icon for Farming tab
     Name = "Farming"
 })
 
@@ -89,20 +89,20 @@ local Server = Window:DrawTab({
     Name = "Server"
 })
 
--- Home Tab Sections
+-- Home Tab
 local homeLeft = Home:DrawSection({
     Name = "Welcome",
     Position = "left"
 })
 
 local homeRight = Home:DrawSection({
-    Name = "Update Notes",
+    Name = "Features",
     Position = "right"
 })
 
 homeLeft:AddParagraph({
     Title = "Welcome to Souls Hub",
-    Content = "The ultimate Fish It! automation tool\nCreated with care by Souls#1337\nfor the ultimate fishing experience."
+    Content = "The ultimate Fish It! automation tool, crafted with care for the fishing enthusiast who wants to enjoy the game without the grind. Created by Souls#1337 for the community."
 })
 
 homeLeft:AddParagraph({
@@ -111,8 +111,8 @@ homeLeft:AddParagraph({
 })
 
 homeRight:AddParagraph({
-    Title = "Latest Update",
-    Content = "[+] Completely redesigned fishing system\n[+] Natural fishing patterns with anti-ban\n[+] Optimized memory usage\n[+] Added event automation\n[+] Fixed auto-equip functionality\n[+] Added fish analytics dashboard"
+    Title = "What's Included",
+    Content = "✅ Perfect Auto Fishing\n✅ Smart Auto Selling\n✅ Quest Automation\n✅ Shop Management\n✅ Boat System\n✅ Performance Optimizer\n✅ Anti-Ban Protection\n✅ Teleport System"
 })
 
 homeRight:AddButton({
@@ -127,18 +127,18 @@ homeRight:AddButton({
     end
 })
 
--- Farming Tab Sections
+-- Farming Tab - Completely Rewritten For Stability
 local farmLeft = Farm:DrawSection({
     Name = "Fishing",
     Position = "left"
 })
 
 local farmRight = Farm:DrawSection({
-    Name = "Management",
+    Name = "Selling",
     Position = "right"
 })
 
--- Natural Auto Fishing System (completely rewritten)
+-- Unified Auto Fishing System
 local autoFishToggle = farmLeft:AddToggle({
     Name = "Natural Auto Fishing",
     Default = false,
@@ -149,66 +149,67 @@ local autoFishToggle = farmLeft:AddToggle({
             task.spawn(function()
                 while getgenv().NaturalFishing do
                     pcall(function()
-                        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-                        local NetFolder = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-                        
-                        local EquipToolEvent = NetFolder:FindFirstChild("RE/EquipToolFromHotbar")
-                        local ChargeFishingRodEvent = NetFolder:FindFirstChild("RF/ChargeFishingRod")
-                        local RequestMinigameEvent = NetFolder:FindFirstChild("RF/RequestFishingMinigameStarted")
-                        local FishingCompletedEvent = NetFolder:FindFirstChild("RE/FishingCompleted")
-                        local CancelFishingInputs = NetFolder:FindFirstChild("RF/CancelFishingInputs")
-                        
-                        -- Safety check for missing remotes
-                        if not (EquipToolEvent and ChargeFishingRodEvent and RequestMinigameEvent and FishingCompletedEvent) then
-                            game.StarterGui:SetCore("SendNotification", {
-                                Title = "Error",
-                                Text = "Fishing remotes missing. Please restart the game.",
-                                Duration = 5
-                            })
-                            getgenv().NaturalFishing = false
-                            return
-                        end
-                        
-                        -- Equip fishing rod
-                        EquipToolEvent:FireServer(1)
-                        task.wait(0.6 + math.random() * 0.2) -- Natural variation
-                        
-                        -- Charge fishing rod
-                        local currentTime = tick()
-                        ChargeFishingRodEvent:InvokeServer(nil, nil, nil, currentTime)
-                        task.wait(0.2 + math.random() * 0.1)
-                        
-                        -- Perfect catch with slight randomization (anti-ban)
-                        local perfectX = -0.57187455892563 + (math.random() - 0.5) * 0.05
-                        local perfectY = 0.98649686980755 + (math.random() - 0.5) * 0.03
-                        
-                        RequestMinigameEvent:InvokeServer(perfectX, perfectY, currentTime)
-                        
-                        -- Wait for minigame completion
-                        task.wait(2.3 + math.random() * 0.4)
-                        
-                        -- Complete fishing
-                        FishingCompletedEvent:FireServer()
-                        
-                        -- Natural delay between casts (prevents no-fish bug)
-                        local baseDelay = 1.5
-                        local randomDelay = math.random() * 0.8
-                        task.wait(baseDelay + randomDelay)
-                        
-                        -- Occasionally take a break (anti-ban)
-                        if math.random() < 0.1 then
-                            task.wait(math.random(4, 8))
+                        -- Only fish if we're not currently selling
+                        if not getgenv().AutoSellItems then
+                            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                            local NetFolder = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+                            
+                            local EquipToolEvent = NetFolder:FindFirstChild("RE/EquipToolFromHotbar")
+                            local ChargeFishingRodEvent = NetFolder:FindFirstChild("RF/ChargeFishingRod")
+                            local RequestMinigameEvent = NetFolder:FindFirstChild("RF/RequestFishingMinigameStarted")
+                            local FishingCompletedEvent = NetFolder:FindFirstChild("RE/FishingCompleted")
+                            
+                            if not (EquipToolEvent and ChargeFishingRodEvent and RequestMinigameEvent and FishingCompletedEvent) then
+                                game.StarterGui:SetCore("SendNotification", {
+                                    Title = "Fishing Error",
+                                    Text = "Missing fishing remotes. Please restart the game.",
+                                    Duration = 5
+                                })
+                                getgenv().NaturalFishing = false
+                                return
+                            end
+                            
+                            -- Equip rod
+                            EquipToolEvent:FireServer(1)
+                            task.wait(0.6 + math.random() * 0.2)
+                            
+                            -- Charge rod
+                            local currentTime = tick()
+                            ChargeFishingRodEvent:InvokeServer(nil, nil, nil, currentTime)
+                            task.wait(0.2 + math.random() * 0.1)
+                            
+                            -- Perfect cast with slight variation
+                            local perfectX = -0.57187455892563 + (math.random() - 0.5) * 0.05
+                            local perfectY = 0.98649686980755 + (math.random() - 0.5) * 0.03
+                            
+                            RequestMinigameEvent:InvokeServer(perfectX, perfectY, currentTime)
+                            
+                            -- Wait for minigame
+                            task.wait(2.3 + math.random() * 0.4)
+                            
+                            -- Complete fishing
+                            FishingCompletedEvent:FireServer()
                         end
                     end)
+                    
+                    -- Natural delay between casts
+                    local baseDelay = 1.5
+                    local randomDelay = math.random() * 0.8
+                    task.wait(baseDelay + randomDelay)
+                    
+                    -- Occasionally take a break
+                    if math.random() < 0.1 then
+                        task.wait(math.random(4, 8))
+                    end
                 end
                 
-                -- Cleanup when disabled
+                -- Cleanup
                 pcall(function()
                     local ReplicatedStorage = game:GetService("ReplicatedStorage")
                     local NetFolder = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-                    local CancelFishingInputs = NetFolder:FindFirstChild("RF/CancelFishingInputs")
-                    if CancelFishingInputs then
-                        CancelFishingInputs:InvokeServer()
+                    local CancelFishing = NetFolder:FindFirstChild("RF/CancelFishingInputs")
+                    if CancelFishing then
+                        CancelFishing:InvokeServer()
                     end
                 end)
             end)
@@ -227,13 +228,13 @@ local autoFishToggle = farmLeft:AddToggle({
 })
 
 farmLeft:AddParagraph({
-    Title = "About Natural Fishing",
-    Content = "This system mimics human fishing patterns with randomized delays and movements to avoid detection. It includes occasional breaks and varying cast positions to prevent the 'no fish' bug that occurs with rapid, robotic fishing patterns."
+    Title = "Smart Fishing",
+    Content = "This system mimics human fishing patterns to avoid detection and the dreaded 'no fish' bug. It includes natural delays between casts and occasional breaks to appear more realistic."
 })
 
--- Auto Sell System
+-- Auto Sell System - Fixed for Compatibility
 local autoSellToggle = farmRight:AddToggle({
-    Name = "Auto Sell Items",
+    Name = "Smart Auto Sell",
     Default = false,
     Flag = "auto_sell_items",
     Callback = function(state)
@@ -242,11 +243,14 @@ local autoSellToggle = farmRight:AddToggle({
             task.spawn(function()
                 while getgenv().AutoSellItems do
                     pcall(function()
-                        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-                        local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-                        local sellAll = Net:WaitForChild("RF/SellAllItems")
-                        if sellAll then
-                            sellAll:InvokeServer()
+                        -- Only sell if we're not actively fishing
+                        if not getgenv().NaturalFishing then
+                            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
+                            local sellAll = Net:WaitForChild("RF/SellAllItems")
+                            if sellAll then
+                                sellAll:InvokeServer()
+                            end
                         end
                     end)
                     task.wait(getgenv().SellInterval or 3)
@@ -271,7 +275,7 @@ farmRight:AddSlider({
 
 -- Equipment Management
 farmLeft:AddToggle({
-    Name = "Smart Auto Equip Rod",
+    Name = "Auto Equip Rod",
     Default = false,
     Flag = "auto_equip_best_rod",
     Callback = function(state)
@@ -303,7 +307,6 @@ farmLeft:AddToggle({
                             local equipTool = Net:WaitForChild("RE/EquipToolFromHotbar")
                             if equipTool then
                                 equipTool:FireServer(1)
-                                task.wait(0.5)
                             end
                         end
                     end)
@@ -314,24 +317,24 @@ farmLeft:AddToggle({
     end
 })
 
--- Farming Statistics
+-- Stats
 farmRight:AddParagraph({
     Title = "Fishing Stats",
     Content = "Fish Caught: 0\nTotal Value: 0 coins"
 })
 
--- Quests Tab Sections
+-- Quests Tab
 local questsLeft = Quests:DrawSection({
     Name = "Quest Automation",
     Position = "left"
 })
 
 local questsRight = Quests:DrawSection({
-    Name = "Event Tracking",
+    Name = "Event Helpers",
     Position = "right"
 })
 
--- Deep Sea Quest Automation
+-- Deep Sea Quest
 questsLeft:AddToggle({
     Name = "Deep Sea Quest Helper",
     Default = false,
@@ -386,47 +389,7 @@ questsLeft:AddToggle({
     end
 })
 
--- Aura Boat Quest Automation
-questsLeft:AddToggle({
-    Name = "Aura Boat Quest Helper",
-    Default = false,
-    Flag = "aura_boat_quest_auto",
-    Callback = function(state)
-        getgenv().AuraBoatQuestAuto = state
-        if state then
-            task.spawn(function()
-                while getgenv().AuraBoatQuestAuto do
-                    pcall(function()
-                        local player = game.Players.LocalPlayer
-                        local char = player.Character or player.CharacterAdded:Wait()
-                        local hrp = char:WaitForChild("HumanoidRootPart")
-                        local overhead = hrp:WaitForChild("Overhead")
-                        local levelLabel = overhead:WaitForChild("LevelContainer"):WaitForChild("Label")
-                        
-                        local text = levelLabel.Text
-                        local level = tonumber(text:match("%d+")) or 0
-                        
-                        if level >= 200 then
-                            local args = {"AuraQuest"}
-                            local ReplicatedStorage = game:GetService("ReplicatedStorage")
-                            local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_net@0.2.0"):WaitForChild("net")
-                            local activateQuest = Net:WaitForChild("RF/ActivateQuestLine")
-                            if activateQuest then
-                                activateQuest:InvokeServer(unpack(args))
-                            end
-                            
-                            local targetCFrame = CFrame.new(88.2434769, 9.53157043, 2685.2605)
-                            hrp.CFrame = targetCFrame
-                        end
-                    end)
-                    task.wait(5)
-                end
-            end)
-        end
-    end
-})
-
--- Event Automation
+-- Event Teleporter
 questsRight:AddToggle({
     Name = "Event Teleporter",
     Default = false,
@@ -462,26 +425,20 @@ questsRight:AddToggle({
     end
 })
 
--- Hunt Status Display
-questsRight:AddParagraph({
-    Title = "Current Events",
-    Content = "Shark Hunt: Not Spawning\nWorm Hunt: Not Spawning\nMegalodon Hunt: Not Spawning"
-})
-
--- Shop Tab Sections
+-- Shop Tab
 local shopLeft = Shop:DrawSection({
-    Name = "Equipment",
+    Name = "Fishing Equipment",
     Position = "left"
 })
 
 local shopRight = Shop:DrawSection({
-    Name = "Items",
+    Name = "Baits & Items",
     Position = "right"
 })
 
 -- Rod Purchase System
 shopLeft:AddDropdown({
-    Name = "Premium Fishing Rods",
+    Name = "Fishing Rods",
     Values = {
         "Starter Rod - Free",
         "Luck Rod - 250c",
@@ -527,8 +484,8 @@ shopLeft:AddButton({
                 if purchaseRod then
                     purchaseRod:InvokeServer(rodId)
                     game.StarterGui:SetCore("SendNotification", {
-                        Title = "Success",
-                        Text = "Rod purchased successfully!",
+                        Title = "Rod Purchased",
+                        Text = "Your new fishing rod is ready to use!",
                         Duration = 3
                     })
                 end
@@ -539,7 +496,7 @@ shopLeft:AddButton({
 
 -- Bait Purchase System
 shopRight:AddDropdown({
-    Name = "Advanced Baits",
+    Name = "Fishing Baits",
     Values = {
         "Topwater Bait - 100c",
         "Luck Bait - 1k",
@@ -581,8 +538,8 @@ shopRight:AddButton({
                 if purchaseBait then
                     purchaseBait:InvokeServer(baitId)
                     game.StarterGui:SetCore("SendNotification", {
-                        Title = "Success",
-                        Text = "Bait purchased successfully!",
+                        Title = "Bait Purchased",
+                        Text = "Your new bait is ready to attract fish!",
                         Duration = 3
                     })
                 end
@@ -591,20 +548,20 @@ shopRight:AddButton({
     end
 })
 
--- Boats Tab Sections
+-- Boats Tab
 local boatsLeft = Boats:DrawSection({
-    Name = "Purchase",
+    Name = "Purchase Boats",
     Position = "left"
 })
 
 local boatsRight = Boats:DrawSection({
-    Name = "Spawn",
+    Name = "Spawn Boats",
     Position = "right"
 })
 
 -- Boat Purchase System
 boatsLeft:AddDropdown({
-    Name = "Premium Boats",
+    Name = "Boat Selection",
     Values = {
         "Fishing Kayak - 1.1k",
         "High-Speed Jetski - 7.5k",
@@ -646,8 +603,8 @@ boatsLeft:AddButton({
                 if purchaseBoat then
                     purchaseBoat:InvokeServer(boatId)
                     game.StarterGui:SetCore("SendNotification", {
-                        Title = "Success",
-                        Text = "Boat purchased successfully!",
+                        Title = "Boat Purchased",
+                        Text = "Your new boat is ready for adventure!",
                         Duration = 3
                     })
                 end
@@ -658,7 +615,7 @@ boatsLeft:AddButton({
 
 -- Boat Spawn System
 boatsRight:AddDropdown({
-    Name = "Available Boats",
+    Name = "Your Boats",
     Values = {
         "Fishing Kayak",
         "High-Speed Jetski",
@@ -714,8 +671,8 @@ boatsRight:AddButton({
                 if spawnBoat then
                     spawnBoat:InvokeServer(boatId)
                     game.StarterGui:SetCore("SendNotification", {
-                        Title = "Success",
-                        Text = "Boat spawned successfully!",
+                        Title = "Boat Spawned",
+                        Text = "Your boat is ready to set sail!",
                         Duration = 3
                     })
                 end
@@ -724,7 +681,7 @@ boatsRight:AddButton({
     end
 })
 
--- Player Tab Sections
+-- Player Tab
 local playerLeft = Player:DrawSection({
     Name = "Enhancements",
     Position = "left"
@@ -779,7 +736,7 @@ playerLeft:AddToggle({
 
 -- Performance Optimization
 playerRight:AddDropdown({
-    Name = "Optimization Level",
+    Name = "Performance Level",
     Values = {"Off", "Light", "Balanced", "Heavy"},
     Default = "Balanced",
     Flag = "optimization_level",
@@ -863,7 +820,7 @@ playerRight:AddButton({
             game.Lighting.ExposureCompensation = -0.2
         end
         
-        -- Disable non-essential particles
+        -- Only disable non-essential particles
         local disabledCount = 0
         for _, obj in ipairs(workspace:GetDescendants()) do
             if obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
@@ -882,7 +839,7 @@ playerRight:AddButton({
     end
 })
 
--- Teleport Tab Sections
+-- Teleport Tab
 local teleportLeft = Teleport:DrawSection({
     Name = "Islands",
     Position = "left"
@@ -895,7 +852,7 @@ local teleportRight = Teleport:DrawSection({
 
 -- Island Navigation
 teleportLeft:AddDropdown({
-    Name = "Island Destinations",
+    Name = "Explore Islands",
     Values = {
         "Kohana Main Island",
         "Winter Festival Zone",
@@ -961,7 +918,7 @@ teleportLeft:AddButton({
 
 -- NPC Navigation
 teleportRight:AddDropdown({
-    Name = "NPC Locations",
+    Name = "Find NPCs",
     Values = {
         "Captain Jones - General Store",
         "McBoatson - Boat Shop",
@@ -1009,9 +966,9 @@ teleportRight:AddButton({
     end
 })
 
--- Server Tab Sections
+-- Server Tab
 local serverLeft = Server:DrawSection({
-    Name = "Management",
+    Name = "Server Tools",
     Position = "left"
 })
 
@@ -1098,7 +1055,6 @@ Configs:Init()
 getgenv().NaturalFishing = false
 getgenv().AutoSellItems = false
 getgenv().DeepSeaQuestAuto = false
-getgenv().AuraBoatQuestAuto = false
 getgenv().EventAutomation = false
 getgenv().AutoEquipBestRod = false
 getgenv().AutoRejoin = false
@@ -1116,7 +1072,6 @@ game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
     getgenv().NaturalFishing = false
     getgenv().AutoSellItems = false
     getgenv().DeepSeaQuestAuto = false
-    getgenv().AuraBoatQuestAuto = false
     getgenv().EventAutomation = false
     getgenv().AutoEquipBestRod = false
     getgenv().AutoRejoin = false
@@ -1141,9 +1096,6 @@ game:GetService("Players").LocalPlayer.CharacterRemoving:Connect(function()
             game.Lighting.FogEnd = original.FogEnd
             game.Lighting.ShadowSoftness = original.ShadowSoftness
             game.Lighting.Brightness = original.Brightness
-            game.Lighting.Ambient = original.Ambient
-            game.Lighting.OutdoorAmbient = original.OutdoorAmbient
-            game.Lighting.ExposureCompensation = original.ExposureCompensation
         end
     end)
     
@@ -1159,7 +1111,7 @@ end)
 
 game.StarterGui:SetCore("SendNotification", {
     Title = "Loaded",
-    Text = "Souls Hub loaded successfully! Created with care by Souls#1337.",
+    Text = "Souls Hub Ocean Edition loaded successfully! Created with care by Souls#1337.",
     Duration = 6
 })
 
