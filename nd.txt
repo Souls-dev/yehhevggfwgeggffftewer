@@ -1,0 +1,1195 @@
+local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))();
+
+task.wait(1)
+
+SoulsHub:Loader(nil, 1).yield()
+
+local FileWatcher = SoulsHub:ConfigManager({
+    Directory = "SoulsHub",
+    Config = "NaturalDisasterSurvival"    
+});
+
+local Window = SoulsHub.new({
+    Keybind = "LeftControl",
+});
+
+local watermark = Window:Watermark();
+
+watermark:AddText({
+    Icon = "shield",
+    Text = "SOULS HUB"
+})
+
+local timeDisplay = watermark:AddText({
+    Icon = "clock",
+    Text = SoulsHub:GetTimeNow()
+})
+
+task.spawn(function()
+    while true do task.wait()
+        timeDisplay:SetText(SoulsHub:GetTimeNow())
+    end;
+end)
+
+Window:Update({
+    ExpireDate = SoulsHub:GetDate(tick() + 2592000) -- 1 month expiration
+})
+
+watermark:AddText({
+    Icon = "user",
+    Text = game.Players.LocalPlayer.Name
+})
+
+-- Global Feature States
+_G.FeatureStates = _G.FeatureStates or {}
+_G.FeatureStates.MasterVisuals = true
+_G.FeatureStates.AuraEnabled = false
+_G.FeatureStates.AuraColor = Color3.fromRGB(0, 255, 255)
+_G.FeatureStates.AuraSize = 3
+_G.RAINBOW = false
+_G.RAINBOW_SPEED = 0.1
+_G.getgenv = _G.getgenv or function() return _G end
+
+-- Main Tabs
+local Main = Window:DrawTab({
+    Icon = "house",
+    Name = "Main"
+});
+
+local Movement = Window:DrawTab({
+    Icon = "run",
+    Name = "Movement"
+});
+
+local Visual = Window:DrawTab({
+    Icon = "eye",
+    Name = "Visual"
+});
+
+local Player = Window:DrawTab({
+    Icon = "users",
+    Name = "Player"
+});
+
+local Disaster = Window:DrawTab({
+    Icon = "alert-triangle",
+    Name = "Disaster"
+});
+
+local Utility = Window:DrawTab({
+    Icon = "tool",
+    Name = "Utility"
+});
+
+local Configs = Window:DrawConfig({
+    Name = "Configs",
+    Icon = "folder",
+    Config = FileWatcher
+});
+
+Configs:Init();
+
+-- DISASTER TAB - AUTO WIN & MORE
+local disasterSection = Disaster:DrawSection({
+    Name = "Auto Win System",
+    Position = "LEFT"
+});
+
+disasterSection:AddToggle({
+    Name = "AUTO WIN",
+    Flag = "auto_win",
+    Default = false,
+    Risky = true,
+    Callback = function(enabled)
+        _G.FeatureStates.AutoWin = enabled
+        
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.AutoWin do
+                    task.wait(0.1)
+                    pcall(function()
+                        -- Comprehensive auto win system with multiple fallbacks
+                        local replicatedStorage = game:GetService("ReplicatedStorage")
+                        local workspace = game:GetService("Workspace")
+                        
+                        -- Method 1: Remote event triggering
+                        local winEvents = {
+                            "WinEvent",
+                            "VictoryEvent",
+                            "GameWon",
+                            "RoundComplete",
+                            "DisasterSurvived"
+                        }
+                        
+                        for _, eventName in ipairs(winEvents) do
+                            local event = replicatedStorage:FindFirstChild(eventName)
+                            if event and event:IsA("RemoteEvent") then
+                                pcall(function() event:FireServer() end)
+                            end
+                        end
+                        
+                        -- Method 2: Character position manipulation
+                        local player = game.Players.LocalPlayer
+                        local character = player.Character
+                        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                        
+                        if rootPart then
+                            -- Check for safe zones/win areas
+                            for _, part in ipairs(workspace:GetDescendants()) do
+                                if part:IsA("BasePart") and (part.Name:lower():find("safe") or part.Name:lower():find("win") or part.Name:lower():find("victory")) then
+                                    rootPart.CFrame = part.CFrame + Vector3.new(0, 5, 0)
+                                    break
+                                end
+                            end
+                        end
+                        
+                        -- Method 3: Game state manipulation
+                        local scripts = workspace:GetDescendants()
+                        for _, script in ipairs(scripts) do
+                            if script:IsA("Script") or script:IsA("LocalScript") then
+                                if script.Name:lower():find("win") or script.Name:lower():find("victory") then
+                                    pcall(function() 
+                                        if script.Disabled then script.Disabled = false end
+                                        -- Trigger win conditions
+                                    end)
+                                end
+                            end
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+});
+
+disasterSection:AddToggle({
+    Name = "Vote Map Manipulation",
+    Flag = "vote_map",
+    Default = false,
+    Risky = true,
+    Callback = function(enabled)
+        _G.FeatureStates.VoteMap = enabled
+        
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.VoteMap do
+                    task.wait(0.5)
+                    pcall(function()
+                        local replicatedStorage = game:GetService("ReplicatedStorage")
+                        
+                        -- Find vote events
+                        local voteEvents = {
+                            "VoteEvent",
+                            "MapVote",
+                            "SelectMap",
+                            "ChangeMap"
+                        }
+                        
+                        for _, eventName in ipairs(voteEvents) do
+                            local event = replicatedStorage:FindFirstChild(eventName)
+                            if event and event:IsA("RemoteEvent") then
+                                -- Vote for easiest maps or custom maps
+                                local easyMaps = {"Safe Zone", "Training", "Practice", "Easy Mode", "No Disaster"}
+                                for _, mapName in ipairs(easyMaps) do
+                                    pcall(function() event:FireServer(mapName) end)
+                                end
+                            end
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+});
+
+disasterSection:AddToggle({
+    Name = "Create Disaster (Kill All)",
+    Flag = "create_disaster",
+    Default = false,
+    Risky = true,
+    Callback = function(enabled)
+        _G.FeatureStates.CreateDisaster = enabled
+        
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.CreateDisaster do
+                    task.wait(5) -- Don't spam too much
+                    pcall(function()
+                        local replicatedStorage = game:GetService("ReplicatedStorage")
+                        
+                        -- Trigger disaster events
+                        local disasterEvents = {
+                            "DisasterEvent",
+                            "StartDisaster",
+                            "TriggerDisaster",
+                            "NaturalDisaster",
+                            "MeteorEvent",
+                            "TsunamiEvent",
+                            "EarthquakeEvent"
+                        }
+                        
+                        for _, eventName in ipairs(disasterEvents) do
+                            local event = replicatedStorage:FindFirstChild(eventName)
+                            if event and event:IsA("RemoteEvent") then
+                                pcall(function() event:FireServer() end)
+                            end
+                        end
+                        
+                        -- Manual disaster creation
+                        local workspace = game:GetService("Workspace")
+                        local debrisFolder = workspace:FindFirstChild("Debris") or workspace:FindFirstChild("Disasters")
+                        
+                        if debrisFolder then
+                            for _, debris in ipairs(debrisFolder:GetChildren()) do
+                                if debris:IsA("BasePart") then
+                                    debris.CanCollide = true
+                                    debris.Anchored = false
+                                    debris.Velocity = Vector3.new(math.random(-100, 100), math.random(50, 200), math.random(-100, 100))
+                                end
+                            end
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+});
+
+disasterSection:AddToggle({
+    Name = "Rainbow Ocean",
+    Flag = "rainbow_ocean",
+    Default = false,
+    Callback = function(enabled)
+        _G.FeatureStates.RainbowOcean = enabled
+        
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.RainbowOcean do
+                    task.wait(0.1)
+                    pcall(function()
+                        local workspace = game:GetService("Workspace")
+                        local water = workspace:FindFirstChild("Water") or workspace:FindFirstChild("Ocean")
+                        
+                        if water then
+                            local hue = (tick() % 10) / 10
+                            water.Color = Color3.fromHSV(hue, 1, 1)
+                        end
+                    end)
+                end
+            end)
+        else
+            pcall(function()
+                local workspace = game:GetService("Workspace")
+                local water = workspace:FindFirstChild("Water") or workspace:FindFirstChild("Ocean")
+                
+                if water then
+                    water.Color = Color3.fromRGB(0, 100, 255) -- Default blue
+                end
+            end)
+        end
+    end
+});
+
+-- GOD MODE SECTION
+local godmodeSection = Disaster:DrawSection({
+    Name = "God Mode & Protection",
+    Position = "RIGHT"
+});
+
+godmodeSection:AddToggle({
+    Name = "GOD MODE (Invincibility)",
+    Flag = "god_mode",
+    Default = false,
+    Risky = true,
+    Callback = function(enabled)
+        _G.FeatureStates.GodMode = enabled
+        local player = game.Players.LocalPlayer
+        
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.GodMode do
+                    task.wait(0.1)
+                    pcall(function()
+                        local character = player.Character
+                        if character then
+                            -- Multiple layers of protection
+                            local humanoid = character:FindFirstChildOfClass("Humanoid")
+                            if humanoid then
+                                humanoid.MaxHealth = math.huge
+                                humanoid.Health = math.huge
+                                
+                                -- Prevent death state
+                                humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+                                humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+                                humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+                                
+                                -- Anti-void protection
+                                local rootPart = character:FindFirstChild("HumanoidRootPart")
+                                if rootPart and rootPart.Position.Y < -100 then
+                                    rootPart.CFrame = CFrame.new(-279.68, 179.7, 341.15) -- Safe position
+                                end
+                                
+                                -- Anti-damage events
+                                humanoid.HealthChanged:Connect(function()
+                                    if humanoid.Health < humanoid.MaxHealth then
+                                        humanoid.Health = humanoid.MaxHealth
+                                    end
+                                end)
+                            end
+                            
+                            -- No-clip for god mode
+                            for _, part in ipairs(character:GetDescendants()) do
+                                if part:IsA("BasePart") then
+                                    part.CanCollide = false
+                                    part.Transparency = 0.5
+                                end
+                            end
+                        end
+                    end)
+                end
+            end)
+        else
+            pcall(function()
+                local character = player.Character
+                if character then
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        humanoid.MaxHealth = 100
+                        humanoid.Health = 100
+                        humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
+                        humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
+                        humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+                    end
+                    
+                    for _, part in ipairs(character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = true
+                            part.Transparency = 0
+                        end
+                    end
+                end
+            end)
+        end
+    end
+});
+
+godmodeSection:AddToggle({
+    Name = "Auto Farm Wins",
+    Flag = "auto_farm_wins",
+    Default = false,
+    Risky = true,
+    Callback = function(enabled)
+        _G.FeatureStates.AutoFarmWins = enabled
+        
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.AutoFarmWins do
+                    task.wait(1)
+                    pcall(function()
+                        -- Combine auto win with rejoin logic
+                        if _G.FeatureStates.AutoWin then
+                            -- Wait for round to complete
+                            task.wait(5)
+                            
+                            -- Teleport to lobby to restart
+                            local teleportService = game:GetService("TeleportService")
+                            teleportService:Teleport(game.PlaceId, player)
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+});
+
+-- COMPREHENSIVE ANTI-FALL DAMAGE SYSTEM
+local antiFallSection = Main:DrawSection({
+    Name = "Anti Fall Damage",
+    Position = "LEFT"
+});
+
+antiFallSection:AddToggle({
+    Name = "Character Anti Fall Damage",
+    Flag = "character_anti_fall",
+    Default = false,
+    Callback = function(enabled)
+        _G.FeatureStates.CharacterAntiFall = enabled
+        local player = game.Players.LocalPlayer
+        
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.CharacterAntiFall do
+                    task.wait(0.1)
+                    pcall(function()
+                        local character = player.Character
+                        if character then
+                            local humanoid = character:FindFirstChildOfClass("Humanoid")
+                            if humanoid then
+                                humanoid.MaxHealth = math.huge
+                                humanoid.Health = math.huge
+                                
+                                humanoid.HealthChanged:Connect(function()
+                                    if humanoid.Health < 100 then
+                                        humanoid.Health = humanoid.MaxHealth
+                                    end
+                                end)
+                                
+                                humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+                                humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+                                humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+                            end
+                            
+                            local rootPart = character:FindFirstChild("HumanoidRootPart")
+                            if rootPart then
+                                local bodyVelocity = Instance.new("BodyVelocity")
+                                bodyVelocity.Velocity = Vector3.new(0, -50, 0)
+                                bodyVelocity.MaxForce = Vector3.new(0, 5000, 0)
+                                bodyVelocity.Parent = rootPart
+                            end
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+});
+
+antiFallSection:AddToggle({
+    Name = "Gravity Anti Fall Damage",
+    Flag = "gravity_anti_fall",
+    Default = false,
+    Callback = function(enabled)
+        _G.FeatureStates.GravityAntiFall = enabled
+        local player = game.Players.LocalPlayer
+        
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.GravityAntiFall do
+                    task.wait(0.1)
+                    pcall(function()
+                        local character = player.Character
+                        if character then
+                            local rootPart = character:FindFirstChild("HumanoidRootPart")
+                            if rootPart then
+                                if rootPart.Velocity.Y < -50 then -- Falling fast
+                                    rootPart.Velocity = Vector3.new(rootPart.Velocity.X, -10, rootPart.Velocity.Z)
+                                end
+                            end
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+});
+
+-- VOID PROTECTION WITH MULTIPLE BARRIERS
+local voidSection = Main:DrawSection({
+    Name = "Void Protection",
+    Position = "RIGHT"
+});
+
+voidSection:AddToggle({
+    Name = "Anti Void (Complete Protection)",
+    Flag = "anti_void",
+    Default = false,
+    Callback = function(enabled)
+        _G.FeatureStates.AntiVoid = enabled
+        
+        if enabled then
+            local workspace = game:GetService("Workspace")
+            local voidParts = {}
+            
+            -- Multiple barrier positions for comprehensive void protection
+            local barriers = {
+                {CFrame.new(23.2798462, -19.8447475, 1.83554196, -1, 0, 0, 0, -1, 0, 0, 0, 1), Vector3.new(1139.2593994140625, 1.5, 2048)},
+                {CFrame.new(-458.458344, -9.25, 1.83554196, -1, 0, 0, 0, -1, 0, 0, 0, 1), Vector3.new(1139.2593994140625, 1.5, 2048)},
+                {CFrame.new(-690.65979, 47.25, 1.83554196, -1, 0, 0, 0, -1, 0, 0, 0, 1), Vector3.new(674.8563232421875, 0.6048492789268494, 2048)},
+                {CFrame.new(402.964996, 29.25, 222.310089, -1, 0, 0, 0, -1, 0, 0, 0, 1), Vector3.new(379.88922119140625, 1.5, 160.8837127685547)},
+                {CFrame.new(178.719162, -18.9417267, 1.83554196, -0.989596844, -0.143868446, 0, 0.143868446, -0.989596844, 0, 0, 0, 1), Vector3.new(143.94830322265625, 1.5, 2048)},
+                {CFrame.new(-309.152832, 15.4761791, 1.83554196, -0.816968799, -0.576681912, 0, 0.576681912, -0.816968799, 0, 0, 0, 1), Vector3.new(110.13511657714844, 2.740000009536743, 2048)},
+                {CFrame.new(174.971924, 5.34897423, 222.310089, -0.838688731, 0.544611216, 0, -0.544611216, -0.838688731, 0, 0, 0, 1), Vector3.new(89.76103210449219, 1.5, 160.8837127685547)},
+                {CFrame.new(402.965027, 5.49165154, 74.8157959, 0.0000298023224, -0.0000114142895, -1, -0.668144584, -0.744031429, -0.0000114142895, -0.744031489, 0.668144584, -0.0000298023224), Vector3.new(74.23055267333984, 1, 379.88922119140625)},
+                {CFrame.new(402.964996, 29.9136467, 121.981705, -1, 0, 0, 0, -1, 0, 0, 0, 1), Vector3.new(379.88922119140625, 1.5, 39.77305603027344)}
+            }
+            
+            for _, barrier in ipairs(barriers) do
+                local part = Instance.new("Part")
+                part.CanCollide = true
+                part.Anchored = true
+                part.CFrame = barrier[1]
+                part.Size = barrier[2]
+                part.Name = "SoulsHubAntiVoid"
+                part.Transparency = 1
+                part.Parent = workspace
+                table.insert(voidParts, part)
+            end
+            
+            _G.SoulsHubVoidParts = voidParts
+        else
+            if _G.SoulsHubVoidParts then
+                for _, part in ipairs(_G.SoulsHubVoidParts) do
+                    if part and part.Parent then
+                        part:Destroy()
+                    end
+                end
+                _G.SoulsHubVoidParts = nil
+            end
+        end
+    end
+});
+
+-- TELEPORT SECTION
+local teleportSection = Main:DrawSection({
+    Name = "Teleport System",
+    Position = "LEFT"
+});
+
+teleportSection:AddDropdown({
+    Name = "Teleport Locations",
+    Values = {"Waiting Place", "Map", "Spawn", "Safe Zone", "Lobby"},
+    Default = "Waiting Place",
+    Callback = function(location)
+        pcall(function()
+            local player = game.Players.LocalPlayer
+            local character = player.Character
+            local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+            
+            if rootPart then
+                if location == "Waiting Place" then
+                    rootPart.CFrame = CFrame.new(-279.68, 179.7, 341.15)
+                elseif location == "Map" then
+                    rootPart.CFrame = CFrame.new(-98.63, 47.4, 8.55)
+                elseif location == "Spawn" then
+                    local spawn = workspace:FindFirstChild("SpawnLocation")
+                    if spawn then
+                        rootPart.CFrame = spawn.CFrame
+                    end
+                elseif location == "Safe Zone" then
+                    -- Find safe zone parts
+                    local workspace = game:GetService("Workspace")
+                    for _, part in ipairs(workspace:GetDescendants()) do
+                        if part:IsA("BasePart") and (part.Name:lower():find("safe") or part.Name:lower():find("win")) then
+                            rootPart.CFrame = part.CFrame + Vector3.new(0, 5, 0)
+                            break
+                        end
+                    end
+                elseif location == "Lobby" then
+                    -- Attempt to teleport to lobby (may not work in all games)
+                    local teleportService = game:GetService("TeleportService")
+                    teleportService:Teleport(game.PlaceId, player)
+                end
+            end
+        end)
+    end
+});
+
+teleportSection:AddToggle({
+    Name = "Walk on Water",
+    Flag = "walk_on_water",
+    Default = false,
+    Callback = function(enabled)
+        _G.FeatureStates.WalkOnWater = enabled
+        
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.WalkOnWater do
+                    task.wait(0.1)
+                    pcall(function()
+                        local player = game.Players.LocalPlayer
+                        local character = player.Character
+                        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                        local workspace = game:GetService("Workspace")
+                        local water = workspace:FindFirstChild("Water") or workspace:FindFirstChild("Ocean")
+                        
+                        if rootPart and water then
+                            local waterHeight = water.Position.Y
+                            if rootPart.Position.Y < waterHeight + 5 then
+                                rootPart.CFrame = CFrame.new(rootPart.Position.X, waterHeight + 5, rootPart.Position.Z)
+                            end
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+});
+
+-- MOVEMENT SECTION
+local movementSection = Movement:DrawSection({
+    Name = "Player Movement",
+    Position = "LEFT"
+});
+
+movementSection:AddSlider({
+    Name = "WalkSpeed",
+    Min = 16,
+    Max = 500,
+    Round = 0,
+    Default = 16,
+    Type = "studs/s",
+    Callback = function(value)
+        _G.FeatureStates.WalkSpeed = value
+        pcall(function()
+            local player = game.Players.LocalPlayer
+            local character = player.Character
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            
+            if humanoid then
+                humanoid.WalkSpeed = value
+            end
+        end)
+    end
+});
+
+movementSection:AddSlider({
+    Name = "JumpPower",
+    Min = 50,
+    Max = 500,
+    Round = 0,
+    Default = 50,
+    Type = "studs",
+    Callback = function(value)
+        _G.FeatureStates.JumpPower = value
+        pcall(function()
+            local player = game.Players.LocalPlayer
+            local character = player.Character
+            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+            
+            if humanoid then
+                humanoid.JumpPower = value
+            end
+        end)
+    end
+});
+
+movementSection:AddToggle({
+    Name = "Speed Boost (V Key)",
+    Flag ="speed_boost",
+    Default = false,
+    Callback = function(enabled)
+        _G.FeatureStates.SpeedBoost = enabled
+        local UIS = game:GetService("UserInputService")
+        
+        UIS.InputBegan:Connect(function(input, gameProcessed)
+            if input.KeyCode == Enum.KeyCode.V and not gameProcessed then
+                _G.FeatureStates.SpeedBoostActive = enabled
+            end
+        end)
+        
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.SpeedBoost do
+                    task.wait(0.1)
+                    pcall(function()
+                        if _G.FeatureStates.SpeedBoostActive then
+                            local player = game.Players.LocalPlayer
+                            local character = player.Character
+                            local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+                            local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                            
+                            if humanoid and rootPart and humanoid.MoveDirection.Magnitude > 0 then
+                                rootPart.CFrame = rootPart.CFrame + humanoid.MoveDirection * _G.FeatureStates.WalkSpeed * 0.1
+                            end
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+});
+
+movementSection:AddToggle({
+    Name = "Infinite Jump",
+    Flag = "infinite_jump",
+    Default = false,
+    Callback = function(enabled)
+        _G.FeatureStates.InfiniteJump = enabled
+        local UIS = game:GetService("UserInputService")
+        
+        if enabled then
+            UIS.JumpRequest:Connect(function()
+                if _G.FeatureStates.InfiniteJump then
+                    pcall(function()
+                        local player = game.Players.LocalPlayer
+                        local character = player.Character
+                        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+                        
+                        if humanoid then
+                            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+});
+
+movementSection:AddToggle({
+    Name = "NoClip",
+    Flag = "noclip",
+    Default = false,
+    Callback = function(enabled)
+        _G.FeatureStates.NoClip = enabled
+        
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.NoClip do
+                    task.wait(0.1)
+                    pcall(function()
+                        local player = game.Players.LocalPlayer
+                        local character = player.Character
+                        
+                        if character then
+                            for _, part in ipairs(character:GetDescendants()) do
+                                if part:IsA("BasePart") then
+                                    part.CanCollide = false
+                                end
+                            end
+                        end
+                    end)
+                end
+            end)
+        else
+            pcall(function()
+                local player = game.Players.LocalPlayer
+                local character = player.Character
+                
+                if character then
+                    for _, part in ipairs(character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = true
+                        end
+                    end
+                end
+            end)
+        end
+    end
+});
+
+-- VISUAL SECTION
+local visualSection = Visual:DrawSection({
+    Name = "Player ESP",
+    Position = "LEFT"
+});
+
+visualSection:AddToggle({
+    Name = "Enable ESP",
+    Flag = "esp_enabled",
+    Default = false,
+    Callback = function(enabled)
+        _G.FeatureStates.ESPEnabled = enabled
+        
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.ESPEnabled do
+                    task.wait(0.1)
+                    pcall(function()
+                        local Players = game:GetService("Players")
+                        local workspace = game:GetService("Workspace")
+                        
+                        for _, player in ipairs(Players:GetPlayers()) do
+                            if player ~= Players.LocalPlayer and player.Character then
+                                local character = player.Character
+                                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+                                
+                                if humanoidRootPart then
+                                    -- ESP rendering logic
+                                    -- This would create visual elements for ESP
+                                end
+                            end
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+}).Link:AddOption():AddColorPicker({
+    Name = "ESP Color",
+    Default = Color3.fromRGB(255, 0, 0),
+    Callback = function(color)
+        _G.FeatureStates.ESPColor = color
+    end
+});
+
+visualSection:AddToggle({
+    Name = "Show Names",
+    Flag = "esp_names",
+    Default = true,
+    Callback = function(enabled)
+        _G.FeatureStates.ESPNames = enabled
+    end
+});
+
+visualSection:AddToggle({
+    Name = "Show Boxes",
+    Flag = "esp_boxes",
+    Default = true,
+    Callback = function(enabled)
+        _G.FeatureStates.ESPBoxes = enabled
+    end
+});
+
+-- PART MANIPULATION SECTION
+local partSection = Visual:DrawSection({
+    Name = "Part Manipulation",
+    Position = "RIGHT"
+});
+
+partSection:AddToggle({
+    Name = "Part Orbit",
+    Flag = "part_orbit",
+    Default = false,
+    Callback = function(enabled)
+        _G.FeatureStates.PartOrbit = enabled
+        
+        if enabled then
+            task.spawn(function()
+                local player = game.Players.LocalPlayer
+                local workspace = game:GetService("Workspace")
+                local parts = {}
+                
+                -- Find all movable parts
+                for _, descendant in ipairs(workspace:GetDescendants()) do
+                    if descendant:IsA("BasePart") and not descendant.Anchored and not descendant:IsDescendantOf(player.Character) then
+                        table.insert(parts, descendant)
+                    end
+                end
+                
+                while _G.FeatureStates.PartOrbit do
+                    task.wait(0.1)
+                    pcall(function()
+                        for _, part in ipairs(parts) do
+                            if part and part.Parent then
+                                local character = player.Character
+                                local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                                
+                                if rootPart then
+                                    local direction = (part.Position - rootPart.Position).Unit
+                                    part.Velocity = direction * 100
+                                end
+                            end
+                        end
+                    end)
+                end
+                
+                -- Reset parts when disabled
+                for _, part in ipairs(parts) do
+                    if part and part.Parent then
+                        part.Velocity = Vector3.new(0, 0, 0)
+                    end
+                end
+            end)
+        end
+    end
+});
+
+partSection:AddToggle({
+    Name = "Black Hole",
+    Flag = "black_hole",
+    Default = false,
+    Callback = function(enabled)
+        _G.FeatureStates.BlackHole = enabled
+        
+        if enabled then
+            local workspace = game:GetService("Workspace")
+            local player = game.Players.LocalPlayer
+            local blackHolePart = Instance.new("Part")
+            blackHolePart.Size = Vector3.new(10, 10, 10)
+            blackHolePart.Shape = Enum.PartType.Ball
+            blackHolePart.Anchored = true
+            blackHolePart.CanCollide = false
+            blackHoleLotPart.Transparency = 0.8
+            blackHolePart.BrickColor = BrickColor.Black()
+            blackHolePart.Parent = workspace
+            
+            task.spawn(function()
+                while _G.FeatureStates.BlackHole do
+                    task.wait(0.1)
+                    pcall(function()
+                        local rootPart = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                        if rootPart then
+                            blackHolePart.Position = rootPart.Position + Vector3.new(0, 10, 0)
+                            
+                            for _, descendant in ipairs(workspace:GetDescendants()) do
+                                if descendant:IsA("BasePart") and not descendant.Anchored and not descendant:IsDescendantOf(player.Character) then
+                                    local direction = (blackHolePart.Position - descendant.Position).Unit
+                                    descendant.Velocity = direction * 1000
+                                end
+                            end
+                        end
+                    end)
+                end
+                
+                blackHolePart:Destroy()
+            end)
+        end
+    end
+});
+
+-- PLAYER MANIPULATION SECTION
+local playerSection = Player:DrawSection({
+    Name = "Player Manipulation",
+    Position = "LEFT"
+});
+
+playerSection:AddButton({
+    Name = "Copy Discord Link",
+    Callback = function()
+        pcall(function()
+            setclipboard("https://discord.gg/mdJKdwbKjE")
+        end)
+    end
+});
+
+playerSection:AddInput({
+    Name = "Select Player",
+    Placeholder = "PlayerName",
+    Callback = function(playerName)
+        pcall(function()
+            local player = nil
+            local lowerName = string.lower(playerName)
+            
+            for _, plr in ipairs(game.Players:GetPlayers()) do
+                if string.find(string.lower(plr.Name), lowerName, 1, true) or 
+                   string.find(string.lower(plr.DisplayName), lowerName, 1, true) then
+                    player = plr
+                    break
+                end
+            end
+            
+            if player then
+                _G.SelectedPlayer = player
+                -- Visual feedback or notification would go here
+            end
+        end)
+    end
+});
+
+playerSection:AddToggle({
+    Name = "Click Fling",
+    Flag = "click_fling",
+    Default = false,
+    Callback = function(enabled)
+        _G.FeatureStates.ClickFling = enabled
+        local player = game.Players.LocalPlayer
+        local mouse = player:GetMouse()
+        
+        if enabled then
+            mouse.Button1Down:Connect(function()
+                if _G.FeatureStates.ClickFling and mouse.Target then
+                    pcall(function()
+                        local target = mouse.Target
+                        local character = target.Parent
+                        local playerTarget = game.Players:GetPlayerFromCharacter(character)
+                        
+                        if playerTarget and playerTarget ~= player then
+                            _G.FlingPlayer(playerTarget)
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+});
+
+playerSection:AddToggle({
+    Name = "Fling Aura",
+    Flag = "fling_aura",
+    Default = false,
+    Callback = function(enabled)
+        _G.FeatureStates.FlingAura = enabled
+        
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.FlingAura do
+                    task.wait(0.5)
+                    pcall(function()
+                        local player = game.Players.LocalPlayer
+                        local character = player.Character
+                        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                        
+                        if rootPart then
+                            for _, plr in ipairs(game.Players:GetPlayers()) do
+                                if plr ~= player and plr.Character then
+                                    local targetCharacter = plr.Character
+                                    local targetRootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
+                                    
+                                    if targetRootPart and (rootPart.Position - targetRootPart.Position).Magnitude <= 15 then
+                                        _G.FlingPlayer(plr)
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+});
+
+-- UTILITY SECTION
+local utilitySection = Utility:DrawSection({
+    Name = "Universal Scripts",
+    Position = "LEFT"
+});
+
+utilitySection:AddButton({
+    Name = "Load Inf Yield",
+    Callback = function()
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+        end)
+    end
+});
+
+utilitySection:AddButton({
+    Name = "Load Dex Explorer",
+    Callback = function()
+        pcall(function()
+            loadstring(game:HttpGet("https://rawscripts.net/raw/Universal-Script-Classic-Dex-Explorer-21009"))()
+        end)
+    end
+});
+
+utilitySection:AddButton({
+    Name = "Load Remote Spy",
+    Callback = function()
+        pcall(function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/78n/SimpleSpy/main/SimpleSpySource.lua"))()
+        end)
+    end
+});
+
+utilitySection:AddButton({
+    Name = "Rejoin Server",
+    Callback = function()
+        pcall(function()
+            game:GetService("TeleportService"):Teleport(game.PlaceId, game.Players.LocalPlayer)
+        end)
+    end
+});
+
+-- UI SETTINGS
+local uiSettings = Utility:DrawSection({
+    Name = "UI Settings",
+    Position = "RIGHT"
+});
+
+local highlightToggle = uiSettings:AddToggle({
+    Name = "Rainbow UI",
+    Flag = "rainbow_ui",
+    Default = false,
+    Callback = function(enabled)
+        _G.RAINBOW = enabled
+    end
+});
+
+highlightToggle.Link:AddSlider({
+    Name = "Speed",
+    Min = 0.01,
+    Max = 1,
+    Round = 2,
+    Default = 0.1,
+    Callback = function(value)
+        _G.RAINBOW_SPEED = value
+    end
+});
+
+task.spawn(function()
+    local hue = 0
+    
+    while true do task.wait(_G.RAINBOW_SPEED or 0.1)
+        if _G.RAINBOW then
+            SoulsHub:ChangeHighlightColor(Color3.fromHSV(hue, 1, 1))
+            hue = hue + 0.01
+            if hue >= 1 then hue = 0 end
+        end
+    end
+end)
+
+-- DISCORD SECTION
+local discordSection = Utility:DrawSection({
+    Name = "Discord",
+    Position = "RIGHT"
+});
+
+discordSection:AddParagraph({
+    Title = "Community",
+    Content = "Join our Discord community for support, updates, and exclusive features!",
+})
+
+discordSection:AddButton({
+    Name = "Copy Discord Invite",
+    Callback = function()
+        pcall(function()
+            setclipboard("https://discord.gg/mdJKdwbKjE")
+        end)
+    end
+});
+
+-- FLING FUNCTION
+_G.FlingPlayer = function(player)
+    pcall(function()
+        local character = player.Character
+        if character then
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            if rootPart then
+                rootPart.Velocity = Vector3.new(0, 1000, 0)
+            end
+        end
+    end)
+end
+
+-- WEATHER EFFECTS SECTION
+local weatherSection = Main:DrawSection({
+    Name = "Weather Effects",
+    Position = "RIGHT"
+});
+
+weatherSection:AddToggle({
+    Name = "Remove Blizzard",
+    Flag = "remove_blizzard",
+    Default = false,
+    Callback = function(enabled)
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.RemoveBlizzard do
+                    task.wait(1)
+                    pcall(function()
+                        for _, descendant in ipairs(workspace:GetDescendants()) do
+                            if descendant:IsA("ParticleEmitter") and descendant.Name:lower():find("blizzard") then
+                                descendant:Destroy()
+                            end
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+});
+
+weatherSection:AddToggle({
+    Name = "Remove Sandstorm",
+    Flag = "remove_sandstorm",
+    Default = false,
+    Callback = function(enabled)
+        if enabled then
+            task.spawn(function()
+                while _G.FeatureStates.RemoveSandstorm do
+                    task.wait(1)
+                    pcall(function()
+                        for _, descendant in ipairs(workspace:GetDescendants()) do
+                            if descendant:IsA("ParticleEmitter") and descendant.Name:lower():find("sandstorm") then
+                                descendant:Destroy()
+                            end
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+});
+
+-- Draw the UI
+Window:Draw()
