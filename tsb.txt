@@ -1,0 +1,728 @@
+-- Soul's Hub UI Library
+local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))()
+
+task.wait(1)
+
+SoulsHub:Loader(nil, 1).yield()
+
+local FileWatcher = SoulsHub:ConfigManager({
+	Directory = "SoulsHub",
+	Config = "Example-Configs"	
+});
+
+local Window = SoulsHub.new({
+	Keybind = "LeftAlt",
+});
+
+-- Watermark setup
+local watermark = Window:Watermark();
+
+watermark:AddText({
+	Icon = "user",
+	Text = "Soul's Hub"
+})
+
+local vim = watermark:AddText({
+	Icon = "clock",
+	Text = SoulsHub:GetTimeNow()
+})
+
+task.spawn(function()
+	while true do task.wait()
+		vim:SetText(SoulsHub:GetTimeNow())
+	end;
+end)
+
+Window:Update({
+	ExpireDate = SoulsHub:GetDate(tick() + 86400) -- 24 hours
+})
+
+watermark:AddText({
+	Icon = "server",
+	Text = "Premium"
+})
+
+-- Main UI Tabs
+local Combat = Window:DrawTab({
+	Icon = "skull",
+	Name = "Combat",
+	Type = "Double"
+});
+
+local Movement = Window:DrawTab({
+	Icon = "run",
+	Name = "Movement"
+});
+
+local Visuals = Window:DrawTab({
+	Icon = "eye",
+	Name = "Visuals"
+});
+
+local Utility = Window:DrawTab({
+	Icon = "tool",
+	Name = "Utility"
+});
+
+local Configs = Window:DrawConfig({
+	Name = "Configs",
+	Icon = "folder",
+	Config = FileWatcher
+});
+
+Configs:Init();
+
+-- Combat Tab Sections
+local GeneralCombat = Combat:DrawSection({
+	Name = "General",
+	Position = 'LEFT'
+})
+
+local MovesetsCombat = Combat:DrawSection({
+	Name = "Movesets",
+	Position = 'RIGHT'
+})
+
+-- Movement Tab Sections
+local MovementSection = Movement:DrawSection({
+	Name = "Player Movement",
+	Position = 'LEFT'
+})
+
+-- Visuals Tab Sections
+local ESPSection = Visuals:DrawSection({
+	Name = "ESP",
+	Position = 'LEFT'
+})
+
+-- Utility Tab Sections
+local ToolsSection = Utility:DrawSection({
+	Name = "Game Tools",
+	Position = 'LEFT'
+})
+
+-- General Combat Features
+GeneralCombat:AddToggle({
+	Name = "Auto Block",
+	Flag = "auto_block",
+	DefaultValue = false,
+	Callback = function(enabled)
+		if enabled then
+			-- Auto block implementation
+			getgenv().AutoBlockEnabled = true
+			task.spawn(function()
+				while getgenv().AutoBlockEnabled do
+					task.wait()
+					local character = game.Players.LocalPlayer.Character
+					if character and character:FindFirstChild("Humanoid") then
+						local humanoid = character.Humanoid
+						if humanoid.Health < humanoid.MaxHealth * 0.3 then
+							-- Check for blocking animation ID
+							local blockingAnimation = "rbxassetid://10470389827"
+							local isBlocking = false
+							
+							for _, track in ipairs(humanoid:GetPlayingAnimationTracks()) do
+								if track.Animation.AnimationId == blockingAnimation then
+									isBlocking = true
+									break
+								end
+							end
+							
+							if not isBlocking then
+								-- Simulate blocking input
+								game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+								task.wait(0.1)
+								game:GetService("VirtualInputManager"):SendKeyEvent(false, Enum.KeyCode.LeftShift, false, game)
+							end
+						end
+					end
+				end
+			end)
+		else
+			getgenv().AutoBlockEnabled = false
+		end
+	end
+})
+
+GeneralCombat:AddToggle({
+	Name = "FaceLock",
+	Flag = "facelock",
+	DefaultValue = false,
+	Callback = function(enabled)
+		if enabled then
+			getgenv().FaceLockEnabled = true
+			task.spawn(function()
+				local Players = game:GetService("Players")
+				local player = Players.LocalPlayer
+				
+				while getgenv().FaceLockEnabled do
+					task.wait()
+					local character = player.Character
+					if not character then continue end
+					
+					local closestEnemy = nil
+					local shortestDist = math.huge
+					
+					for _, enemy in ipairs(Players:GetPlayers()) do
+						if enemy ~= player and enemy.Character then
+							local enemyRoot = enemy.Character:FindFirstChild("HumanoidRootPart")
+							local myRoot = character:FindFirstChild("HumanoidRootPart")
+							
+							if enemyRoot and myRoot then
+								local dist = (myRoot.Position - enemyRoot.Position).Magnitude
+								
+								if dist < shortestDist and dist < 25 then
+									shortestDist = dist
+									closestEnemy = enemy
+								end
+							end
+						end
+					end
+					
+					if closestEnemy and closestEnemy.Character then
+						local head = closestEnemy.Character:FindFirstChild("Head")
+						if head then
+							workspace.CurrentCamera.CFrame = CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, head.Position)
+						end
+					end
+				end
+			end)
+		else
+			getgenv().FaceLockEnabled = false
+		end
+	end
+})
+
+GeneralCombat:AddToggle({
+	Name = "Aimbot",
+	Flag = "aimbot",
+	DefaultValue = false,
+	Callback = function(enabled)
+		if enabled then
+			getgenv().AimbotEnabled = true
+			task.spawn(function()
+				local Players = game:GetService("Players")
+				local RunService = game:GetService("RunService")
+				local player = Players.LocalPlayer
+				
+				while getgenv().AimbotEnabled do
+					RunService.Heartbeat:Wait()
+					local character = player.Character
+					if not character then continue end
+					
+					local closestEnemy = nil
+					local shortestDist = math.huge
+					
+					for _, enemy in ipairs(Players:GetPlayers()) do
+						if enemy ~= player and enemy.Character then
+							local enemyRoot = enemy.Character:FindFirstChild("HumanoidRootPart")
+							local myRoot = character:FindFirstChild("HumanoidRootPart")
+							
+							if enemyRoot and myRoot then
+								local dist = (myRoot.Position - enemyRoot.Position).Magnitude
+								
+								if dist < shortestDist and dist < 30 then
+									shortestDist = dist
+									closestEnemy = enemy
+								end
+							end
+						end
+					end
+					
+					if closestEnemy and closestEnemy.Character then
+						local head = closestEnemy.Character:FindFirstChild("Head")
+						if head then
+							local mouse = player:GetMouse()
+							mousemoverel(0, 0)
+							mouse.Target = head
+						end
+					end
+				end
+			end)
+		else
+			getgenv().AimbotEnabled = false
+		end
+	end
+})
+
+-- Moveset features - Garou Style
+MovesetsCombat:AddButton({
+	Name = "Garou Ultimate",
+	Callback = function()
+		local player = game.Players.LocalPlayer
+		local character = player.Character or player.CharacterAdded:Wait()
+		local humanoid = character:WaitForChild("Humanoid")
+		
+		-- Animation for ultimate
+		local anim = Instance.new("Animation")
+		anim.AnimationId = "rbxassetid://123464270068243"
+		local k = humanoid:LoadAnimation(anim)
+		k:Play(0.3)
+		k.Priority = Enum.AnimationPriority.Action2
+		k:AdjustSpeed(1)
+		k.TimePosition = 5
+		
+		-- Visual effects
+		task.spawn(function()
+			local Lighting = game:GetService("Lighting")
+			local originalBrightness = Lighting.Brightness
+			
+			-- Flash effect
+			Lighting.Brightness = 3
+			task.wait(0.5)
+			Lighting.Brightness = originalBrightness
+		end)
+		
+		-- Sound effects
+		local sound = Instance.new("Sound")
+		sound.SoundId = "rbxassetid://9166224293"
+		sound.Parent = character.Torso
+		sound.Volume = 0.5
+		sound:Play()
+		
+		task.wait(3)
+		
+		local sound2 = Instance.new("Sound")
+		sound2.SoundId = "rbxassetid://9120060683"
+		sound2.Parent = character.Torso
+		sound2.Volume = 3
+		sound2:Play()
+	end
+})
+
+MovesetsCombat:AddButton({
+	Name = "Monster Form",
+	Callback = function()
+		local player = game.Players.LocalPlayer
+		local character = player.Character or player.CharacterAdded:Wait()
+		local humanoid = character:WaitForChild("Humanoid")
+		
+		-- Animation for transformation
+		local anim = Instance.new("Animation")
+		anim.AnimationId = "rbxassetid://13532562418"
+		local k = humanoid:LoadAnimation(anim)
+		k:Play(0.1)
+		k.Priority = Enum.AnimationPriority.Action
+		k:AdjustSpeed(1)
+		
+		-- Visual effects
+		local highlight = Instance.new("Highlight")
+		highlight.Parent = character
+		highlight.FillColor = Color3.fromRGB(255, 0, 0)
+		highlight.FillTransparency = 0.5
+		highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+		highlight.OutlineTransparency = 0.2
+		
+		-- Sound effect
+		local sound = Instance.new("Sound")
+		sound.SoundId = "rbxassetid://18445228824"
+		sound.Parent = character.Torso
+		sound.Volume = 8
+		sound:Play()
+		
+		-- Change walk speed
+		humanoid.WalkSpeed = 30
+		
+		task.wait(3)
+		
+		-- Reset
+		highlight:Destroy()
+		humanoid.WalkSpeed = 16
+	end
+})
+
+-- Movement Features
+MovementSection:AddSlider({
+	Name = "WalkSpeed",
+	Min = 16,
+	Max = 100,
+	Round = 0,
+	DefaultValue = 16,
+	Type = "studs/s",
+	Callback = function(value)
+		local player = game.Players.LocalPlayer
+		if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+			player.Character.Humanoid.WalkSpeed = value
+		end
+	end
+})
+
+MovementSection:AddSlider({
+	Name = "JumpPower",
+	Min = 50,
+	Max = 200,
+	Round = 0,
+	DefaultValue = 50,
+	Type = "studs",
+	Callback = function(value)
+		local player = game.Players.LocalPlayer
+		if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+			player.Character.Humanoid.JumpPower = value
+		end
+	end
+})
+
+MovementSection:AddToggle({
+	Name = "Velocity Manipulator",
+	Flag = "velocity_manip",
+	DefaultValue = false,
+	Callback = function(enabled)
+		if enabled then
+			getgenv().VelocityManipEnabled = true
+			task.spawn(function()
+				local Players = game:GetService("Players")
+				local TweenService = game:GetService("TweenService")
+				local player = Players.LocalPlayer
+				local mouse = player:GetMouse()
+				
+				while getgenv().VelocityManipEnabled do
+					task.wait()
+					if mouse:IsMouseButtonPressed(Enum.UserInputType.MouseButton3) then -- Right click
+						local character = player.Character
+						if not character then continue end
+						
+						local root = character:FindFirstChild("HumanoidRootPart")
+						if not root then continue end
+						
+						local targetPosition = mouse.Hit + Vector3.new(0, 2.5, 0)
+						
+						-- Create visual effect
+						local p = Instance.new("Part")
+						p.Size = Vector3.new(2, 2, 2)
+						p.Transparency = 0.5
+						p.CanCollide = false
+						p.Anchored = true
+						p.Position = root.Position
+						p.Parent = workspace
+						
+						game.TweenService:Create(p, TweenInfo.new(0.4), {
+							Position = targetPosition.Position
+						}):Play()
+						
+						-- Sound effect
+						local sound = Instance.new("Sound")
+						sound.SoundId = "rbxassetid://15956555583"
+						sound.Parent = root
+						sound.Volume = 1
+						sound:Play()
+						
+						-- Tween teleport
+						local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Linear)
+						local tween = TweenService:Create(root, tweenInfo, {
+							CFrame = CFrame.new(targetPosition.Position)
+						})
+						tween:Play()
+						
+						task.wait(0.5)
+						p:Destroy()
+					end
+				end
+			end)
+		else
+			getgenv().VelocityManipEnabled = false
+		end
+	end
+})
+
+-- Visual Features
+ESPSection:AddToggle({
+	Name = "Player ESP",
+	Flag = "player_esp",
+	DefaultValue = false,
+	Callback = function(enabled)
+		if enabled then
+			getgenv().ESPCallback = function()
+				-- ESP implementation
+				for _, player in ipairs(game.Players:GetPlayers()) do
+					if player ~= game.Players.LocalPlayer and player.Character then
+						local head = player.Character:FindFirstChild("Head")
+						if head then
+							local billboard = Instance.new("BillboardGui")
+							billboard.Adornee = head
+							billboard.Size = UDim2.new(0, 100, 0, 20)
+							billboard.StudsOffset = Vector3.new(0, 1.5, 0)
+							billboard.AlwaysOnTop = true
+							billboard.Parent = head
+							
+							local label = Instance.new("TextLabel")
+							label.Size = UDim2.new(1, 0, 1, 0)
+							label.BackgroundTransparency = 1
+							label.Text = player.Name
+							label.TextColor3 = Color3.fromRGB(255, 255, 255)
+							label.TextStrokeTransparency = 0.5
+							label.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+							label.Parent = billboard
+						end
+					end
+				end
+			end
+			
+			task.spawn(function()
+				while getgenv().ESPCallback do
+					pcall(getgenv().ESPCallback)
+					task.wait(1)
+				end
+			end)
+		else
+			getgenv().ESPCallback = nil
+		end
+	end
+})
+
+-- Utility Features - BackDash Macro
+ToolsSection:AddButton({
+	Name = "BackDash Macro",
+	Callback = function()
+		-- BackDash Macro implementation from the provided source
+		local Players = game:GetService("Players")
+		local TweenService = game:GetService("TweenService")
+		local VirtualInputManager = game:GetService("VirtualInputManager")
+		local UIS = game:GetService("UserInputService")
+		local player = Players.LocalPlayer
+		local selectedNumber = 1
+		local isSpaceEnabled = false
+		local toolGroups = {
+			{ "Flowing Water", "Lethal Whirlwind Stream", "Hunter's Grasp", "Prey's Peril" },
+			{ "Doom Dive", "Crowd Buster", "Hammer Heel", "Binding Cloth" },
+			{ "Machine Gun Blows", "Ignition Burst", "Blitz Shot", "Jet Dive" },
+			{ "Flash Strike", "Whirlwind Kick", "Scatter", "Explosive Shuriken" },
+			{ "Homerun", "Beatdown", "Grand Slam", "Foul Ball" },
+			{ "Quick Slice", "Atmos Cleave", "Pinpoint Cut", "Split Second Counter" },
+			{ "Crushing Pull", "Windstorm Fury", "Stone Coffin", "Expulsive Push" },
+			{ "Bullet Barrage", "Vanishing Kick", "Whirlwind Drop", "Head First" },
+			{ "Normal Punch", "Consecutive Punches", "Shove", "Uppercut" }
+		}
+		
+		-- Create UI elements
+		local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+		gui.Name = "BackDashMacroGUI"
+		gui.ResetOnSpawn = false
+		gui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+		
+		-- Back Dash Button
+		local mainButton = Instance.new("TextButton")
+		mainButton.Size = UDim2.new(0, 120, 0, 40)
+		mainButton.Position = UDim2.new(0.5, -60, 0.5, -20)
+		mainButton.Text = "BACKDASH"
+		mainButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
+		mainButton.TextColor3 = Color3.new(1, 1, 1)
+		mainButton.Font = Enum.Font.SourceSansBold
+		mainButton.TextSize = 18
+		mainButton.ZIndex = 6
+		mainButton.Parent = gui
+		mainButton.BorderSizePixel = 0
+		
+		-- Button functionality
+		mainButton.MouseButton1Click:Connect(function()
+			if isSpaceEnabled then
+				VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+				task.wait(0.05)
+				VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+			end
+			
+			VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.S, false, game)
+			task.spawn(function()
+				VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
+				task.wait(0.05)
+				VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
+			end)
+			
+			task.spawn(function()
+				local backpack = player:FindFirstChild("Backpack")
+				if backpack then
+					for _, group in ipairs(toolGroups) do
+						local toolName = group[selectedNumber]
+						local tool = backpack:FindFirstChild(toolName)
+						if tool then
+							local args = {
+								[1] = {
+									["Tool"] = tool,
+									["Goal"] = "Console Move"
+								}
+							}
+							local remote = player.Character and player.Character:FindFirstChild("Communicate")
+							if remote then
+								remote:FireServer(unpack(args))
+							end
+							break
+						end
+					end
+				end
+			end)
+			
+			task.delay(0.1, function()
+				VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.S, false, game)
+			end)
+		end)
+	end
+})
+
+-- Auto Kyoto Feature
+ToolsSection:AddButton({
+	Name = "Auto Kyoto",
+	Callback = function()
+		-- Auto Kyoto implementation from the provided source
+		local player = game.Players.LocalPlayer
+		local TweenService = game:GetService("TweenService")
+		
+		if player and player.Character then
+			-- Flowing Water move
+			local args1 = {
+				[1] = {
+					["Tool"] = player.Backpack:FindFirstChild("Flowing Water"),
+					["Goal"] = "Console Move"
+				}
+			}
+			if player.Character:FindFirstChild("Communicate") then
+				player.Character.Communicate:FireServer(unpack(args1))
+			end
+			
+			task.wait(2.15)
+			
+			-- Position adjustment
+			local char = player.Character
+			local hrp = char:FindFirstChild("HumanoidRootPart")
+			
+			if hrp then
+				local forward = hrp.CFrame.LookVector.Unit
+				local distance = 20
+				local duration = 0.1
+				local goalPos = hrp.Position + forward * distance
+				
+				local tween = TweenService:Create(hrp, TweenInfo.new(duration), {
+					CFrame = CFrame.new(goalPos, goalPos + forward)
+				})
+				tween:Play()
+				tween.Completed:Wait()
+				
+				-- Rotate 180 degrees
+				hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(180), 0)
+			end
+			
+			-- Lethal Whirlwind Stream move
+			local args2 = {
+				[1] = {
+					["Tool"] = player.Backpack:FindFirstChild("Lethal Whirlwind Stream"),
+					["Goal"] = "Console Move"
+				}
+			}
+			if player.Character:FindFirstChild("Communicate") then
+				player.Character.Communicate:FireServer(unpack(args2))
+			end
+		end
+	end
+})
+
+-- Auto Farm Feature
+ToolsSection:AddButton({
+	Name = "Auto Farm",
+	Callback = function()
+		-- Auto Farm implementation from the provided source
+		local Players = game:GetService("Players")
+		local RunService = game:GetService("RunService")
+		local ReplicatedStorage = game:GetService("ReplicatedStorage")
+		local LocalPlayer = Players.LocalPlayer
+		local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+		local RootPart = Character:WaitForChild("HumanoidRootPart")
+		
+		getgenv().AutoFarmActive = true
+		
+		task.spawn(function()
+			while getgenv().AutoFarmActive do
+				local closest = nil
+				local shortestDistance = math.huge
+				
+				for _, enemy in ipairs(Players:GetPlayers()) do
+					if enemy ~= LocalPlayer and enemy.Character and enemy.Character:FindFirstChild("HumanoidRootPart") and enemy.Character:FindFirstChild("Humanoid") then
+						local targetHumanoid = enemy.Character.Humanoid
+						if targetHumanoid.Health > 0 then
+							local distance = (RootPart.Position - enemy.Character.HumanoidRootPart.Position).Magnitude
+							if distance < shortestDistance then
+								closest = enemy
+								shortestDistance = distance
+							end
+						end
+					end
+				end
+				
+				if closest and closest.Character and closest.Character:FindFirstChild("HumanoidRootPart") then
+					local enemyRoot = closest.Character.HumanoidRootPart
+					RootPart.CFrame = enemyRoot.CFrame * CFrame.new(0, 0, 2)
+					
+					-- Attack
+					local attackRemote = ReplicatedStorage:FindFirstChild("CombatRemote")
+					if attackRemote then
+						pcall(function()
+							attackRemote:FireServer()
+						end)
+					end
+				end
+				
+				task.wait(0.1)
+			end
+		end)
+		
+		-- Create stop button
+		local stopButton = Instance.new("TextButton")
+		stopButton.Size = UDim2.new(0, 120, 0, 40)
+		stopButton.Position = UDim2.new(0.5, -60, 0.5, 100)
+		stopButton.Text = "STOP FARM"
+		stopButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
+		stopButton.TextColor3 = Color3.new(1, 1, 1)
+		stopButton.Font = Enum.Font.SourceSansBold
+		stopButton.TextSize = 18
+		stopButton.ZIndex = 6
+		stopButton.Parent = player:WaitForChild("PlayerGui"):WaitForChild("BackDashMacroGUI")
+		
+		stopButton.MouseButton1Click:Connect(function()
+			getgenv().AutoFarmActive = false
+			stopButton:Destroy()
+		end)
+	end
+})
+
+-- UI Settings
+local UISettings = Window:DrawTab({
+	Icon = "settings",
+	Name = "UI Settings"
+})
+
+local UISettingsSection = UISettings:DrawSection({
+	Name = "Interface",
+	Position = 'LEFT'
+})
+
+UISettingsSection:AddToggle({
+	Name = "Rainbow UI",
+	Flag = "rainbow_ui",
+	DefaultValue = false,
+	Callback = function(enabled)
+		if enabled then
+			getgenv().RainbowUI = true
+			task.spawn(function()
+				local x = 0
+				while getgenv().RainbowUI do
+					task.wait(0.05)
+					x = x + 2/255
+					if x >= 1 then x = 0 end
+					SoulsHub:ChangeHighlightColor(Color3.fromHSV(x, 1, 1))
+				end
+			end)
+		else
+			getgenv().RainbowUI = false
+			SoulsHub:ChangeHighlightColor(SoulsHub.Colors.Highlight)
+		end
+	end
+})
+
+UISettingsSection:AddToggle({
+	Name = "Always Show Tabs",
+	Flag = "always_show_tabs",
+	DefaultValue = false,
+	Callback = function(enabled)
+		Window.AlwaysShowTab = enabled
+	end
+})
+
+-- Final draw call
+Window:Draw()
