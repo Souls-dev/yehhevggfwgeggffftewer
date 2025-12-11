@@ -277,7 +277,7 @@ do
         end
     })
     
-    -- M1 Reach Rework (Fixed with loop)
+   -- M1 Reach Rework (Fixed with loop)
     combatSection:AddToggle({
         Name = "M1 Reach",
         Flag = "m1_reach_rework",
@@ -288,257 +288,19 @@ do
                 local function startM1Loop()
                     while _G.FeatureStates.M1ReachRework and game.Players.LocalPlayer.Character do
                         pcall(function()
-                           -- 📛 FULL: Tween PunchButton + Toggle + Chỉ dash nếu <= 50 studs (FIXED UI)
-
-local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local lp = Players.LocalPlayer
-local cam = workspace.CurrentCamera
-local RunService = game:GetService("RunService")
-
--- 🔁 Biến toggle
-_G.tweenEnabled = _G.tweenEnabled or true
-
--- 📂 GUI Setup
-local gui = lp:WaitForChild("PlayerGui")
-local jumpBtn = gui:FindFirstChild("JumpButton", true)
-local punchBtn = jumpBtn and jumpBtn:FindFirstChild("PunchButton")
-
--- ✨ Create Beautiful Draggable UI (FIXED VERSION)
-local toggleGui = Instance.new("ScreenGui")
-toggleGui.Name = "TweenToggleGui"
-toggleGui.ResetOnSpawn = false
-toggleGui.Parent = gui
-toggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
--- Main container
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 180, 0, 50)
-mainFrame.Position = UDim2.new(0.5, -90, 0, 100)
-mainFrame.AnchorPoint = Vector2.new(0.5, 0)
-mainFrame.BackgroundTransparency = 1
-mainFrame.Parent = toggleGui
-
--- Draggable background (FIXED)
-local draggableArea = Instance.new("ImageButton")
-draggableArea.Size = UDim2.new(1, 0, 1, 0)
-draggableArea.BackgroundTransparency = 1
-draggableArea.AutoButtonColor = false
-draggableArea.Parent = mainFrame
-
--- Visual container
-local visualFrame = Instance.new("Frame")
-visualFrame.Size = UDim2.new(1, 0, 1, 0)
-visualFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-visualFrame.BorderSizePixel = 0
-visualFrame.ClipsDescendants = true
-visualFrame.Parent = draggableArea
-
--- Rounded corners
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 8)
-corner.Parent = visualFrame
-
--- Glow effect (FIXED)
-local glow = Instance.new("ImageLabel")
-glow.Size = UDim2.new(1, 6, 1, 6)
-glow.Position = UDim2.new(-0.01, 0, -0.01, 0)
-glow.Image = "rbxassetid://4672785101"
-glow.ScaleType = Enum.ScaleType.Slice
-glow.SliceCenter = Rect.new(50, 50, 300, 300)
-glow.BackgroundTransparency = 1
-glow.ZIndex = 0
-glow.ImageColor3 = Color3.fromRGB(0, 150, 255)
-glow.Parent = visualFrame
-
--- Status indicator
-local statusIndicator = Instance.new("Frame")
-statusIndicator.Size = UDim2.new(0, 12, 0, 12)
-statusIndicator.Position = UDim2.new(0.05, 0, 0.5, -6)
-statusIndicator.BackgroundColor3 = Color3.fromRGB(80, 200, 120)
-statusIndicator.BorderSizePixel = 0
-statusIndicator.Parent = visualFrame
-
-local statusCorner = Instance.new("UICorner")
-statusCorner.CornerRadius = UDim.new(1, 0)
-statusCorner.Parent = statusIndicator
-
--- Text label
-local textLabel = Instance.new("TextLabel")
-textLabel.Size = UDim2.new(0.75, 0, 1, 0)
-textLabel.Position = UDim2.new(0.15, 0, 0, 0)
-textLabel.BackgroundTransparency = 1
-textLabel.Text = "Reach: ON"
-textLabel.Font = Enum.Font.GothamBold
-textLabel.TextColor3 = Color3.fromRGB(240, 240, 250)
-textLabel.TextSize = 16
-textLabel.TextXAlignment = Enum.TextXAlignment.Left
-textLabel.Parent = visualFrame
-
--- Hover effect
-local hoverEffect = Instance.new("Frame")
-hoverEffect.Size = UDim2.new(1, 0, 1, 0)
-hoverEffect.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-hoverEffect.BackgroundTransparency = 0.9
-hoverEffect.BorderSizePixel = 0
-hoverEffect.Visible = false
-hoverEffect.Parent = visualFrame
-
--- Dragging variables (FIXED IMPLEMENTATION)
-local dragging = false
-local dragStart
-local startPos
-
-draggableArea.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = mainFrame.Position
-        
-        -- Visual feedback
-        TweenService:Create(visualFrame, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(45, 45, 60)}):Play()
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-                TweenService:Create(visualFrame, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(30, 30, 40)}):Play()
-            end
-        end)
-    end
-end)
-
-draggableArea.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        mainFrame.Position = UDim2.new(
-            startPos.X.Scale, startPos.X.Offset + delta.X,
-            startPos.Y.Scale, startPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
--- Hover effects (FIXED)
-draggableArea.MouseEnter:Connect(function()
-    hoverEffect.Visible = true
-    TweenService:Create(hoverEffect, TweenInfo.new(0.2), {BackgroundTransparency = 0.85}):Play()
-    TweenService:Create(glow, TweenInfo.new(0.2), {ImageTransparency = 0.7}):Play()
-end)
-
-draggableArea.MouseLeave:Connect(function()
-    hoverEffect.Visible = false
-    TweenService:Create(glow, TweenInfo.new(0.2), {ImageTransparency = 0.9}):Play()
-end)
-
--- Toggle functionality (FIXED)
-draggableArea.MouseButton1Click:Connect(function()
-    _G.tweenEnabled = not _G.tweenEnabled
-    updateToggleUI()
-    
-    -- Click animation
-    local originalSize = visualFrame.Size
-    TweenService:Create(visualFrame, TweenInfo.new(0.05, Enum.EasingStyle.Quad), {Size = UDim2.new(0.98, 0, 0.98, 0)}):Play()
-    task.delay(0.05, function()
-        TweenService:Create(visualFrame, TweenInfo.new(0.15, Enum.EasingStyle.Back), {Size = originalSize}):Play()
-    end)
-end)
-
--- UI Update Function (FIXED)
-local function updateToggleUI()
-    if _G.tweenEnabled then
-        statusIndicator.BackgroundColor3 = Color3.fromRGB(80, 200, 120)
-        textLabel.Text = "Reach: ON"
-        glow.ImageTransparency = 0.9
-        TweenService:Create(glow, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out, -1, true), {ImageTransparency = 0.6}):Play()
-    else
-        statusIndicator.BackgroundColor3 = Color3.fromRGB(200, 80, 80)
-        textLabel.Text = "Reach: OFF"
-        glow.ImageTransparency = 0.95
-        
-        -- Stop pulse animation
-        for _, child in ipairs(glow:GetDescendants()) do
-            if child:IsA("Tween") then
-                child:Cancel()
-            end
-        end
-    end
-end
-
-updateToggleUI()
-
--- 🔍 Tìm NPC/Player gần nhất trong phạm vi 50 studs
-local function getClosestTarget()
-    local live = workspace:FindFirstChild("Live")
-    if not live then return end
-
-    local closest, shortest = nil, 50 -- Giới hạn max 50 studs
-    for _, model in ipairs(live:GetChildren()) do
-        if model:IsA("Model") and model ~= lp.Character and model:FindFirstChild("HumanoidRootPart") and model:FindFirstChild("Humanoid") then
-            if model.Humanoid.Health > 0 then
-                local dist = (lp.Character.HumanoidRootPart.Position - model.HumanoidRootPart.Position).Magnitude
-                if dist <= shortest then
-                    shortest = dist
-                    closest = model
+                            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/M1%20Reach%20Rework"))()
+                        end)
+                        task.wait(5)
+                    end
                 end
-            end
-        end
-    end
-    return closest
-end
-
--- 🚀 Tween đến gần mục tiêu
-local function dashToTarget(target)
-    local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp or not target then return end
-
-    local pos = target:FindFirstChild("HumanoidRootPart") and target.HumanoidRootPart.Position
-    if not pos then return end
-
-    local dir = (pos - hrp.Position).Unit
-    local dest = pos - dir * 2
-
-    local tween = TweenService:Create(hrp, TweenInfo.new(0.15, Enum.EasingStyle.Linear), {
-        CFrame = CFrame.new(dest)
-    })
-    tween:Play()
-end
-
--- 🔁 Khi giữ PunchButton
-local holding = false
-local looping = false
-
-local function startLoop()
-    if looping then return end
-    looping = true
-    while holding do
-        if not _G.tweenEnabled then break end
-        local target = getClosestTarget()
-        if target then
-            dashToTarget(target)
-        end
-        task.wait(0.15)
-    end
-    looping = false
-end
-
--- 🎮 Gắn giữ/thả PunchButton
-if punchBtn then
-    punchBtn.MouseButton1Down:Connect(function()
-        if not _G.tweenEnabled then return end
-        holding = true
-        startLoop()
-    end)
-
-    punchBtn.MouseButton1Up:Connect(function()
-        holding = false
-    end)
-end
+                
+                task.spawn(startM1Loop)
+                -- Connect to character added event to restart after death
+                game.Players.LocalPlayer.CharacterAdded:Connect(function()
+                    if _G.FeatureStates.M1ReachRework then
+                        task.wait(1)
+                        task.spawn(startM1Loop)
+                    end
                 end)
             end
         end
