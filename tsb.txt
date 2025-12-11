@@ -1445,21 +1445,6 @@ do
         end
     })
     
-    -- Auto Block (Fixed)
-    protectionSection:AddToggle({
-        Name = "Auto Block",
-        Flag = "auto_block",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.AutoBlock = enabled
-            if enabled then
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Cyborg883/TSB/refs/heads/main/CombatGui"))()
-                end)
-            end
-        end
-    })
-    
     -- FLING (Fixed)
     protectionSection:AddToggle({
         Name = "FLING",
@@ -1495,7 +1480,7 @@ do
                 local instructions = Instance.new("TextLabel")
                 instructions.Size = UDim2.new(0.9, 0, 0.6, 0)
                 instructions.Position = UDim2.new(0.05, 0, 0.3, 0)
-                instructions.Text = "1. Press your dash key (default C)\n2. While dashing, you will be sent high into the air\n3. This makes it difficult for enemies to hit you\n4. Works best with characters that have high mobility"
+                instructions.Text = "1. equipe garou and just touch anyone"
                 instructions.Font = Enum.Font.Gotham
                 instructions.TextSize = 16
                 instructions.TextColor3 = Color3.new(1, 1, 1)
@@ -1805,7 +1790,7 @@ do
     
     creditsSection:AddParagraph({
         Title = "Credits",
-        Content = "SOULS HUB - Premium TSB Script\n\nDeveloped by: soulsyt_\nScript Contributors: Muffin\nSpecial Thanks: Panda Development\n\nJoin our Discord for support and updates!"
+        Content = "SOULS HUB - Premium TSB Script\n\nDeveloped by: soulsyt_\nScript Contributors: Crazy"
     })
     
     creditsSection:AddButton({
