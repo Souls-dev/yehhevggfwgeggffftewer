@@ -42,6 +42,7 @@ watermark:AddText({
 
 _G.FeatureStates = {}
 
+-- Create main tabs
 local MovementCombat = Window:DrawTab({
     Icon = "run",
     Name = "Movement & Combat"
@@ -61,7 +62,7 @@ local ESPVisuals = Window:DrawTab({
     Name = "ESP & Visuals"
 })
 
-local AimAntiAim = Window:DrawTab({
+local AimProtection = Window:DrawTab({
     Icon = "crosshair",
     Name = "Aim & Protection"
 })
@@ -92,6 +93,7 @@ do
         Position = "right"
     })
     
+    -- WalkSpeed Slider (Fixed)
     movementSection:AddSlider({
         Name = "WalkSpeed",
         Min = 16,
@@ -105,12 +107,22 @@ do
             local plr = game.Players.LocalPlayer
             if plr and plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
                 plr.Character.Humanoid.WalkSpeed = value
+                -- Fallback if it gets reset
+                task.spawn(function()
+                    while _G.FeatureStates.WalkSpeed == value and plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") do
+                        if plr.Character.Humanoid.WalkSpeed ~= value then
+                            plr.Character.Humanoid.WalkSpeed = value
+                        end
+                        task.wait(0.5)
+                    end
+                end)
             end
         end
     }).Link:AddHelper({
-        Text = "Adjust your character's walk speed"
+        Text = "Adjusts your character's movement speed"
     })
     
+    -- JumpPower Slider (Fixed)
     movementSection:AddSlider({
         Name = "JumpPower",
         Min = 50,
@@ -124,12 +136,22 @@ do
             local plr = game.Players.LocalPlayer
             if plr and plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") then
                 plr.Character.Humanoid.JumpPower = value
+                -- Fallback if it gets reset
+                task.spawn(function()
+                    while _G.FeatureStates.JumpPower == value and plr.Character and plr.Character:FindFirstChildOfClass("Humanoid") do
+                        if plr.Character.Humanoid.JumpPower ~= value then
+                            plr.Character.Humanoid.JumpPower = value
+                        end
+                        task.wait(0.5)
+                    end
+                end)
             end
         end
     }).Link:AddHelper({
-        Text = "Adjust your character's jump height"
+        Text = "Adjusts how high your character can jump"
     })
     
+    -- No Slide End Lag (Fixed)
     movementSection:AddToggle({
         Name = "No Slide End Lag",
         Flag = "no_slide_endlag",
@@ -143,998 +165,18 @@ do
             end
         end
     }).Link:AddHelper({
-        Text = "Removes slide animation lag after dashing"
+        Text = "Removes lag after sliding movements"
     })
     
+    -- FLING Feature (Fixed with instructions)
     movementSection:AddToggle({
-        Name = "Fake Dash Q",
-        Flag = "fake_dash_q",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.FakeDashQ = enabled
-            if enabled then
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Fake%20Dash%20Q"))()
-                end)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Fakes a dash while blocking"
-    })
-    
-    movementSection:AddToggle({
-        Name = "Anti Lag",
-        Flag = "anti_lag",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.AntiLag = enabled
-            if enabled then
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Antilag%20script"))()
-                end)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Reduces lag by cleaning up unnecessary particles"
-    })
-    
-    combatSection:AddToggle({
-        Name = "M1 Reach Rework",
-        Flag = "m1_reach_rework",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.M1ReachRework = enabled
-            if enabled then
-                -- Loop implementation to maintain state after death
-                local function startM1Loop()
-                    while _G.FeatureStates.M1ReachRework and game.Players.LocalPlayer.Character do
-                        pcall(function()
-                            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/M1%20Reach%20Rework"))()
-                        end)
-                        task.wait(5)
-                    end
-                end
-                
-                task.spawn(startM1Loop)
-                -- Connect to character added event to restart after death
-                game.Players.LocalPlayer.CharacterAdded:Connect(function()
-                    if _G.FeatureStates.M1ReachRework then
-                        task.wait(1)
-                        task.spawn(startM1Loop)
-                    end
-                end)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Increases M1 attack reach and consistency"
-    })
-    
-    combatSection:AddToggle({
-        Name = "Invisible Block",
-        Flag = "invisible_block",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.InvisibleBlock = enabled
-            if enabled then
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Invisible%20Block"))()
-                end)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Makes character invisible while blocking"
-    })
-    
-    combatSection:AddToggle({
-        Name = "No Stun",
-        Flag = "no_stun",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.NoStun = enabled
-            if enabled then
-                if not _G.StunBypass then
-                    _G.StunBypass = game:GetService("RunService").RenderStepped:Connect(function()
-                        local char = game.Players.LocalPlayer.Character
-                        if char then
-                            if char:FindFirstChild("Stunned") then
-                                char.Stunned:Destroy()
-                            end
-                            if char:FindFirstChild("Humanoid") then
-                                char.Humanoid.PlatformStand = false
-                                if char.Humanoid.WalkSpeed == 0 then
-                                    char.Humanoid.WalkSpeed = 16
-                                end
-                            end
-                        end
-                    end)
-                end
-            else
-                if _G.StunBypass then
-                    _G.StunBypass:Disconnect()
-                    _G.StunBypass = nil
-                end
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Prevents character from being stunned"
-    })
-    
-    combatSection:AddToggle({
-        Name = "No Slowed",
-        Flag = "no_slowed",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.NoSlowed = enabled
-            if enabled then
-                if not _G.NoSlowLoop then
-                    _G.NoSlowLoop = game:GetService("RunService").RenderStepped:Connect(function()
-                        local char = game.Players.LocalPlayer.Character
-                        if char and char:FindFirstChild("Humanoid") then
-                            local hum = char.Humanoid
-                            if hum.WalkSpeed < 20 then
-                                hum.WalkSpeed = 20
-                            end
-                            hum.PlatformStand = false
-                        end
-                    end)
-                end
-            else
-                if _G.NoSlowLoop then
-                    _G.NoSlowLoop:Disconnect()
-                    _G.NoSlowLoop = nil
-                end
-                local char = game.Players.LocalPlayer.Character
-                if char and char:FindFirstChild("Humanoid") then
-                    char.Humanoid.WalkSpeed = 16
-                end
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Prevents character from being slowed by enemies"
-    })
-    
-    combatSection:AddToggle({
-        Name = "Aura (Client)",
-        Flag = "aura_client",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.Aura = enabled
-            if enabled then
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Aura"))()
-                end)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Shows visual aura around your character"
-    })
-    
-    combatSection:AddToggle({
-        Name = "Auto Farm",
-        Flag = "auto_farm",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.AutoFarm = enabled
-            if enabled then
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Cyborg883/TSB/refs/heads/main/AutoFarm"))()
-                end)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Automatically farms XP in selected areas"
-    })
-end
-
--- CHARACTERS TAB
-do
-    local characterSelection = CharCustomization:DrawSection({
-        Name = "Characters",
-        Position = "left"
-    })
-    
-    local garouSection = CharCustomization:DrawSection({
-        Name = "Garou Features",
-        Position = "right"
-    })
-    
-    local characterDropdown = characterSelection:AddDropdown({
-        Name = "Character Preset",
-        Values = {"None", "Garou", "Gojo", "KJ", "Reaper"},
-        Default = "None",
-        Flag = "character_preset",
-        Callback = function(selected)
-            _G.FeatureStates.CharacterPreset = selected
-            
-            -- Clear current character effects
-            pcall(function()
-                for _, child in ipairs(game.Players.LocalPlayer.Character:GetChildren()) do
-                    if child.Name:match("ESP_") or child.Name:match("Highlight") or child.Name:match("Aura") then
-                        child:Destroy()
-                    end
-                end
-            end)
-            
-            -- Apply character-specific effects
-            if selected == "Garou" then
-                -- Load Garou moveset
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Reapvitalized/AllAssetsForRecent/refs/heads/main/MonsterGarouScript"))()
-                end)
-                SoulsHub:Notify("Garou character loaded!", 3)
-            elseif selected == "Gojo" then
-                SoulsHub:Notify("Gojo character selected - use moves below", 3)
-            elseif selected == "KJ" then
-                SoulsHub:Notify("KJ character selected - use moves below", 3)
-            elseif selected == "Reaper" then
-                SoulsHub:Notify("Reaper character selected - use moves below", 3)
-            end
-        end
-    })
-    
-    characterDropdown.Link:AddHelper({
-        Text = "Select a character to enable their unique movesets"
-    })
-    
-    garouSection:AddButton({
-        Name = "Void Kill Instructions",
-        Callback = function()
-            -- Guide UI for Void Kill
-            local guideUI = Instance.new("ScreenGui")
-            guideUI.Name = "VoidKillGuide"
-            guideUI.ResetOnSpawn = false
-            guideUI.Parent = game.Players.LocalPlayer.PlayerGui
-            
-            local frame = Instance.new("Frame")
-            frame.Size = UDim2.new(0.4, 0, 0.3, 0)
-            frame.Position = UDim2.new(0.5, 0, 0.5, 0)
-            frame.AnchorPoint = Vector2.new(0.5, 0.5)
-            frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-            frame.BorderSizePixel = 0
-            frame.BackgroundTransparency = 0.2
-            frame.Parent = guideUI
-            
-            local title = Instance.new("TextLabel")
-            title.Size = UDim2.new(1, 0, 0.2, 0)
-            title.Text = "HOW TO USE VOID KILL"
-            title.Font = Enum.Font.GothamBold
-            title.TextSize = 24
-            title.TextColor3 = Color3.new(1, 1, 1)
-            title.BackgroundTransparency = 1
-            title.Parent = frame
-            
-            local instructions = Instance.new("TextLabel")
-            instructions.Size = UDim2.new(0.9, 0, 0.6, 0)
-            instructions.Position = UDim2.new(0.05, 0, 0.3, 0)
-            instructions.Text = "1. Select Garou as your character\n2. Use Flowing Water (1st move) on an enemy\n3. The enemy will instantly die when hit\n4. Only works when Void Kill is enabled"
-            instructions.Font = Enum.Font.Gotham
-            instructions.TextSize = 16
-            instructions.TextColor3 = Color3.new(1, 1, 1)
-            instructions.BackgroundTransparency = 1
-            instructions.TextWrapped = true
-            instructions.Parent = frame
-            
-            local closeBtn = Instance.new("TextButton")
-            closeBtn.Size = UDim2.new(0.2, 0, 0.15, 0)
-            closeBtn.Position = UDim2.new(0.4, 0, 0.85, 0)
-            closeBtn.Text = "CLOSE"
-            closeBtn.Font = Enum.Font.GothamBold
-            closeBtn.TextSize = 16
-            closeBtn.TextColor3 = Color3.new(1, 1, 1)
-            closeBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
-            closeBtn.Parent = frame
-            
-            closeBtn.MouseButton1Click:Connect(function()
-                guideUI:Destroy()
-            end)
-            
-            SoulsHub:Notify("Void Kill instructions opened!", 3)
-        end
-    }).Link:AddHelper({
-        Text = "Shows instructions for using Void Kill"
-    })
-    
-    garouSection:AddToggle({
-        Name = "Void Kill",
-        Flag = "void_kill",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.VoidKill = enabled
-            if enabled then
-                workspace.FallenPartsDestroyHeight = 0/0
-                SoulsHub:Notify("Void Kill activated! Use Flowing Water on enemies.", 3)
-            else
-                workspace.FallenPartsDestroyHeight = -500
-                SoulsHub:Notify("Void Kill deactivated.", 3)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Instantly kills enemies when using Flowing Water"
-    })
-    
-    garouSection:AddToggle({
-        Name = "Standing Pose (AFK)",
-        Flag = "standing_pose",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.StandingPose = enabled
-            if enabled then
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Idiea"))()
-                end)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Makes character stand in a cool pose while AFK"
-    })
-    
-    -- New Reaper moveset
-    garouSection:AddToggle({
-        Name = "Soul Reaper Mode",
-        Flag = "reaper_mode",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.ReaperMode = enabled
-            if enabled then
-                local plr = game.Players.LocalPlayer
-                local char = plr.Character
-                
-                if char then
-                    -- Add black and white visual effects
-                    local highlight = Instance.new("Highlight")
-                    highlight.FillColor = Color3.fromRGB(100, 100, 100)
-                    highlight.FillTransparency = 0.5
-                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    highlight.OutlineTransparency = 0
-                    highlight.Adornee = char
-                    highlight.Parent = char
-                    
-                    -- Add reaper effects
-                    local function createReaperEffects()
-                        for i = 1, 3 do
-                            local part = Instance.new("Part")
-                            part.Size = Vector3.new(2, 2, 2)
-                            part.Transparency = 1
-                            part.CanCollide = false
-                            part.Anchored = true
-                            part.CFrame = char.HumanoidRootPart.CFrame * CFrame.new(math.random(-5, 5), math.random(0, 3), math.random(-5, 5))
-                            part.Parent = workspace
-                            
-                            local emitter = Instance.new("ParticleEmitter")
-                            emitter.LightEmission = 1
-                            emitter.Brightness = 2
-                            emitter.Texture = "rbxassetid://2168639037"
-                            emitter.Rate = 5
-                            emitter.Lifetime = NumberRange.new(1, 2)
-                            emitter.Color = ColorSequence.new{
-                                ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-                                ColorSequenceKeypoint.new(0.5, Color3.fromRGB(100, 100, 100)),
-                                ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
-                            }
-                            emitter.Size = NumberSequence.new(0.5, 1, 0)
-                            emitter.Transparency = NumberSequence.new{
-                                NumberSequenceKeypoint.new(0, 0),
-                                NumberSequenceKeypoint.new(1, 1)
-                            }
-                            emitter.Rotation = NumberRange.new(0, 360)
-                            emitter.RotSpeed = NumberRange.new(50, 100)
-                            emitter.VelocitySpread = 100
-                            emitter.Speed = NumberRange.new(0.5, 1)
-                            emitter.Parent = part
-                            
-                            game:GetService("Debris"):AddItem(part, 3)
-                        end
-                    end
-                    
-                    createReaperEffects()
-                    task.spawn(function()
-                        while _G.FeatureStates.ReaperMode and char and char.Parent do
-                            createReaperEffects()
-                            task.wait(2)
-                        end
-                        if highlight then highlight:Destroy() end
-                    end)
-                    
-                    SoulsHub:Notify("Soul Reaper Mode activated!", 3)
-                else
-                    SoulsHub:Notify("You need to have a character to use Soul Reaper Mode!", 3)
-                    _G.FeatureStates.ReaperMode = false
-                end
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Activates Soul Reaper mode with unique animations and VFX"
-    })
-    
-    characterSelection:AddButton({
-        Name = "KJ Ravage",
-        Callback = function()
-            if _G.FeatureStates.CharacterPreset ~= "KJ" then
-                SoulsHub:Notify("Please select KJ character first!", 3)
-                return
-            end
-            
-            local player = game.Players.LocalPlayer
-            repeat task.wait() until player.Character.Humanoid
-            local humanoid = player.Character.Humanoid
-            local character = player.Character or player.CharacterAdded:Wait()
-            
-            local anim = Instance.new("Animation")
-            anim.AnimationId = "rbxassetid://16945573694"
-            local playAnim = humanoid:LoadAnimation(anim)
-            anim.AnimationId = "rbxassetid://0"
-            playAnim:Play()
-            task.wait(0.7)
-            local anim2 = Instance.new("Animation")
-            anim2.AnimationId = "rbxassetid://16945550029"
-            local playAnim2 = humanoid:LoadAnimation(anim2)
-            anim2.AnimationId = "rbxassetid://0"
-            playAnim2:Play()
-            
-            SoulsHub:Notify("KJ Ravage animation played!", 3)
-        end
-    }).Link:AddHelper({
-        Text = "Plays KJ's Ravage animation sequence"
-    })
-    
-    characterSelection:AddButton({
-        Name = "KJ Stoic Bomb",
-        Callback = function()
-            if _G.FeatureStates.CharacterPreset ~= "KJ" then
-                SoulsHub:Notify("Please select KJ character first!", 3)
-                return
-            end
-            
-            local player = game.Players.LocalPlayer
-            repeat task.wait() until player.Character.Humanoid
-            local humanoid = player.Character.Humanoid
-            local character = player.Character or player.CharacterAdded:Wait()
-            
-            local anim = Instance.new("Animation")
-            anim.AnimationId = "rbxassetid://17140902079"
-            local playAnim = humanoid:LoadAnimation(anim)
-            anim.AnimationId = "rbxassetid://0"
-            playAnim:Play()
-            
-            SoulsHub:Notify("KJ Stoic Bomb animation played!", 3)
-        end
-    }).Link:AddHelper({
-        Text = "Plays KJ's Stoic Bomb ultimate animation"
-    })
-    
-    characterSelection:AddButton({
-        Name = "Gojo Reversal Red",
-        Callback = function()
-            if _G.FeatureStates.CharacterPreset ~= "Gojo" then
-                SoulsHub:Notify("Please select Gojo character first!", 3)
-                return
-            end
-            
-            local player = game.Players.LocalPlayer
-            repeat task.wait() until player.Character.Humanoid
-            local humanoid = player.Character.Humanoid
-            local character = player.Character or player.CharacterAdded:Wait()
-            
-            local anim = Instance.new("Animation")
-            anim.AnimationId = "rbxassetid://13073745835"
-            local playAnim = humanoid:LoadAnimation(anim)
-            playAnim:Play()
-            
-            SoulsHub:Notify("Gojo Reversal Red animation played!", 3)
-        end
-    }).Link:AddHelper({
-        Text = "Plays Gojo's Reversal Red animation"
-    })
-    
-    -- Auto Kyoto section (credits removed, UI improved)
-    characterSelection:AddSection({
-        Name = "Auto Moves"
-    })
-    
-    characterSelection:AddButton({
-        Name = "Auto Kyoto Setup",
-        Callback = function()
-            -- Remove any existing Auto Kyoto UI
-            pcall(function()
-                if game.Players.LocalPlayer:FindFirstChild("PlayerGui") and game.Players.LocalPlayer.PlayerGui:FindFirstChild("AutoKyotoGUI") then
-                    game.Players.LocalPlayer.PlayerGui.AutoKyotoGUI:Destroy()
-                end
-            end)
-            
-            -- Create Auto Kyoto UI (no credits)
-            local player = game.Players.LocalPlayer
-            local TweenService = game:GetService("TweenService")
-
-            -- Create ScreenGui
-            local screenGui = Instance.new("ScreenGui")
-            screenGui.Name = "AutoKyotoGUI"
-            screenGui.ResetOnSpawn = false
-            screenGui.Parent = player:WaitForChild("PlayerGui")
-
-            -- Create main button
-            local button = Instance.new("TextButton")
-            button.Parent = screenGui
-            button.Size = UDim2.new(0, 60, 0, 60)
-            button.Position = UDim2.new(0.5, -30, 0.85, -30)
-            button.Text = "K"
-            button.BackgroundColor3 = Color3.fromRGB(100, 0, 200)
-            button.TextColor3 = Color3.new(1, 1, 1)
-            button.TextScaled = true
-            button.Font = Enum.Font.GothamBold
-            button.Active = true
-            button.Draggable = true
-            button.ZIndex = 10
-            
-            -- Add corner
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(0, 10)
-            corner.Parent = button
-            
-            -- Add glow effect
-            local glow = Instance.new("UIStroke")
-            glow.Color = Color3.fromRGB(200, 100, 255)
-            glow.Thickness = 2
-            glow.Parent = button
-            
-            -- Function to activate Kyoto
-            local function activateKyoto()
-                local args1 = {
-                    [1] = {
-                        ["Tool"] = player.Backpack:FindFirstChild("Flowing Water"),
-                        ["Goal"] = "Console Move"
-                    }
-                }
-                player.Character.Communicate:FireServer(unpack(args1))
-
-                task.wait(2.15)
-
-                local char = player.Character
-                if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-                local hrp = char.HumanoidRootPart
-
-                local forward = hrp.CFrame.LookVector.Unit
-                local distance = 20
-                local duration = 0.1
-                local goalPos = hrp.Position + forward * distance
-                local tween = TweenService:Create(hrp, TweenInfo.new(duration), {
-                    CFrame = CFrame.new(goalPos, goalPos + forward)
-                })
-                tween:Play()
-                tween.Completed:Wait()
-
-                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(180), 0)
-
-                local args = {
-                    [1] = {
-                        ["Tool"] = game:GetService("Players").LocalPlayer.Backpack:FindFirstChild("Lethal Whirlwind Stream"),
-                        ["Goal"] = "Console Move"
-                    }
-                }
-                game:GetService("Players").LocalPlayer.Character.Communicate:FireServer(unpack(args))
-            end
-            
-            -- Handle input
-            local dragging = false
-            local dragStartPos = nil
-            local dragThreshold = 10
-            local pressTime = 0
-
-            button.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    dragStartPos = input.Position
-                    dragging = false
-                    pressTime = tick()
-                end
-            end)
-
-            button.InputChanged:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
-                    if dragStartPos and (input.Position - dragStartPos).Magnitude > dragThreshold then
-                        dragging = true
-                    end
-                end
-            end)
-
-            button.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    local holdDuration = tick() - pressTime
-
-                    if not dragging and holdDuration < 1 then
-                        activateKyoto()
-                    end
-
-                    dragStartPos = nil
-                    dragging = false
-                end
-            end)
-            
-            SoulsHub:Notify("Auto Kyoto UI created! Drag the 'K' button to position it.", 3)
-        end
-    }).Link:AddHelper({
-        Text = "Creates a draggable button for Auto Kyoto combo"
-    })
-end
-
--- ESP & VISUALS TAB
-do
-    local espSection = ESPVisuals:DrawSection({
-        Name = "Player ESP",
-        Position = "left"
-    })
-    
-    local highlightSection = ESPVisuals:DrawSection({
-        Name = "Visual Enhancements",
-        Position = "right"
-    })
-    
-    espSection:AddToggle({
-        Name = "ESP Names",
-        Flag = "esp_names",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.ESPNames = enabled
-            if enabled then
-                local function addEspToCharacter(char, playerName)
-                    if not char:FindFirstChild("Head") then return end
-                    if not char.Head:FindFirstChild("ESP_Name") then
-                        local bb = Instance.new("BillboardGui")
-                        bb.Name = "ESP_Name"
-                        bb.Size = UDim2.new(0, 100, 0, 30)
-                        bb.StudsOffset = Vector3.new(0, 2, 0)
-                        bb.AlwaysOnTop = true
-                        bb.Adornee = char.Head
-                        bb.Parent = char.Head
-                        local label = Instance.new("TextLabel")
-                        label.Size = UDim2.new(1, 0, 1, 0)
-                        label.BackgroundTransparency = 1
-                        label.Text = playerName
-                        label.TextColor3 = Color3.new(1, 1, 1)
-                        label.TextScaled = true
-                        label.Font = Enum.Font.SourceSansBold
-                        label.Parent = bb
-                    end
-                end
-                
-                local function enableEspNameForPlayer(player)
-                    if player == game.Players.LocalPlayer then return end
-                    if player.Character then
-                        addEspToCharacter(player.Character, player.Name)
-                    end
-                    player.CharacterAdded:Connect(function(char)
-                        wait(1)
-                        addEspToCharacter(char, player.Name)
-                    end)
-                end
-                
-                for _, player in ipairs(game.Players:GetPlayers()) do
-                    enableEspNameForPlayer(player)
-                end
-                
-                game.Players.PlayerAdded:Connect(enableEspNameForPlayer)
-            else
-                for _, player in ipairs(game.Players:GetPlayers()) do
-                    if player.Character and player.Character:FindFirstChild("Head") then
-                        local esp = player.Character.Head:FindFirstChild("ESP_Name")
-                        if esp then esp:Destroy() end
-                    end
-                end
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Displays player names above their heads"
-    })
-    
-    espSection:AddToggle({
-        Name = "Highlight Enemies",
-        Flag = "highlight_enemies",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.HighlightEnemies = enabled
-            if enabled then
-                local function applyHighlightToPlayer(player)
-                    if player == game.Players.LocalPlayer then return end
-                    local function createHighlight(char)
-                        if not char:FindFirstChild("HighlightESP") then
-                            local highlight = Instance.new("Highlight")
-                            highlight.Name = "HighlightESP"
-                            highlight.FillTransparency = 1
-                            highlight.OutlineTransparency = 0
-                            highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
-                            highlight.Adornee = char
-                            highlight.Parent = char
-                        end
-                    end
-                    
-                    if player.Character then
-                        createHighlight(player.Character)
-                    end
-                    
-                    player.CharacterAdded:Connect(function(char)
-                        char:WaitForChild("HumanoidRootPart", 5)
-                        wait(1)
-                        createHighlight(char)
-                    end)
-                end
-                
-                for _, p in ipairs(game.Players:GetPlayers()) do
-                    applyHighlightToPlayer(p)
-                end
-                
-                game.Players.PlayerAdded:Connect(function(p)
-                    applyHighlightToPlayer(p)
-                end)
-            else
-                for _, p in ipairs(game.Players:GetPlayers()) do
-                    if p.Character then
-                        local h = p.Character:FindFirstChild("HighlightESP")
-                        if h then h:Destroy() end
-                    end
-                end
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Highlights enemy characters with green outline"
-    })
-    
-    espSection:AddToggle({
-        Name = "Show Health Text",
-        Flag = "health_text",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.ShowHealthText = enabled
-            if enabled then
-                local showHealthConnections = {}
-                local function createHealthDisplay(char)
-                    if not char:FindFirstChild("Head") or not char:FindFirstChild("Humanoid") then return end
-                    if char.Head:FindFirstChild("ESP_HealthText") then return end
-                    local gui = Instance.new("BillboardGui")
-                    gui.Name = "ESP_HealthText"
-                    gui.Size = UDim2.new(0, 100, 0, 30)
-                    gui.StudsOffset = Vector3.new(0, 3, 0)
-                    gui.AlwaysOnTop = true
-                    gui.Adornee = char.Head
-                    gui.Parent = char.Head
-                    local text = Instance.new("TextLabel")
-                    text.Size = UDim2.new(1, 0, 1, 0)
-                    text.BackgroundTransparency = 1
-                    text.TextColor3 = Color3.fromRGB(255, 0, 0)
-                    text.Font = Enum.Font.SourceSansBold
-                    text.TextScaled = true
-                    text.Text = "Health: 100%"
-                    text.Parent = gui
-                    local hum = char:FindFirstChild("Humanoid")
-                    if hum then
-                        text.Text = "Health: " .. math.floor((hum.Health / hum.MaxHealth) * 100) .. "%"
-                        local conn = hum.HealthChanged:Connect(function()
-                            text.Text = "Health: " .. math.floor((hum.Health / hum.MaxHealth) * 100) .. "%"
-                        end)
-                        table.insert(showHealthConnections, conn)
-                    end
-                end
-                
-                local function handlePlayerForHealth(player)
-                    if player == game.Players.LocalPlayer then return end
-                    local function onCharAdded(char)
-                        wait(0.5)
-                        createHealthDisplay(char)
-                    end
-                    if player.Character then
-                        onCharAdded(player.Character)
-                    end
-                    local charConn = player.CharacterAdded:Connect(onCharAdded)
-                    table.insert(showHealthConnections, charConn)
-                end
-                
-                for _, p in ipairs(game.Players:GetPlayers()) do
-                    handlePlayerForHealth(p)
-                end
-                
-                local joinConn = game.Players.PlayerAdded:Connect(handlePlayerForHealth)
-                table.insert(showHealthConnections, joinConn)
-            else
-                for _, p in ipairs(game.Players:GetPlayers()) do
-                    if p.Character and p.Character:FindFirstChild("Head") then
-                        local gui = p.Character.Head:FindFirstChild("ESP_HealthText")
-                        if gui then gui:Destroy() end
-                    end
-                end
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Shows health percentage above enemy heads"
-    })
-    
-    espSection:AddToggle({
-        Name = "Show Health Bars",
-        Flag = "health_bars",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.ShowHealthBars = enabled
-            if enabled then
-                local healthBarConns = {}
-                local function createHealthBar(char)
-                    if not char:FindFirstChild("Head") or char.Head:FindFirstChild("ESP_HealthBar") then return end
-                    local humanoid = char:FindFirstChildOfClass("Humanoid")
-                    if not humanoid then return end
-                    local gui = Instance.new("BillboardGui")
-                    gui.Name = "ESP_HealthBar"
-                    gui.Size = UDim2.new(0, 100, 0, 6)
-                    gui.StudsOffset = Vector3.new(0, 3.5, 0)
-                    gui.AlwaysOnTop = true
-                    gui.Adornee = char.Head
-                    gui.Parent = char.Head
-                    local bg = Instance.new("Frame")
-                    bg.Size = UDim2.new(1, 0, 1, 0)
-                    bg.BackgroundColor3 = Color3.new(0, 0, 0)
-                    bg.BorderSizePixel = 0
-                    bg.Parent = gui
-                    local bar = Instance.new("Frame")
-                    bar.Name = "HealthBarFill"
-                    bar.Size = UDim2.new(1, 0, 1, 0)
-                    bar.BackgroundColor3 = Color3.new(1, 0, 0)
-                    bar.BorderSizePixel = 0
-                    bar.Parent = bg
-                    local function updateHealth()
-                        if humanoid and humanoid.MaxHealth > 0 then
-                            local percent = humanoid.Health / humanoid.MaxHealth
-                            bar.Size = UDim2.new(math.clamp(percent, 0, 1), 0, 1, 0)
-                        end
-                    end
-                    local conn = humanoid.HealthChanged:Connect(updateHealth)
-                    table.insert(healthBarConns, conn)
-                    updateHealth()
-                end
-                
-                local function handlePlayerForHealthBar(player)
-                    if player == game.Players.LocalPlayer then return end
-                    local function onChar(char)
-                        wait(0.5)
-                        createHealthBar(char)
-                    end
-                    if player.Character then
-                        onChar(player.Character)
-                    end
-                    local charConn = player.CharacterAdded:Connect(onChar)
-                    table.insert(healthBarConns, charConn)
-                end
-                
-                for _, p in ipairs(game.Players:GetPlayers()) do
-                    handlePlayerForHealthBar(p)
-                end
-                
-                local conn = game.Players.PlayerAdded:Connect(handlePlayerForHealthBar)
-                table.insert(healthBarConns, conn)
-            else
-                for _, p in ipairs(game.Players:GetPlayers()) do
-                    if p.Character and p.Character:FindFirstChild("Head") then
-                        local h = p.Character.Head:FindFirstChild("ESP_HealthBar")
-                        if h then h:Destroy() end
-                    end
-                end
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Shows health bars above enemy heads"
-    })
-    
-    highlightSection:AddToggle({
-        Name = "Highlight Dummies",
-        Flag = "highlight_dummies",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.HighlightDummies = enabled
-            if enabled then
-                for _, npc in pairs(workspace:WaitForChild("Live"):GetChildren()) do
-                    if npc:IsA("Model") and npc.Name == "Weakest Dummy" then
-                        if not npc:FindFirstChild("_HighlightDummyTag") then
-                            local h = Instance.new("Highlight")
-                            h.Name = "_HighlightDummyTag"
-                            h.Adornee = npc
-                            h.FillTransparency = 1
-                            h.OutlineColor = Color3.fromRGB(170, 0, 255)
-                            h.OutlineTransparency = 0
-                            h.Parent = npc
-                        end
-                    end
-                end
-            else
-                for _, npc in pairs(workspace:WaitForChild("Live"):GetChildren()) do
-                    if npc:IsA("Model") and npc.Name == "Weakest Dummy" then
-                        local h = npc:FindFirstChild("_HighlightDummyTag")
-                        if h then
-                            h:Destroy()
-                        end
-                    end
-                end
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Highlights training dummies with purple outline"
-    })
-    
-    highlightSection:AddToggle({
-        Name = "Show Tracers",
-        Flag = "tracers",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.ShowTracers = enabled
-            if enabled then
-                local tracerConns = {}
-                local tracerLines = {}
-                local function createTracerForPlayer(player)
-                    if player == game.Players.LocalPlayer then return end
-                    local function updateLine()
-                        local char = player.Character
-                        local myChar = game.Players.LocalPlayer.Character
-                        if char and char:FindFirstChild("HumanoidRootPart") and myChar and myChar:FindFirstChild("HumanoidRootPart") then
-                            local line = tracerLines[player]
-                            if not line then
-                                line = Instance.new("Beam")
-                                local a0 = Instance.new("Attachment")
-                                local a1 = Instance.new("Attachment")
-                                a0.Name = "TracerA0"
-                                a1.Name = "TracerA1"
-                                a0.Parent = myChar.HumanoidRootPart
-                                a1.Parent = char.HumanoidRootPart
-                                line.Attachment0 = a0
-                                line.Attachment1 = a1
-                                line.Color = ColorSequence.new(Color3.fromRGB(0, 255, 0))
-                                line.Width0 = 1
-                                line.Width1 = 1
-                                line.FaceCamera = true
-                                line.Parent = a0
-                                tracerLines[player] = line
-                            end
-                        end
-                    end
-                    if player.Character then
-                        updateLine()
-                    end
-                    local conn1 = player.CharacterAdded:Connect(function()
-                        wait(1)
-                        updateLine()
-                    end)
-                    table.insert(tracerConns, conn1)
-                end
-                
-                for _, p in ipairs(game.Players:GetPlayers()) do
-                    createTracerForPlayer(p)
-                end
-                
-                local conn = game.Players.PlayerAdded:Connect(createTracerForPlayer)
-                table.insert(tracerConns, conn)
-            else
-                for _, line in pairs(tracerLines or {}) do
-                    if line and line.Parent then
-                        local a0 = line.Attachment0
-                        local a1 = line.Attachment1
-                        if a0 then a0:Destroy() end
-                        if a1 then a1:Destroy() end
-                        line:Destroy()
-                    end
-                end
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Draws lines from your character to enemies"
-    })
-end
-
--- AIM & PROTECTION TAB
-do
-    local protectionSection = AimAntiAim:DrawSection({
-        Name = "Protection",
-        Position = "left"
-    })
-    
-    protectionSection:AddToggle({
         Name = "FLING",
         Flag = "fling_protection",
         Default = false,
         Callback = function(enabled)
             _G.FeatureStates.FlingProtection = enabled
             if enabled then
-                -- Guide UI for FLING
+                -- Create instruction UI
                 local guideUI = Instance.new("ScreenGui")
                 guideUI.Name = "FlingGuide"
                 guideUI.ResetOnSpawn = false
@@ -1211,14 +253,1390 @@ do
                         end
                     end
                 end)()
-                
-                SoulsHub:Notify("FLING activated! Press C to use.", 3)
-            else
-                SoulsHub:Notify("FLING deactivated.", 3)
             end
         end
     }).Link:AddHelper({
-        Text = "Sends you into the air when using dash to avoid attacks"
+        Text = "Sends you into the air when dashing to avoid attacks"
+    })
+    
+    -- Fake Dash Q (Improved UI, no credits)
+    combatSection:AddToggle({
+        Name = "Fake Dash Q",
+        Flag = "fake_dash_q",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.FakeDashQ = enabled
+            if enabled then
+                local player = game.Players.LocalPlayer
+                local playerGui = player:WaitForChild("PlayerGui")
+                
+                -- Create custom UI button
+                local screenGui = Instance.new("ScreenGui")
+                screenGui.Name = "DashGui"
+                screenGui.ResetOnSpawn = false
+                screenGui.Parent = playerGui
+                
+                local dashBtn = Instance.new("TextButton")
+                dashBtn.Name = "DashForward"
+                dashBtn.Text = "⚡ DASH"
+                dashBtn.Size = UDim2.new(0, 0, 0, 0)
+                dashBtn.Position = UDim2.new(0.5, -80, 0.5, -100)
+                dashBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+                dashBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+                dashBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                dashBtn.TextSize = 22
+                dashBtn.Font = Enum.Font.GothamBold
+                dashBtn.BorderSizePixel = 0
+                dashBtn.BackgroundTransparency = 0.2
+                dashBtn.Active = true
+                dashBtn.Draggable = true
+                dashBtn.AutoButtonColor = false
+                dashBtn.Visible = false
+                dashBtn.Parent = screenGui
+                
+                -- Styling
+                Instance.new("UICorner", dashBtn).CornerRadius = UDim.new(0, 15)
+                Instance.new("UIStroke", dashBtn).Color = Color3.fromRGB(180, 120, 255)
+                
+                -- Smooth appearance
+                task.wait(0.3)
+                dashBtn.Visible = true
+                game:GetService("TweenService"):Create(dashBtn, TweenInfo.new(0.4), {
+                    Size = UDim2.new(0, 180, 0, 60)
+                }):Play()
+                
+                -- Dash logic
+                local running = false
+                dashBtn.MouseButton1Click:Connect(function()
+                    if running then return end
+                    running = true
+                    
+                    local char = player.Character or player.CharacterAdded:Wait()
+                    local hrp = char:WaitForChild("HumanoidRootPart")
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+                    
+                    -- Play animation
+                    local anim = Instance.new("Animation")
+                    anim.AnimationId = "rbxassetid://10479335397"
+                    local track = animator:LoadAnimation(anim)
+                    track:Play()
+                    
+                    -- Dash 32 studs forward
+                    local distanceToTravel = 32
+                    local speed = 100
+                    local distanceTraveled = 0
+                    local lastPosition = hrp.Position
+                    
+                    local connection
+                    connection = game:GetService("RunService").Heartbeat:Connect(function(dt)
+                        if not hrp or not hrp.Parent then 
+                            if connection then connection:Disconnect() end
+                            running = false
+                            return 
+                        end
+                        
+                        local moveStep = hrp.CFrame.LookVector * speed * dt
+                        hrp.CFrame = hrp.CFrame + moveStep
+                        
+                        distanceTraveled += (hrp.Position - lastPosition).Magnitude
+                        lastPosition = hrp.Position
+                        
+                        if distanceTraveled >= distanceToTravel then
+                            if connection then connection:Disconnect() end
+                            running = false
+                        end
+                    end)
+                end)
+                
+                -- Store reference for cleanup
+                _G.DashGui = screenGui
+            else
+                if _G.DashGui then
+                    _G.DashGui:Destroy()
+                    _G.DashGui = nil
+                end
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Creates a fake dash effect that moves you forward 32 studs"
+    })
+    
+    -- Anti Lag (Fixed)
+    movementSection:AddToggle({
+        Name = "Anti Lag",
+        Flag = "anti_lag",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.AntiLag = enabled
+            if enabled then
+                pcall(function()
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Antilag%20script"))()
+                end)
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Reduces lag by cleaning up unnecessary particles"
+    })
+    
+    -- M1 Reach Rework (Fixed with loop)
+    combatSection:AddToggle({
+        Name = "M1 Reach Rework",
+        Flag = "m1_reach_rework",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.M1ReachRework = enabled
+            if enabled then
+                -- Loop implementation to maintain state after death
+                local function startM1Loop()
+                    while _G.FeatureStates.M1ReachRework and game.Players.LocalPlayer.Character do
+                        pcall(function()
+                            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/M1%20Reach%20Rework"))()
+                        end)
+                        task.wait(5)
+                    end
+                end
+                
+                task.spawn(startM1Loop)
+                -- Connect to character added event to restart after death
+                game.Players.LocalPlayer.CharacterAdded:Connect(function()
+                    if _G.FeatureStates.M1ReachRework then
+                        task.wait(1)
+                        task.spawn(startM1Loop)
+                    end
+                end)
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Increases M1 attack reach and consistency"
+    })
+    
+    -- Invisible Block (Improved UI, no credits)
+    combatSection:AddToggle({
+        Name = "Invisible Block",
+        Flag = "invisible_block",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.InvisibleBlock = enabled
+            if enabled then
+                local player = game.Players.LocalPlayer
+                local playerGui = player:WaitForChild("PlayerGui")
+                
+                -- Custom UI button
+                local screenGui = Instance.new("ScreenGui")
+                screenGui.Name = "BlockAnimationGui"
+                screenGui.ResetOnSpawn = false
+                screenGui.Parent = playerGui
+                
+                local button = Instance.new("TextButton")
+                button.Name = "ToggleBlock"
+                button.Text = "🔵 BLOCK: OFF"
+                button.Size = UDim2.new(0, 250, 0, 50)
+                button.Position = UDim2.new(0.5, -70, 0.5, -25)
+                button.AnchorPoint = Vector2.new(0.5, 0.5)
+                button.BackgroundColor3 = Color3.fromRGB(50, 30, 80)
+                button.TextColor3 = Color3.fromRGB(255, 255, 255)
+                button.TextSize = 20
+                button.Font = Enum.Font.GothamBold
+                button.BorderSizePixel = 0
+                button.BackgroundTransparency = 0.2
+                button.Active = true
+                button.Draggable = true
+                button.Parent = screenGui
+                button.AutoButtonColor = false
+                
+                -- Smooth appearance
+                button.Size = UDim2.new(0, 140, 0, 300)
+                button.Visible = false
+                task.wait(0.2)
+                button.Visible = true
+                game:GetService("TweenService"):Create(button, TweenInfo.new(0.3), {
+                    Size = UDim2.new(0, 200, 0, 55)
+                }):Play()
+                
+                -- Styling
+                Instance.new("UICorner", button).CornerRadius = UDim.new(0, 14)
+                Instance.new("UIStroke", button).Color = Color3.fromRGB(130, 80, 220)
+                
+                -- Block animation logic
+                local targetAnimationId = "rbxassetid://10470389827"
+                local blockEnabled = false
+                local isDragging = false
+                local blockConnection = nil
+                
+                local function blockAnimation(humanoid)
+                    for _, track in ipairs(humanoid:GetPlayingAnimationTracks()) do
+                        if track.Animation and track.Animation.AnimationId == targetAnimationId then
+                            track:Stop()
+                            track:Destroy()
+                        end
+                    end
+                end
+                
+                local function toggleBlock(state)
+                    blockEnabled = state
+                    button.Text = blockEnabled and "🟢 BLOCK: ON" or "🔵 BLOCK: OFF"
+                    
+                    if blockEnabled then
+                        local function startBlocking()
+                            local char = player.Character or player.CharacterAdded:Wait()
+                            local humanoid = char:WaitForChild("Humanoid")
+                            task.spawn(function()
+                                while blockEnabled and humanoid and humanoid.Parent do
+                                    blockAnimation(humanoid)
+                                    task.wait(0.05)
+                                end
+                            end)
+                            blockConnection = humanoid.AnimationPlayed:Connect(function(track)
+                                if track.Animation and track.Animation.AnimationId == targetAnimationId then
+                                    track:Stop()
+                                    track:Destroy()
+                                end
+                            end)
+                        end
+                        
+                        startBlocking()
+                        player.CharacterAdded:Connect(function()
+                            if blockEnabled then
+                                task.wait(1)
+                                startBlocking()
+                            end
+                        end)
+                    else
+                        if blockConnection then
+                            blockConnection:Disconnect()
+                            blockConnection = nil
+                        end
+                    end
+                end
+                
+                -- Dragging protection
+                local dragStarted = false
+                button.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        dragStarted = true
+                    end
+                end)
+                
+                button.InputEnded:Connect(function(input)
+                    if dragStarted and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+                        if not isDragging then
+                            toggleBlock(not blockEnabled)
+                        end
+                        dragStarted = false
+                    end
+                end)
+                
+                button.MouseEnter:Connect(function()
+                    isDragging = false
+                end)
+                
+                button.MouseMoved:Connect(function()
+                    isDragging = true
+                end)
+                
+                button.MouseLeave:Connect(function()
+                    isDragging = false
+                end)
+                
+                -- Store reference
+                _G.BlockGui = screenGui
+            else
+                if _G.BlockGui then
+                    _G.BlockGui:Destroy()
+                    _G.BlockGui = nil
+                end
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Makes your character invisible while blocking"
+    })
+    
+    -- No Stun (Fixed)
+    combatSection:AddToggle({
+        Name = "No Stun",
+        Flag = "no_stun",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.NoStun = enabled
+            if enabled then
+                if not _G.StunBypass then
+                    _G.StunBypass = game:GetService("RunService").RenderStepped:Connect(function()
+                        local char = game.Players.LocalPlayer.Character
+                        if char then
+                            if char:FindFirstChild("Stunned") then
+                                char.Stunned:Destroy()
+                            end
+                            if char:FindFirstChild("Humanoid") then
+                                char.Humanoid.PlatformStand = false
+                                if char.Humanoid.WalkSpeed == 0 then
+                                    char.Humanoid.WalkSpeed = 16
+                                end
+                            end
+                        end
+                    end)
+                end
+            else
+                if _G.StunBypass then
+                    _G.StunBypass:Disconnect()
+                    _G.StunBypass = nil
+                end
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Prevents your character from being stunned"
+    })
+    
+    -- No Slowed (Fixed)
+    combatSection:AddToggle({
+        Name = "No Slowed",
+        Flag = "no_slowed",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.NoSlowed = enabled
+            if enabled then
+                if not _G.NoSlowLoop then
+                    _G.NoSlowLoop = game:GetService("RunService").RenderStepped:Connect(function()
+                        local char = game.Players.LocalPlayer.Character
+                        if char and char:FindFirstChild("Humanoid") then
+                            local hum = char.Humanoid
+                            if hum.WalkSpeed < 20 then
+                                hum.WalkSpeed = 20
+                            end
+                            hum.PlatformStand = false
+                        end
+                    end)
+                end
+            else
+                if _G.NoSlowLoop then
+                    _G.NoSlowLoop:Disconnect()
+                    _G.NoSlowLoop = nil
+                end
+                local char = game.Players.LocalPlayer.Character
+                if char and char:FindFirstChild("Humanoid") then
+                    char.Humanoid.WalkSpeed = 16
+                end
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Prevents your character from being slowed down"
+    })
+    
+    -- Aura (Improved UI, tweaked colors)
+    combatSection:AddToggle({
+        Name = "Aura",
+        Flag = "aura_client",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.Aura = enabled
+            if enabled then
+                local player = game.Players.LocalPlayer
+                local char = player.Character or player.CharacterAdded:Wait()
+                local humanoid = char:WaitForChild("Humanoid")
+                
+                -- Custom UI button
+                local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+                gui.Name = "AuraGui"
+                local toggle = Instance.new("TextButton", gui)
+                
+                toggle.Size = UDim2.new(0, 180, 0, 60)
+                toggle.Position = UDim2.new(0.5, -90, 0.8, 0)
+                toggle.Text = "✨ AURA: OFF"
+                toggle.BackgroundColor3 = Color3.fromRGB(50, 30, 80)
+                toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+                toggle.TextSize = 20
+                toggle.Font = Enum.Font.GothamBold
+                toggle.BackgroundTransparency = 0.2
+                toggle.Active = true
+                toggle.Draggable = true
+                
+                -- Styling
+                Instance.new("UICorner", toggle).CornerRadius = UDim.new(0, 12)
+                Instance.new("UIStroke", toggle).Color = Color3.fromRGB(150, 100, 255)
+                
+                -- Aura logic
+                local auraOn = false
+                local debounce = false
+                local dragging = false
+                local auraHighlight = nil
+                local auraColorTime = 0
+                local auraParticles = {}
+                
+                toggle.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        dragging = false
+                    end
+                end)
+                
+                toggle.InputChanged:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                        dragging = true
+                    end
+                end)
+                
+                toggle.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        if not dragging and not debounce then
+                            debounce = true
+                            auraOn = not auraOn
+                            toggle.Text = auraOn and "✨ AURA: ON" or "✨ AURA: OFF"
+                            
+                            if auraOn then
+                                -- Play intro animation
+                                local anim = Instance.new("Animation")
+                                anim.AnimationId = "rbxassetid://114586157428274"
+                                local track = humanoid:LoadAnimation(anim)
+                                track:Play()
+                                
+                                -- Highlight effect
+                                auraHighlight = Instance.new("Highlight")
+                                auraHighlight.Adornee = char
+                                auraHighlight.FillTransparency = 1
+                                auraHighlight.OutlineTransparency = 0
+                                auraHighlight.OutlineColor = Color3.fromRGB(180, 80, 220) -- Tweaked color
+                                auraHighlight.Parent = char
+                                
+                                -- Particle effects
+                                for _, partName in pairs({"UpperTorso", "LowerTorso", "HumanoidRootPart"}) do
+                                    local part = char:FindFirstChild(partName)
+                                    if part then
+                                        local att = Instance.new("Attachment", part)
+                                        local particle = Instance.new("ParticleEmitter", att)
+                                        particle.Name = "DarkAura"
+                                        particle.Rate = 30
+                                        particle.Lifetime = NumberRange.new(1.2, 2)
+                                        particle.Speed = NumberRange.new(2, 5)
+                                        particle.Size = NumberSequence.new({
+                                            NumberSequenceKeypoint.new(0, 3),
+                                            NumberSequenceKeypoint.new(1, 0)
+                                        })
+                                        particle.Transparency = NumberSequence.new({
+                                            NumberSequenceKeypoint.new(0, 0.1),
+                                            NumberSequenceKeypoint.new(1, 1)
+                                        })
+                                        particle.Color = ColorSequence.new(Color3.fromRGB(30, 20, 50)) -- Darker color
+                                        particle.Rotation = NumberRange.new(0, 360)
+                                        particle.RotSpeed = NumberRange.new(-90, 90)
+                                        particle.SpreadAngle = Vector2.new(180, 180)
+                                        particle.LockedToPart = false
+                                        particle.ZOffset = -1
+                                        table.insert(auraParticles, particle)
+                                    end
+                                end
+                            else
+                                -- Cleanup
+                                if auraHighlight then
+                                    auraHighlight:Destroy()
+                                    auraHighlight = nil
+                                end
+                                for _, p in pairs(auraParticles) do
+                                    if p then p:Destroy() end
+                                end
+                                auraParticles = {}
+                            end
+                            
+                            task.wait(0.3)
+                            debounce = false
+                        end
+                    end
+                end)
+                
+                -- Color cycling effect
+                game:GetService("RunService").RenderStepped:Connect(function(dt)
+                    if auraOn and auraHighlight then
+                        auraColorTime += dt * 0.25
+                        local r = math.sin(auraColorTime) * 80 + 100
+                        local g = math.sin(auraColorTime + 2) * 80 + 100
+                        local b = math.sin(auraColorTime + 4) * 80 + 100
+                        auraHighlight.OutlineColor = Color3.fromRGB(r, g, b)
+                    end
+                end)
+                
+                -- Store reference
+                _G.AuraGui = gui
+            else
+                if _G.AuraGui then
+                    _G.AuraGui:Destroy()
+                    _G.AuraGui = nil
+                end
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Creates a visual aura effect around your character"
+    })
+    
+    -- Auto Kyoto (Improved UI, no credits)
+    combatSection:AddToggle({
+        Name = "Auto Kyoto",
+        Flag = "auto_kyoto",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.AutoKyoto = enabled
+            if enabled then
+                local player = game.Players.LocalPlayer
+                local TweenService = game:GetService("TweenService")
+                
+                -- Custom UI
+                local screenGui = Instance.new("ScreenGui")
+                screenGui.Name = "KyotoGui"
+                screenGui.ResetOnSpawn = false
+                screenGui.Parent = player:WaitForChild("PlayerGui")
+                
+                -- Main button
+                local button = Instance.new("TextButton")
+                button.Parent = screenGui
+                button.Size = UDim2.new(0, 60, 0, 60)
+                button.Position = UDim2.new(0.5, -120, 0.8, 0)
+                button.Text = "🎯"
+                button.BackgroundColor3 = Color3.fromRGB(70, 40, 120)
+                button.TextColor3 = Color3.new(1, 1, 1)
+                button.TextSize = 28
+                button.Font = Enum.Font.GothamBold
+                button.Active = true
+                button.Draggable = true
+                button.BackgroundTransparency = 0.2
+                
+                -- Styling
+                Instance.new("UICorner", button).CornerRadius = UDim.new(1, 0)
+                Instance.new("UIStroke", button).Color = Color3.fromRGB(160, 100, 230)
+                
+                -- Draggable logic
+                local dragging = false
+                local dragStartPos = nil
+                local dragThreshold = 10
+                local pressTime = 0
+                
+                button.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        dragStartPos = input.Position
+                        dragging = false
+                        pressTime = tick()
+                    end
+                end)
+                
+                button.InputChanged:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+                        if dragStartPos and (input.Position - dragStartPos).Magnitude > dragThreshold then
+                            dragging = true
+                        end
+                    end
+                end)
+                
+                button.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        local holdDuration = tick() - pressTime
+                        
+                        if not dragging and holdDuration < 1 then
+                            -- Execute Kyoto combo
+                            local args1 = {
+                                [1] = {
+                                    ["Tool"] = player.Backpack:FindFirstChild("Flowing Water"),
+                                    ["Goal"] = "Console Move"
+                                }
+                            }
+                            player.Character.Communicate:FireServer(unpack(args1))
+                            
+                            task.wait(2.15)
+                            
+                            local char = player.Character
+                            if char and char:FindFirstChild("HumanoidRootPart") then
+                                local hrp = char.HumanoidRootPart
+                                local forward = hrp.CFrame.LookVector.Unit
+                                local distance = 20
+                                local goalPos = hrp.Position + forward * distance
+                                
+                                local tween = TweenService:Create(hrp, TweenInfo.new(0.1), {
+                                    CFrame = CFrame.new(goalPos, goalPos + forward)
+                                })
+                                tween:Play()
+                                tween.Completed:Wait()
+                                
+                                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(180), 0)
+                                
+                                -- Lethal Whirlwind Stream
+                                local args = {
+                                    [1] = {
+                                        ["Tool"] = player.Backpack:FindFirstChild("Lethal Whirlwind Stream"),
+                                        ["Goal"] = "Console Move"
+                                    }
+                                }
+                                player.Character.Communicate:FireServer(unpack(args))
+                            end
+                        end
+                        
+                        dragStartPos = nil
+                        dragging = false
+                    end
+                end)
+                
+                -- Store reference
+                _G.KyotoGui = screenGui
+            else
+                if _G.KyotoGui then
+                    _G.KyotoGui:Destroy()
+                    _G.KyotoGui = nil
+                end
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Automatically performs Kyoto combo: Flowing Water + Lethal Whirlwind Stream"
+    })
+    
+    -- Auto Farm (Fixed)
+    combatSection:AddToggle({
+        Name = "Auto Farm",
+        Flag = "auto_farm",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.AutoFarm = enabled
+            if enabled then
+                pcall(function()
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Cyborg883/TSB/refs/heads/main/AutoFarm"))()
+                end)
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Automatically farms XP in designated areas"
+    })
+end
+
+-- CHARACTERS TAB
+do
+    local characterSelection = CharCustomization:DrawSection({
+        Name = "Characters",
+        Position = "left"
+    })
+    
+    local garouSection = CharCustomization:DrawSection({
+        Name = "Garou Features",
+        Position = "right"
+    })
+    
+    characterSelection:AddDropdown({
+        Name = "Character Preset",
+        Values = {"None", "Garou", "Gojo", "KJ", "Soul Reaper"},
+        Default = "None",
+        Flag = "character_preset",
+        Callback = function(selected)
+            _G.FeatureStates.CharacterPreset = selected
+            -- Apply character preset logic here
+        end
+    }).Link:AddHelper({
+        Text = "Select your desired character preset"
+    })
+    
+    -- Void Kill (Fixed with instructions)
+    garouSection:AddToggle({
+        Name = "Void Kill",
+        Flag = "void_kill",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.VoidKill = enabled
+            if enabled then
+                -- Create instruction UI
+                local guideUI = Instance.new("ScreenGui")
+                guideUI.Name = "VoidKillGuide"
+                guideUI.ResetOnSpawn = false
+                guideUI.Parent = game.Players.LocalPlayer.PlayerGui
+                
+                local frame = Instance.new("Frame")
+                frame.Size = UDim2.new(0.4, 0, 0.3, 0)
+                frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+                frame.AnchorPoint = Vector2.new(0.5, 0.5)
+                frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                frame.BorderSizePixel = 0
+                frame.BackgroundTransparency = 0.2
+                frame.Parent = guideUI
+                
+                local title = Instance.new("TextLabel")
+                title.Size = UDim2.new(1, 0, 0.2, 0)
+                title.Text = "VOID KILL INSTRUCTIONS"
+                title.Font = Enum.Font.GothamBold
+                title.TextSize = 24
+                title.TextColor3 = Color3.new(1, 1, 1)
+                title.BackgroundTransparency = 1
+                title.Parent = frame
+                
+                local instructions = Instance.new("TextLabel")
+                instructions.Size = UDim2.new(0.9, 0, 0.6, 0)
+                instructions.Position = UDim2.new(0.05, 0, 0.3, 0)
+                instructions.Text = "1. Select 'Garou' as your character preset\n2. Use Garou's first move (Flowing Water) on an enemy\n3. When the animation plays, the enemy will instantly die\n4. This only works when Void Kill is enabled"
+                instructions.Font = Enum.Font.Gotham
+                instructions.TextSize = 16
+                instructions.TextColor3 = Color3.new(1, 1, 1)
+                instructions.BackgroundTransparency = 1
+                instructions.TextWrapped = true
+                instructions.Parent = frame
+                
+                local closeBtn = Instance.new("TextButton")
+                closeBtn.Size = UDim2.new(0.2, 0, 0.15, 0)
+                closeBtn.Position = UDim2.new(0.4, 0, 0.85, 0)
+                closeBtn.Text = "CLOSE"
+                closeBtn.Font = Enum.Font.GothamBold
+                closeBtn.TextSize = 16
+                closeBtn.TextColor3 = Color3.new(1, 1, 1)
+                closeBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+                closeBtn.Parent = frame
+                
+                closeBtn.MouseButton1Click:Connect(function()
+                    guideUI:Destroy()
+                end)
+                
+                -- Actual Void Kill implementation
+                workspace.FallenPartsDestroyHeight = 0/0
+                local animations = {
+                    ["rbxassetid://12273188754"] = 1.31,
+                }
+                
+                function findAnimation(t, a)
+                    for i, v in pairs(t) do
+                        if i == a then
+                            return i
+                        end
+                    end
+                    return false
+                end
+                
+                local plr = game.Players.LocalPlayer
+                if getgenv().loop then
+                    coroutine.close(getgenv().loop)
+                    getgenv().loop = nil
+                end
+                
+                getgenv().loop = coroutine.create(function()
+                    local dothetech = false
+                    local lastcf
+                    while task.wait() do
+                        local character = plr.Character
+                        if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
+                            local animate = character.Humanoid.Animator
+                            for i, v in pairs(animate:GetPlayingAnimationTracks()) do
+                                if findAnimation(animations, v.Animation.AnimationId) then
+                                    task.wait(animations[v.Animation.AnimationId])
+                                    dothetech = true
+                                    lastcf = character.HumanoidRootPart.CFrame
+                                    v.Stopped:Connect(function()
+                                        dothetech = false
+                                    end)
+                                    repeat wait()
+                                        workspace.Camera.CameraType = Enum.CameraType.Scriptable
+                                        character.HumanoidRootPart.CFrame = CFrame.new(0,-300,0)
+                                        character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+                                        character.HumanoidRootPart.AssemblyAngularVelocity = Vector3.zero
+                                    until not dothetech
+                                    task.wait(0.1)
+                                    character.HumanoidRootPart.CFrame = lastcf
+                                    workspace.Camera.CameraType = Enum.CameraType.Custom
+                                    workspace.Camera.CameraSubject = character.Humanoid
+                                    task.wait(1)
+                                end
+                            end
+                        end
+                    end
+                end)
+                coroutine.resume(getgenv().loop)
+            else
+                if getgenv().loop then
+                    coroutine.close(getgenv().loop)
+                    getgenv().loop = nil
+                end
+                workspace.FallenPartsDestroyHeight = -500
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Instantly kills enemies when using Flowing Water move"
+    })
+    
+    -- Standing Pose (Fixed)
+    garouSection:AddToggle({
+        Name = "Standing Pose",
+        Flag = "standing_pose",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.StandingPose = enabled
+            if enabled then
+                pcall(function()
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Idiea"))()
+                end)
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Makes your character stand in a cool pose while AFK"
+    })
+    
+    -- Soul Reaper Mode (Redesigned)
+    garouSection:AddToggle({
+        Name = "Soul Reaper Mode",
+        Flag = "reaper_mode",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.ReaperMode = enabled
+            if enabled then
+                local plr = game.Players.LocalPlayer
+                local char = plr.Character
+                
+                if char then
+                    -- Apply reaper effects
+                    local highlight = Instance.new("Highlight")
+                    highlight.FillColor = Color3.fromRGB(80, 80, 80)
+                    highlight.FillTransparency = 0.3
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    highlight.OutlineTransparency = 0
+                    highlight.Adornee = char
+                    highlight.Parent = char
+                    
+                    SoulsHub:Notify("Soul Reaper Mode activated! Use M1 for special attacks.", 3)
+                else
+                    SoulsHub:Notify("You need a character to use Soul Reaper Mode!", 3)
+                    _G.FeatureStates.ReaperMode = false
+                end
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Activates Soul Reaper mode with unique dark effects and animations"
+    })
+    
+    -- KJ Ravage (Fixed)
+    characterSelection:AddToggle({
+        Name = "KJ Ravage",
+        Flag = "kj_ravage",
+        Default = false,
+        Callback = function(enabled)
+            if enabled then
+                local player = game.Players.LocalPlayer
+                repeat wait() until player.Character.Humanoid
+                local humanoid = player.Character.Humanoid
+                local character = player.Character or player.CharacterAdded:Wait()
+                
+                humanoid.WalkSpeed = 0
+                
+                -- Play animations and effects
+                local anim = Instance.new("Animation")
+                anim.AnimationId = "rbxassetid://16945573694"
+                local playAnim = humanoid:LoadAnimation(anim)
+                anim.AnimationId = "rbxassetid://0"
+                playAnim:Play()
+                wait(0.7)
+                
+                local anim2 = Instance.new("Animation")
+                anim2.AnimationId = "rbxassetid://16945550029"
+                local playAnim2 = humanoid:LoadAnimation(anim2)
+                anim2.AnimationId = "rbxassetid://0"
+                playAnim2:Play()
+                
+                -- Add sound and VFX
+                local soundeffect = Instance.new("Sound")
+                soundeffect.SoundId = "rbxassetid://17325540665"
+                soundeffect.Parent = character.Torso
+                soundeffect:Play()
+                soundeffect.Volume = 1
+                
+                wait(2.7)
+                humanoid.WalkSpeed = 16
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Plays KJ's Ravage animation sequence"
+    })
+    
+    -- Gojo Reversal Red (Fixed)
+    characterSelection:AddToggle({
+        Name = "Gojo Reversal Red",
+        Flag = "gojo_reversal",
+        Default = false,
+        Callback = function(enabled)
+            if enabled then
+                local player = game.Players.LocalPlayer
+                repeat wait() until player.Character.Humanoid
+                local humanoid = player.Character.Humanoid
+                local character = player.Character or player.CharacterAdded:Wait()
+                
+                local anim = Instance.new("Animation")
+                anim.AnimationId = "rbxassetid://13073745835"
+                local playAnim = humanoid:LoadAnimation(anim)
+                playAnim:Play()
+                
+                wait(1.5)
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Plays Gojo's Reversal Red animation with enhanced VFX"
+    })
+end
+
+-- ESP & VISUALS TAB
+do
+    local espSection = ESPVisuals:DrawSection({
+        Name = "Player ESP",
+        Position = "left"
+    })
+    
+    local highlightSection = ESPVisuals:DrawSection({
+        Name = "Visual Enhancements",
+        Position = "right"
+    })
+    
+    -- ESP Names (Fixed)
+    espSection:AddToggle({
+        Name = "ESP Names",
+        Flag = "esp_names",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.ESPNames = enabled
+            if enabled then
+                local function addEspToCharacter(char, playerName)
+                    if not char:FindFirstChild("Head") then return end
+                    if not char.Head:FindFirstChild("ESP_Name") then
+                        local bb = Instance.new("BillboardGui")
+                        bb.Name = "ESP_Name"
+                        bb.Size = UDim2.new(0, 100, 0, 30)
+                        bb.StudsOffset = Vector3.new(0, 2, 0)
+                        bb.AlwaysOnTop = true
+                        bb.Adornee = char.Head
+                        bb.Parent = char.Head
+                        local label = Instance.new("TextLabel")
+                        label.Size = UDim2.new(1, 0, 1, 0)
+                        label.BackgroundTransparency = 1
+                        label.Text = playerName
+                        label.TextColor3 = Color3.new(1, 1, 1)
+                        label.TextScaled = true
+                        label.Font = Enum.Font.SourceSansBold
+                        label.Parent = bb
+                    end
+                end
+                
+                local function enableEspNameForPlayer(player)
+                    if player == game.Players.LocalPlayer then return end
+                    if player.Character then
+                        addEspToCharacter(player.Character, player.Name)
+                    end
+                    player.CharacterAdded:Connect(function(char)
+                        wait(1)
+                        addEspToCharacter(char, player.Name)
+                    end)
+                end
+                
+                for _, player in ipairs(game.Players:GetPlayers()) do
+                    enableEspNameForPlayer(player)
+                end
+                
+                game.Players.PlayerAdded:Connect(enableEspNameForPlayer)
+            else
+                for _, player in ipairs(game.Players:GetPlayers()) do
+                    if player.Character and player.Character:FindFirstChild("Head") then
+                        local esp = player.Character.Head:FindFirstChild("ESP_Name")
+                        if esp then esp:Destroy() end
+                    end
+                end
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Displays player names above their heads"
+    })
+    
+    -- Highlight Enemies (Fixed)
+    espSection:AddToggle({
+        Name = "Highlight Enemies",
+        Flag = "highlight_enemies",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.HighlightEnemies = enabled
+            if enabled then
+                local function applyHighlightToPlayer(player)
+                    if player == game.Players.LocalPlayer then return end
+                    local function createHighlight(char)
+                        if not char:FindFirstChild("HighlightESP") then
+                            local highlight = Instance.new("Highlight")
+                            highlight.Name = "HighlightESP"
+                            highlight.FillTransparency = 1
+                            highlight.OutlineTransparency = 0
+                            highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
+                            highlight.Adornee = char
+                            highlight.Parent = char
+                        end
+                    end
+                    
+                    if player.Character then
+                        createHighlight(player.Character)
+                    end
+                    
+                    player.CharacterAdded:Connect(function(char)
+                        char:WaitForChild("HumanoidRootPart", 5)
+                        wait(1)
+                        createHighlight(char)
+                    end)
+                end
+                
+                for _, p in ipairs(game.Players:GetPlayers()) do
+                    applyHighlightToPlayer(p)
+                end
+                
+                game.Players.PlayerAdded:Connect(function(p)
+                    applyHighlightToPlayer(p)
+                end)
+            else
+                for _, p in ipairs(game.Players:GetPlayers()) do
+                    if p.Character then
+                        local h = p.Character:FindFirstChild("HighlightESP")
+                        if h then h:Destroy() end
+                    end
+                end
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Highlights enemy characters with green outline"
+    })
+    
+    -- Show Health Text (Fixed)
+    espSection:AddToggle({
+        Name = "Show Health Text",
+        Flag = "health_text",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.ShowHealthText = enabled
+            if enabled then
+                local showHealthConnections = {}
+                local function createHealthDisplay(char)
+                    if not char:FindFirstChild("Head") or not char:FindFirstChild("Humanoid") then return end
+                    if char.Head:FindFirstChild("ESP_HealthText") then return end
+                    local gui = Instance.new("BillboardGui")
+                    gui.Name = "ESP_HealthText"
+                    gui.Size = UDim2.new(0, 100, 0, 30)
+                    gui.StudsOffset = Vector3.new(0, 3, 0)
+                    gui.AlwaysOnTop = true
+                    gui.Adornee = char.Head
+                    gui.Parent = char.Head
+                    local text = Instance.new("TextLabel")
+                    text.Size = UDim2.new(1, 0, 1, 0)
+                    text.BackgroundTransparency = 1
+                    text.TextColor3 = Color3.fromRGB(255, 0, 0)
+                    text.Font = Enum.Font.SourceSansBold
+                    text.TextScaled = true
+                    text.Text = "Health: 100%"
+                    text.Parent = gui
+                    local hum = char:FindFirstChild("Humanoid")
+                    if hum then
+                        text.Text = "Health: " .. math.floor((hum.Health / hum.MaxHealth) * 100) .. "%"
+                        local conn = hum.HealthChanged:Connect(function()
+                            text.Text = "Health: " .. math.floor((hum.Health / hum.MaxHealth) * 100) .. "%"
+                        end)
+                        table.insert(showHealthConnections, conn)
+                    end
+                end
+                
+                local function handlePlayerForHealth(player)
+                    if player == game.Players.LocalPlayer then return end
+                    local function onCharAdded(char)
+                        wait(0.5)
+                        createHealthDisplay(char)
+                    end
+                    if player.Character then
+                        onCharAdded(player.Character)
+                    end
+                    local charConn = player.CharacterAdded:Connect(onCharAdded)
+                    table.insert(showHealthConnections, charConn)
+                end
+                
+                for _, p in ipairs(game.Players:GetPlayers()) do
+                    handlePlayerForHealth(p)
+                end
+                
+                local joinConn = game.Players.PlayerAdded:Connect(handlePlayerForHealth)
+                table.insert(showHealthConnections, joinConn)
+            else
+                for _, p in ipairs(game.Players:GetPlayers()) do
+                    if p.Character and p.Character:FindFirstChild("Head") then
+                        local gui = p.Character.Head:FindFirstChild("ESP_HealthText")
+                        if gui then gui:Destroy() end
+                    end
+                end
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Shows health percentage above enemy heads"
+    })
+    
+    -- Highlight Dummies (Fixed)
+    highlightSection:AddToggle({
+        Name = "Highlight Dummies",
+        Flag = "highlight_dummies",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.HighlightDummies = enabled
+            if enabled then
+                for _, npc in pairs(workspace:WaitForChild("Live"):GetChildren()) do
+                    if npc:IsA("Model") and npc.Name == "Weakest Dummy" then
+                        if not npc:FindFirstChild("_HighlightDummyTag") then
+                            local h = Instance.new("Highlight")
+                            h.Name = "_HighlightDummyTag"
+                            h.Adornee = npc
+                            h.FillTransparency = 1
+                            h.OutlineColor = Color3.fromRGB(170, 0, 255)
+                            h.OutlineTransparency = 0
+                            h.Parent = npc
+                        end
+                    end
+                end
+            else
+                for _, npc in pairs(workspace:WaitForChild("Live"):GetChildren()) do
+                    if npc:IsA("Model") and npc.Name == "Weakest Dummy" then
+                        local h = npc:FindFirstChild("_HighlightDummyTag")
+                        if h then
+                            h:Destroy()
+                        end
+                    end
+                end
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Highlights training dummies with purple outline"
+    })
+end
+
+-- AIM & PROTECTION TAB
+do
+    local aimSection = AimProtection:DrawSection({
+        Name = "Aim Features",
+        Position = "left"
+    })
+    
+    local protectionSection = AimProtection:DrawSection({
+        Name = "Protection",
+        Position = "right"
+    })
+    
+    -- Aimlock (Fixed, improved UI)
+    aimSection:AddToggle({
+        Name = "Aimlock",
+        Flag = "aimlock_enabled",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.AimlockEnabled = enabled
+            if enabled then
+                -- Create custom GUI
+                local player = game.Players.LocalPlayer
+                local gui = Instance.new("ScreenGui", player.PlayerGui)
+                gui.Name = "AimLockGUI"
+                gui.ResetOnSpawn = false
+                
+                local mainFrame = Instance.new("Frame", gui)
+                mainFrame.Size = UDim2.new(0, 220, 0, 180)
+                mainFrame.Position = UDim2.new(0, 10, 0, 10)
+                mainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.15)
+                mainFrame.BackgroundTransparency = 0.2
+                mainFrame.Active = true
+                mainFrame.Draggable = true
+                
+                -- Styling
+                Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+                Instance.new("UIStroke", mainFrame).Color = Color3.fromRGB(120, 80, 200)
+                
+                -- Title
+                local title = Instance.new("TextLabel", mainFrame)
+                title.Size = UDim2.new(1, 0, 0.15, 0)
+                title.Text = "AIMLOCK SYSTEM"
+                title.TextColor3 = Color3.new(1, 1, 1)
+                title.BackgroundTransparency = 1
+                title.Font = Enum.Font.GothamBold
+                title.TextSize = 16
+                
+                -- Lock Button
+                local btn = Instance.new("TextButton", mainFrame)
+                btn.Size = UDim2.new(1, 0, 0.15, 0)
+                btn.Position = UDim2.new(0, 0, 0.15, 0)
+                btn.Text = "STATUS: OFF"
+                btn.TextColor3 = Color3.new(1, 1, 1)
+                btn.BackgroundTransparency = 1
+                btn.Font = Enum.Font.GothamBold
+                btn.TextSize = 14
+                
+                -- Target Display
+                local targetLabel = Instance.new("TextLabel", mainFrame)
+                targetLabel.Size = UDim2.new(1, 0, 0.15, 0)
+                targetLabel.Position = UDim2.new(0, 0, 0.3, 0)
+                targetLabel.Text = "TARGET: NONE"
+                targetLabel.TextColor3 = Color3.new(1, 1, 1)
+                targetLabel.BackgroundTransparency = 1
+                targetLabel.Font = Enum.Font.Gotham
+                targetLabel.TextSize = 14
+                
+                -- Offset Control
+                local offsetLabel = Instance.new("TextLabel", mainFrame)
+                offsetLabel.Size = UDim2.new(0.4, 0, 0.15, 0)
+                offsetLabel.Position = UDim2.new(0.05, 0, 0.45, 0)
+                offsetLabel.Text = "OFFSET:"
+                offsetLabel.TextColor3 = Color3.new(1, 1, 1)
+                offsetLabel.BackgroundTransparency = 1
+                offsetLabel.Font = Enum.Font.Gotham
+                offsetLabel.TextSize = 12
+                
+                local offsetInput = Instance.new("TextBox", mainFrame)
+                offsetInput.Size = UDim2.new(0.45, 0, 0.15, 0)
+                offsetInput.Position = UDim2.new(0.5, 0, 0.45, 0)
+                offsetInput.Text = "0.0001"
+                offsetInput.PlaceholderText = "Enter value"
+                offsetInput.TextColor3 = Color3.new(1, 1, 1)
+                offsetInput.BackgroundColor3 = Color3.new(0.2, 0.2, 0.3)
+                offsetInput.BackgroundTransparency = 0.1
+                offsetInput.Font = Enum.Font.Gotham
+                offsetInput.TextSize = 12
+                
+                -- Body Part Selection
+                local targetBodyPart = "Head"
+                local targetPartDropdown = Instance.new("TextButton", mainFrame)
+                targetPartDropdown.Size = UDim2.new(0.6, 0, 0.15, 0)
+                targetPartDropdown.Position = UDim2.new(0.2, 0, 0.6, 0)
+                targetPartDropdown.Text = "TARGET: HEAD"
+                targetPartDropdown.TextColor3 = Color3.new(1, 1, 1)
+                targetPartDropdown.BackgroundColor3 = Color3.new(0.2, 0.2, 0.3)
+                targetPartDropdown.BackgroundTransparency = 0.1
+                targetPartDropdown.Font = Enum.Font.Gotham
+                targetPartDropdown.TextSize = 12
+                
+                -- Center Dot
+                local dot = Instance.new("Frame", gui)
+                dot.Size = UDim2.new(0, 8, 0, 8)
+                dot.AnchorPoint = Vector2.new(0.5, 0.5)
+                dot.Position = UDim2.new(0.5, 0, 0.5, 0)
+                dot.BackgroundColor3 = Color3.new(1, 0.2, 0.2)
+                dot.BorderSizePixel = 0
+                
+                -- Styling for dot
+                Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+                
+                -- State variables
+                local armed = false
+                local tgt = nil
+                local aimlockActive = true
+                local verticalAimOffset = 0.0001
+                local targetBodyParts = {"Head", "UpperTorso", "HumanoidRootPart"}
+                local currentPartIndex = 1
+                
+                -- Button functionality
+                btn.MouseButton1Click:Connect(function()
+                    armed = not armed
+                    btn.Text = "STATUS: " .. (armed and "ON" or "OFF")
+                    btn.TextColor3 = armed and Color3.fromRGB(0, 255, 0) or Color3.new(1, 1, 1)
+                    if not armed then
+                        tgt = nil
+                        targetLabel.Text = "TARGET: NONE"
+                    end
+                end)
+                
+                -- Offset input handling
+                offsetInput.FocusLost:Connect(function(enterPressed)
+                    if enterPressed then
+                        local num = tonumber(offsetInput.Text)
+                        if num then
+                            verticalAimOffset = num
+                        else
+                            offsetInput.Text = tostring(verticalAimOffset)
+                        end
+                    end
+                end)
+                
+                -- Body part cycling
+                targetPartDropdown.MouseButton1Click:Connect(function()
+                    currentPartIndex = currentPartIndex % #targetBodyParts + 1
+                    targetBodyPart = targetBodyParts[currentPartIndex]
+                    targetPartDropdown.Text = "TARGET: " .. targetBodyPart:upper()
+                end)
+                
+                -- Target finding function
+                local function findTarget()
+                    local cam = workspace.CurrentCamera
+                    if not cam then return nil end
+                    
+                    local bestTarget = nil
+                    local cameraPos = cam.CFrame.Position
+                    
+                    for _, player in ipairs(game.Players:GetPlayers()) do
+                        if player ~= game.Players.LocalPlayer and player.Character then
+                            local char = player.Character
+                            local targetPart = char:FindFirstChild(targetBodyPart) or char:FindFirstChild("Head")
+                            
+                            if targetPart then
+                                local direction = (targetPart.Position - cameraPos).Unit
+                                local angle = math.deg(math.acos(cam.CFrame.LookVector:Dot(direction)))
+                                
+                                if angle < 25 and (targetPart.Position - cameraPos).Magnitude < 500 then
+                                    if not bestTarget or (targetPart.Position - cameraPos).Magnitude < (bestTarget.Position - cameraPos).Magnitude then
+                                        bestTarget = targetPart
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    
+                    return bestTarget
+                end
+                
+                -- Main aiming loop
+                local renderConnection
+                renderConnection = game:GetService("RunService").RenderStepped:Connect(function()
+                    if not aimlockActive then return end
+                    
+                    if armed then
+                        if not tgt or not tgt.Parent then
+                            tgt = findTarget()
+                        end
+                        
+                        if tgt then
+                            local cam = workspace.CurrentCamera
+                            if cam then
+                                local targetPos = tgt.Position
+                                local camPos = cam.CFrame.Position
+                                local direction = (targetPos - camPos).Unit
+                                local newLook = (direction + Vector3.new(0, verticalAimOffset, 0)).Unit
+                                cam.CFrame = CFrame.lookAt(camPos, camPos + newLook * 100)
+                                targetLabel.Text = "TARGET: " .. tgt.Parent.Name
+                                targetLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+                            end
+                        else
+                            targetLabel.Text = "TARGET: NONE"
+                            targetLabel.TextColor3 = Color3.new(1, 1, 1)
+                        end
+                    end
+                end)
+                
+                -- Store connections for cleanup
+                _G.AimlockConnections = _G.AimlockConnections or {}
+                table.insert(_G.AimlockConnections, renderConnection)
+                
+                -- Cleanup on respawn
+                local charConnection = game.Players.LocalPlayer.CharacterAdded:Connect(function()
+                    wait(0.5)
+                    if gui.Parent then
+                        gui:Destroy()
+                    end
+                    for _, conn in pairs(_G.AimlockConnections or {}) do
+                        if conn and conn.Connected then
+                            conn:Disconnect()
+                        end
+                    end
+                    _G.AimlockConnections = {}
+                end)
+                table.insert(_G.AimlockConnections, charConnection)
+                
+                -- Store reference
+                _G.AimlockGui = gui
+            else
+                if _G.AimlockGui then
+                    _G.AimlockGui:Destroy()
+                    _G.AimlockGui = nil
+                end
+                if _G.AimlockConnections then
+                    for _, conn in pairs(_G.AimlockConnections) do
+                        if conn and conn.Connected then
+                            conn:Disconnect()
+                        end
+                    end
+                    _G.AimlockConnections = {}
+                end
+            end
+        end
+    }).Link:AddHelper({
+        Text = "Automatically aims at the nearest enemy"
     })
 end
 
@@ -1234,6 +1652,7 @@ do
         Position = "right"
     })
     
+    -- Rejoin Server (Fixed)
     serverSection:AddButton({
         Name = "Rejoin Server",
         Callback = function()
@@ -1258,13 +1677,12 @@ do
             
             screenGui:Destroy()
             TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
-            
-            SoulsHub:Notify("Rejoining server...", 3)
         end
     }).Link:AddHelper({
         Text = "Rejoins the current server after 5 seconds"
     })
     
+    -- Server Hop (Fixed)
     serverSection:AddButton({
         Name = "Server Hop",
         Callback = function()
@@ -1309,7 +1727,6 @@ do
             local target = getRandomServer()
             if target then
                 TeleportService:TeleportToPlaceInstance(placeId, target, player)
-                SoulsHub:Notify("Hopping to new server...", 3)
             else
                 SoulsHub:Notify("No other servers found", 3)
             end
@@ -1318,153 +1735,25 @@ do
         Text = "Hops to a random server of the same game"
     })
     
-    serverSection:AddButton({
-        Name = "Small Server Hop",
-        Callback = function()
-            local TeleportService = game:GetService("TeleportService")
-            local HttpService = game:GetService("HttpService")
-            local player = game.Players.LocalPlayer
-            local placeId = game.PlaceId
-            
-            local screenGui = Instance.new("ScreenGui")
-            screenGui.Parent = player:WaitForChild("PlayerGui")
-            local label = Instance.new("TextLabel")
-            label.Parent = screenGui
-            label.Size = UDim2.new(0.4, 0, 0.2, 0)
-            label.Position = UDim2.new(0.3, 0, 0.4, 0)
-            label.TextScaled = true
-            label.BackgroundTransparency = 1
-            label.TextColor3 = Color3.new(1, 1, 1)
-            label.Font = Enum.Font.GothamBold
-            
-            for i = 5, 1, -1 do
-                label.Text = "Finding small server in: " .. i
-                task.wait(1)
-            end
-            
-            screenGui:Destroy()
-            
-            local function getSmallServer()
-                local servers = {}
-                local cursor = nil
-                for _ = 1, 5 do
-                    local url = "https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"
-                    if cursor then url = url.."&cursor="..cursor end
-                    local success, response = pcall(function()
-                        return HttpService:JSONDecode(game:HttpGet(url))
-                    end)
-                    if success and response and response.data then
-                        for _, server in ipairs(response.data) do
-                            if server.playing < 5 and server.id ~= game.JobId then
-                                table.insert(servers, server.id)
-                            end
-                        end
-                        if response.nextPageCursor then
-                            cursor = response.nextPageCursor
-                        else
-                            break
-                        end
-                    else
-                        break
-                    end
-                end
-                return #servers > 0 and servers[math.random(1, #servers)] or nil
-            end
-            
-            local target = getSmallServer()
-            if target then
-                TeleportService:TeleportToPlaceInstance(placeId, target, player)
-                SoulsHub:Notify("Hopping to small server...", 3)
-            else
-                SoulsHub:Notify("No small servers found", 3)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Finds and joins a server with less than 5 players"
-    })
-    
-    serverSection:AddButton({
-        Name = "Exit Server",
-        Callback = function()
-            local player = game.Players.LocalPlayer
-            local gui = Instance.new("ScreenGui")
-            gui.Parent = player:WaitForChild("PlayerGui")
-            gui.ResetOnSpawn = false
-            
-            local frame = Instance.new("Frame")
-            frame.Parent = gui
-            frame.Size = UDim2.new(0.5, 0, 0.3, 0)
-            frame.Position = UDim2.new(0.25, 0, 0.35, 0)
-            frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-            frame.BorderSizePixel = 0
-            frame.BackgroundTransparency = 0.1
-            frame.AnchorPoint = Vector2.new(0.5, 0.5)
-            frame.ClipsDescendants = true
-            
-            local title = Instance.new("TextLabel")
-            title.Parent = frame
-            title.Size = UDim2.new(1, 0, 0.4, 0)
-            title.Position = UDim2.new(0, 0, 0, 0)
-            title.Text = "Do you want to exit server?"
-            title.TextColor3 = Color3.new(1, 1, 1)
-            title.BackgroundTransparency = 1
-            title.TextScaled = true
-            title.Font = Enum.Font.GothamBold
-            
-            local yesBtn = Instance.new("TextButton")
-            yesBtn.Parent = frame
-            yesBtn.Size = UDim2.new(0.4, 0, 0.3, 0)
-            yesBtn.Position = UDim2.new(0.1, 0, 0.55, 0)
-            yesBtn.Text = "Yes"
-            yesBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-            yesBtn.TextColor3 = Color3.new(1, 1, 1)
-            yesBtn.TextScaled = true
-            yesBtn.Font = Enum.Font.GothamBold
-            
-            local noBtn = Instance.new("TextButton")
-            noBtn.Parent = frame
-            noBtn.Size = UDim2.new(0.4, 0, 0.3, 0)
-            noBtn.Position = UDim2.new(0.5, 0, 0.55, 0)
-            noBtn.Text = "No"
-            noBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-            noBtn.TextColor3 = Color3.new(1, 1, 1)
-            noBtn.TextScaled = true
-            noBtn.Font = Enum.Font.GothamBold
-            
-            yesBtn.MouseButton1Click:Connect(function()
-                player:Kick("You exited the server.")
-                gui:Destroy()
-            end)
-            
-            noBtn.MouseButton1Click:Connect(function()
-                gui:Destroy()
-            end)
-            
-            SoulsHub:Notify("Exit server confirmation opened", 3)
-        end
-    }).Link:AddHelper({
-        Text = "Exits the current server with confirmation"
-    })
-    
+    -- Infinite Yield (Fixed)
     adminSection:AddButton({
         Name = "Infinite Yield",
         Callback = function()
             pcall(function()
                 loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
             end)
-            SoulsHub:Notify("Infinite Yield loaded!", 3)
         end
     }).Link:AddHelper({
         Text = "Powerful admin tool with many features"
     })
     
+    -- Nameless Admin (Fixed)
     adminSection:AddButton({
         Name = "Nameless Admin",
         Callback = function()
             pcall(function()
                 loadstring(game:HttpGet("https://github.com/FilteringEnabled/NamelessAdmin/blob/main/Source?raw=true"))()
             end)
-            SoulsHub:Notify("Nameless Admin loaded!", 3)
         end
     }).Link:AddHelper({
         Text = "Another powerful admin tool with many features"
@@ -1518,15 +1807,3 @@ local Configs = Window:DrawConfig({
 
 Configs:Init()
 Window:Draw()
-
--- Load character moveset when selected
-task.spawn(function()
-    while task.wait(1) do
-        local preset = _G.FeatureStates.CharacterPreset
-        if preset == "Garou" then
-            pcall(function()
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/Reapvitalized/AllAssetsForRecent/refs/heads/main/MonsterGarouScript"))()
-            end)
-        end
-    end
-end)
