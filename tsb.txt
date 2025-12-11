@@ -288,7 +288,7 @@ do
                 local function startM1Loop()
                     while _G.FeatureStates.M1ReachRework and game.Players.LocalPlayer.Character do
                         pcall(function()
-                            -- 📛 FULL: Tween PunchButton + Toggle + Chỉ dash nếu <= 50 studs (Enhanced UI Version)
+                           -- 📛 FULL: Tween PunchButton + Toggle + Chỉ dash nếu <= 50 studs (FIXED UI)
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -305,13 +305,14 @@ local gui = lp:WaitForChild("PlayerGui")
 local jumpBtn = gui:FindFirstChild("JumpButton", true)
 local punchBtn = jumpBtn and jumpBtn:FindFirstChild("PunchButton")
 
--- 🎨 Create Beautiful Draggable UI
+-- ✨ Create Beautiful Draggable UI (FIXED VERSION)
 local toggleGui = Instance.new("ScreenGui")
 toggleGui.Name = "TweenToggleGui"
 toggleGui.ResetOnSpawn = false
 toggleGui.Parent = gui
+toggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- Main container frame
+-- Main container
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 180, 0, 50)
 mainFrame.Position = UDim2.new(0.5, -90, 0, 100)
@@ -319,57 +320,49 @@ mainFrame.AnchorPoint = Vector2.new(0.5, 0)
 mainFrame.BackgroundTransparency = 1
 mainFrame.Parent = toggleGui
 
--- Draggable handle area
-local dragHandle = Instance.new("ImageButton")
-dragHandle.Size = UDim2.new(1, 0, 1, 0)
-dragHandle.BackgroundTransparency = 1
-dragHandle.AutoButtonColor = false
-dragHandle.Parent = mainFrame
+-- Draggable background (FIXED)
+local draggableArea = Instance.new("ImageButton")
+draggableArea.Size = UDim2.new(1, 0, 1, 0)
+draggableArea.BackgroundTransparency = 1
+draggableArea.AutoButtonColor = false
+draggableArea.Parent = mainFrame
 
--- Glow effect frame
-local glowFrame = Instance.new("Frame")
-glowFrame.Size = UDim2.new(1, 4, 1, 4)
-glowFrame.Position = UDim2.new(-0.01, 0, -0.01, 0)
-glowFrame.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-glowFrame.BackgroundTransparency = 0.9
-glowFrame.BorderSizePixel = 0
-glowFrame.ZIndex = 0
-glowFrame.Parent = mainFrame
-
--- Main background
-local bgFrame = Instance.new("Frame")
-bgFrame.Size = UDim2.new(1, 0, 1, 0)
-bgFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-bgFrame.BorderSizePixel = 0
-bgFrame.ZIndex = 1
-bgFrame.Parent = mainFrame
+-- Visual container
+local visualFrame = Instance.new("Frame")
+visualFrame.Size = UDim2.new(1, 0, 1, 0)
+visualFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+visualFrame.BorderSizePixel = 0
+visualFrame.ClipsDescendants = true
+visualFrame.Parent = draggableArea
 
 -- Rounded corners
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 8)
-corner.Parent = bgFrame
+corner.Parent = visualFrame
 
--- Inner gradient effect
-local gradient = Instance.new("UIGradient")
-gradient.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(40, 40, 50)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 35))
-}
-gradient.Rotation = 90
-gradient.Parent = bgFrame
+-- Glow effect (FIXED)
+local glow = Instance.new("ImageLabel")
+glow.Size = UDim2.new(1, 6, 1, 6)
+glow.Position = UDim2.new(-0.01, 0, -0.01, 0)
+glow.Image = "rbxassetid://4672785101"
+glow.ScaleType = Enum.ScaleType.Slice
+glow.SliceCenter = Rect.new(50, 50, 300, 300)
+glow.BackgroundTransparency = 1
+glow.ZIndex = 0
+glow.ImageColor3 = Color3.fromRGB(0, 150, 255)
+glow.Parent = visualFrame
 
--- Status indicator dot
-local statusDot = Instance.new("Frame")
-statusDot.Size = UDim2.new(0, 12, 0, 12)
-statusDot.Position = UDim2.new(0.05, 0, 0.5, -6)
-statusDot.BackgroundColor3 = Color3.fromRGB(80, 200, 120)
-statusDot.BorderSizePixel = 0
-statusDot.ZIndex = 2
-statusDot.Parent = bgFrame
+-- Status indicator
+local statusIndicator = Instance.new("Frame")
+statusIndicator.Size = UDim2.new(0, 12, 0, 12)
+statusIndicator.Position = UDim2.new(0.05, 0, 0.5, -6)
+statusIndicator.BackgroundColor3 = Color3.fromRGB(80, 200, 120)
+statusIndicator.BorderSizePixel = 0
+statusIndicator.Parent = visualFrame
 
-local dotCorner = Instance.new("UICorner")
-dotCorner.CornerRadius = UDim.new(1, 0)
-dotCorner.Parent = statusDot
+local statusCorner = Instance.new("UICorner")
+statusCorner.CornerRadius = UDim.new(1, 0)
+statusCorner.Parent = statusIndicator
 
 -- Text label
 local textLabel = Instance.new("TextLabel")
@@ -381,71 +374,41 @@ textLabel.Font = Enum.Font.GothamBold
 textLabel.TextColor3 = Color3.fromRGB(240, 240, 250)
 textLabel.TextSize = 16
 textLabel.TextXAlignment = Enum.TextXAlignment.Left
-textLabel.ZIndex = 2
-textLabel.Parent = bgFrame
+textLabel.Parent = visualFrame
 
--- Hover effect frame
-local hoverFrame = Instance.new("Frame")
-hoverFrame.Size = UDim2.new(1, 0, 1, 0)
-hoverFrame.BackgroundTransparency = 1
-hoverFrame.ZIndex = 3
-hoverFrame.Parent = bgFrame
+-- Hover effect
+local hoverEffect = Instance.new("Frame")
+hoverEffect.Size = UDim2.new(1, 0, 1, 0)
+hoverEffect.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+hoverEffect.BackgroundTransparency = 0.9
+hoverEffect.BorderSizePixel = 0
+hoverEffect.Visible = false
+hoverEffect.Parent = visualFrame
 
--- Pulsing animation for active state
-local pulseTween
-local function startPulse()
-    if pulseTween then pulseTween:Cancel() end
-    pulseTween = TweenService:Create(
-        glowFrame,
-        TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out, -1, true),
-        {BackgroundTransparency = 0.6}
-    )
-    pulseTween:Play()
-end
-
--- UI Update Function
-local function updateToggleUI()
-    if _G.tweenEnabled then
-        statusDot.BackgroundColor3 = Color3.fromRGB(80, 200, 120)
-        textLabel.Text = "Reach: ON"
-        startPulse()
-    else
-        statusDot.BackgroundColor3 = Color3.fromRGB(200, 80, 80)
-        textLabel.Text = "Reach: OFF"
-        if pulseTween then pulseTween:Cancel() end
-        glowFrame.BackgroundTransparency = 0.9
-    end
-end
-
--- Draggable Implementation
-local dragging
-local dragInput
+-- Dragging variables (FIXED IMPLEMENTATION)
+local dragging = false
 local dragStart
 local startPos
 
-local function updateGlow(transparency)
-    glowFrame.BackgroundTransparency = transparency
-    bgFrame.BackgroundColor3 = transparency < 0.85 and Color3.fromRGB(40, 40, 55) or Color3.fromRGB(30, 30, 40)
-end
-
-dragHandle.InputBegan:Connect(function(input)
+draggableArea.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         dragging = true
         dragStart = input.Position
         startPos = mainFrame.Position
         
-        updateGlow(0.7)
+        -- Visual feedback
+        TweenService:Create(visualFrame, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(45, 45, 60)}):Play()
         
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
-                updateGlow(0.9)
+                TweenService:Create(visualFrame, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(30, 30, 40)}):Play()
             end
         end)
     end
 end)
 
-dragHandle.InputChanged:Connect(function(input)
+draggableArea.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement then
         dragInput = input
     end
@@ -461,58 +424,51 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Hover Effects
-hoverFrame.MouseEnter:Connect(function()
-    TweenService:Create(
-        bgFrame,
-        TweenInfo.new(0.2, Enum.EasingStyle.Quad),
-        {BackgroundColor3 = Color3.fromRGB(45, 45, 60)}
-    ):Play()
-    
-    TweenService:Create(
-        glowFrame,
-        TweenInfo.new(0.2, Enum.EasingStyle.Quad),
-        {BackgroundTransparency = 0.75}
-    ):Play()
+-- Hover effects (FIXED)
+draggableArea.MouseEnter:Connect(function()
+    hoverEffect.Visible = true
+    TweenService:Create(hoverEffect, TweenInfo.new(0.2), {BackgroundTransparency = 0.85}):Play()
+    TweenService:Create(glow, TweenInfo.new(0.2), {ImageTransparency = 0.7}):Play()
 end)
 
-hoverFrame.MouseLeave:Connect(function()
-    if not dragging then
-        TweenService:Create(
-            bgFrame,
-            TweenInfo.new(0.2, Enum.EasingStyle.Quad),
-            {BackgroundColor3 = Color3.fromRGB(30, 30, 40)}
-        ):Play()
-        
-        TweenService:Create(
-            glowFrame,
-            TweenInfo.new(0.2, Enum.EasingStyle.Quad),
-            {BackgroundTransparency = 0.9}
-        ):Play()
-    end
+draggableArea.MouseLeave:Connect(function()
+    hoverEffect.Visible = false
+    TweenService:Create(glow, TweenInfo.new(0.2), {ImageTransparency = 0.9}):Play()
 end)
 
--- Toggle Functionality
-hoverFrame.MouseButton1Click:Connect(function()
+-- Toggle functionality (FIXED)
+draggableArea.MouseButton1Click:Connect(function()
     _G.tweenEnabled = not _G.tweenEnabled
     updateToggleUI()
     
     -- Click animation
-    local originalSize = bgFrame.Size
-    TweenService:Create(
-        bgFrame,
-        TweenInfo.new(0.05, Enum.EasingStyle.Quad),
-        {Size = UDim2.new(0.98, 0, 0.98, 0)}
-    ):Play()
-    
+    local originalSize = visualFrame.Size
+    TweenService:Create(visualFrame, TweenInfo.new(0.05, Enum.EasingStyle.Quad), {Size = UDim2.new(0.98, 0, 0.98, 0)}):Play()
     task.delay(0.05, function()
-        TweenService:Create(
-            bgFrame,
-            TweenInfo.new(0.15, Enum.EasingStyle.Back),
-            {Size = originalSize}
-        ):Play()
+        TweenService:Create(visualFrame, TweenInfo.new(0.15, Enum.EasingStyle.Back), {Size = originalSize}):Play()
     end)
 end)
+
+-- UI Update Function (FIXED)
+local function updateToggleUI()
+    if _G.tweenEnabled then
+        statusIndicator.BackgroundColor3 = Color3.fromRGB(80, 200, 120)
+        textLabel.Text = "Reach: ON"
+        glow.ImageTransparency = 0.9
+        TweenService:Create(glow, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out, -1, true), {ImageTransparency = 0.6}):Play()
+    else
+        statusIndicator.BackgroundColor3 = Color3.fromRGB(200, 80, 80)
+        textLabel.Text = "Reach: OFF"
+        glow.ImageTransparency = 0.95
+        
+        -- Stop pulse animation
+        for _, child in ipairs(glow:GetDescendants()) do
+            if child:IsA("Tween") then
+                child:Cancel()
+            end
+        end
+    end
+end
 
 updateToggleUI()
 
@@ -583,18 +539,6 @@ if punchBtn then
         holding = false
     end)
 end
-                        end)
-                        task.wait(5)
-                    end
-                end
-                
-                task.spawn(startM1Loop)
-                -- Connect to character added event to restart after death
-                game.Players.LocalPlayer.CharacterAdded:Connect(function()
-                    if _G.FeatureStates.M1ReachRework then
-                        task.wait(1)
-                        task.spawn(startM1Loop)
-                    end
                 end)
             end
         end
