@@ -43,8 +43,8 @@ watermark:AddText({
 _G.FeatureStates = {}
 
 local MovementCombat = Window:DrawTab({
-    Icon = "run",
-    Name = "Movement & Combat"
+    Icon = "sword",
+    Name = "Combat"
 })
 
 local CharCustomization = Window:DrawTab({
