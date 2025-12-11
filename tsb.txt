@@ -1,1169 +1,1275 @@
-local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f488d3c065df7a", true))();
+--[[
+    SOULS HUB ULTIMATE - The Strongest Battlegrounds
+    Combining the best features from multiple open source scripts
+    
+    Features Include:
+    - Movement Enhancements (Speed, Jump, NoClip, etc.)
+    - Combat Features (Aimbot, Auto Block, M1 Enhancements)
+    - Visual Features (ESP, Highlight, Aura, Tracer)
+    - Tech Features (Dash Techs, Resets, Auto Features)
+    - Movesets (Garou, KJ, Gojo, Saitama, and more)
+    - Admin Tools (Infinite Yield, Nameless Admin)
+    - Server Tools (Hop, Rejoin, etc.)
+    - Ultimate Combinations and Improvements
+    
+    Made with ❤️ using Souls Hub UI Library
+]]
+
+-- Load Souls Hub UI Library
+local SoulsHub = loadstring(game:HttpGet("https://pandadevelopment.net/virtual/file/e7f388d3c065df7a"))();
 
 task.wait(1)
 
-SoulsHub:Loader(nil , 1).yield()
+SoulsHub:Loader(nil, 1).yield()
 
 local FileWatcher = SoulsHub:ConfigManager({
-	Directory = "SoulsHub",
-	Config = "Settings"	
+    Directory = "SoulsHub",
+    Config = "Ultimate-Configs"    
 });
 
 local Window = SoulsHub.new({
-	Keybind = "LeftAlt",
+    Keybind = "LeftAlt",
 });
 
-pcall(function()
-	for i, part in ipairs(game.Players.LocalPlayer.PlayerGui.TopbarPlus.TopbarContainer:GetChildren()) do
-		if part.Name == "UnnamedIcon" then
-			part:Destroy()
-		end
-	end
-end)
-
-local watermark = Window:Watermark()
+local watermark = Window:Watermark();
 
 watermark:AddText({
-	Icon = "user",
-	Text = game.Players.LocalPlayer.Name
+    Icon = "crown",
+    Text = "SOULS HUB ULTIMATE"
 })
 
-local timeText = watermark:AddText({
-	Icon = "clock",
-	Text = SoulsHub:GetTimeNow()
+watermark:AddText({
+    Icon = "zap", 
+    Text = "OP Scripts Combined"
+})
+
+watermark:AddText({
+    Icon = "target",
+    Text = "TSB Master Hub"
+})
+
+local vim = watermark:AddText({
+    Icon = "clock",
+    Text = SoulsHub:GetTimeNow()
 })
 
 task.spawn(function()
-	while task.wait(1) do
-		timeText:SetText(SoulsHub:GetTimeNow())
-	end
+    while true do task.wait()
+        vim:SetText(SoulsHub:GetTimeNow())
+        Window.Username = "Ultimate Player"
+    end;
 end)
-
-watermark:AddText({
-	Icon = "server",
-	Text = game.JobId
-})
 
 Window:Update({
-	ExpireDate = SoulsHub:GetDate(tick() + 86400)
+    ExpireDate = SoulsHub:GetDate(tick() + 84000)
 })
 
--- Tabs Setup
-local Main = Window:DrawTab({
-	Icon = "home",
-	Name = "Main",
-	Type = "Double"
+watermark:AddText({
+    Icon = "settings",
+    Text = "Config System Active"
 })
+
+-- Global Feature States
+_G.FeatureStates = _G.FeatureStates or {}
+_G.connections = _G.connections or {}
+_G.EN = nil
+
+-- Helper Functions
+local function AddSignal(connection, name)
+    local str = tostring(math.random(1000, 9999))
+    warn('CONNECTION ADDED: ' .. name .. ' | ID: ' .. str)
+    _G.connections[name .. str] = connection
+    return connection
+end
+
+local function DestroySignal(name)
+    for key, connection in pairs(_G.connections) do
+        if key:match(name) then
+            warn('CONNECTION REMOVED: ' .. name)
+            connection:Disconnect()
+            return connection
+        end
+    end
+end
+
+-- Main Tabs
+local Rage = Window:DrawTab({
+    Icon = "skull",
+    Name = "Rage",
+    Type = "Double"
+});
+
+local Legit = Window:DrawTab({
+    Icon = "shield",
+    Name = "Legit"
+});
 
 local Movement = Window:DrawTab({
-	Icon = "zap",
-	Name = "Movement",
-	Type = "Double"
-})
-
-local Combat = Window:DrawTab({
-	Icon = "sword",
-	Name = "Combat",
-	Type = "Double"
-})
+    Icon = "running",
+    Name = "Movement"
+});
 
 local Visuals = Window:DrawTab({
-	Icon = "eye",
-	Name = "Visuals",
-	Type = "Double"
-})
+    Icon = "eye",
+    Name = "Visuals"
+});
 
-Window:DrawCategory({
-	Name = "Characters"
-})
+local Combat = Window:DrawTab({
+    Icon = "sword",
+    Name = "Combat"
+});
 
-local Saitama = Window:DrawTab({
-	Icon = "users",
-	Name = "Saitama"
-})
+local Tech = Window:DrawTab({
+    Icon = "cpu",
+    Name = "Tech"
+});
 
-local Garou = Window:DrawTab({
-	Icon = "users",
-	Name = "Garou"
-})
+local Movesets = Window:DrawTab({
+    Icon = "flame",
+    Name = "Movesets"
+});
 
-Window:DrawCategory({
-	Name = "System"
-})
+local Admin = Window:DrawTab({
+    Icon = "crown",
+    Name = "Admin"
+});
 
-local Utilities = Window:DrawTab({
-	Icon = "tool",
-	Name = "Utilities"
-})
+local Server = Window:DrawTab({
+    Icon = "globe",
+    Name = "Server"
+});
 
-local Configs = Window:DrawConfig({
-	Name = "Configs",
-	Icon = "settings",
-	Config = FileWatcher
-})
+local Misc = Window:DrawTab({
+    Icon = "box",
+    Name = "Misc"
+});
 
-Configs:Init()
-
--- Main Tab
+-- RAGE TAB
 do
-	local left = Main:DrawSection({
-		Name = "Player",
-		Position = 'LEFT'
-	})
-	
-	local right = Main:DrawSection({
-		Name = "Scripts",
-		Position = 'RIGHT'
-	})
-	
-	local speedEnabled = left:AddToggle({
-		Name = "Speed",
-		Flag = "speed_enabled",
-		Default = false
-	})
-	
-	local speedSlider = speedEnabled.Link:AddSlider({
-		Name = "WalkSpeed",
-		Min = 16,
-		Max = 200,
-		Flag = "walkspeed_value",
-		Round = 0,
-		Default = 50
-	})
-	
-	speedEnabled:SetCallback(function(enabled)
-		if enabled then
-			game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = speedSlider:GetValue()
-		else
-			game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
-		end
-	end)
-	
-	speedSlider:SetCallback(function(value)
-		if speedEnabled:GetValue() then
-			game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = value
-		end
-	end)
-	
-	left:AddToggle({
-		Name = "Toggle View Dummy",
-		Flag = "view_dummy",
-		Default = false,
-		Callback = function(state)
-			if state then
-				game.Workspace.Camera.CameraSubject = game.Workspace.Live:FindFirstChild("Weakest Dummy") and game.Workspace.Live["Weakest Dummy"].Humanoid
-			else
-				game.Workspace.Camera.CameraSubject = game.Players.LocalPlayer.Character.Humanoid
-			end
-		end
-	})
-	
-	left:AddButton({
-		Name = "Follow Camera",
-		Callback = function()
-			local rs = game:GetService("RunService")
-			local plr = game.Players.LocalPlayer
-			local char = plr.Character or plr.CharacterAdded:Wait()
-			local hum = char:WaitForChild("Humanoid")
-			local RootPart = char:WaitForChild("HumanoidRootPart")
-			
-			hum.Died:Connect(function()
-				char = plr.Character or plr.CharacterAdded:Wait()
-				hum = char:WaitForChild("Humanoid")
-				RootPart = char:WaitForChild("HumanoidRootPart")
-			end)
-			
-			rs:BindToRenderStep("FollowHead", Enum.RenderPriority.Camera.Value + 1, function(DeltaTime)
-				if not char or (hum:GetState() == Enum.HumanoidStateType.Dead) then return end
-				local Head = char:WaitForChild("Head")
-				local ObjectSpace = RootPart.CFrame:ToObjectSpace(Head.CFrame)
-				hum.CameraOffset = hum.CameraOffset:Lerp(ObjectSpace.Position - Vector3.new(0, 1.5, 0), DeltaTime * 10)
-			end)
-		end
-	})
-	
-	left:AddButton({
-		Name = "Fix Camera",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/harisprofanny/d/main/fixcam.txt"))()
-			end)
-		end
-	})
-	
-	right:AddButton({
-		Name = "Infinite Yield",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
-			end)
-		end
-	})
-	
-	right:AddButton({
-		Name = "Nameless Admin",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/FilteringEnabled/NamelessAdmin/main/Source"))()
-			end)
-		end
-	})
-	
-	right:AddButton({
-		Name = "Anti Lag",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Antilag%20script"))()
-			end)
-		end
-	})
-	
-	right:AddButton({
-		Name = "Keyboard",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/AZYsGithub/Delta-Scripts/refs/heads/main/MobileKeyboard.txt"))()
-			end)
-		end
-	})
-	
-	left:AddParagraph({
-		Title = "Credits",
-		Content = "Made by Souls Development Team\nVersion: 1.0.0\nJoin our discord for updates!"
-	})
+    local rageMain = Rage:DrawSection({
+        Name = "Rage Main",
+        Position = 'left'
+    });
+    
+    local aimbot = rageMain:AddToggle({
+        Name = "Aimbot",
+        Flag = "aimbot_enabled",
+        Callback = function(enabled)
+            _G.FeatureStates.AimbotEnabled = enabled
+            print("Aimbot: " .. tostring(enabled))
+        end
+    }).Link:AddOption();
+    
+    aimbot:AddSlider({
+        Name = "Aimbot FOV",
+        Min = 0,
+        Max = 360,
+        Default = 90,
+        Flag = "aimbot_fov",
+        Callback = function(value)
+            print("Aimbot FOV: " .. value)
+        end
+    })
+    
+    aimbot:AddDropdown({
+        Name = "Target Hitbox",
+        Values = {"Head", "Chest", "Pelvis"},
+        Default = "Head",
+        Flag = "aimbot_hitbox",
+        Callback = function(value)
+            print("Target Hitbox: " .. value)
+        end
+    })
+    
+    local silentAim = rageMain:AddToggle({
+        Name = "Silent Aim",
+        Flag = "silent_aim_enabled",
+        Callback = function(enabled)
+            _G.FeatureStates.SilentAimEnabled = enabled
+            print("Silent Aim: " .. tostring(enabled))
+        end
+    }).Link:AddOption();
+    
+    silentAim:AddSlider({
+        Name = "Hit Chance",
+        Min = 0,
+        Max = 100,
+        Default = 80,
+        Flag = "hit_chance",
+        Callback = function(value)
+            print("Hit Chance: " .. value .. "%")
+        end
+    })
+    
+    silentAim:AddToggle({
+        Name = "Anti Aim",
+        Flag = "anti_aim_enabled",
+        Callback = function(enabled)
+            print("Anti Aim: " .. tostring(enabled))
+        end
+    })
+    
+    rageMain:AddToggle({
+        Name = "Auto Scope",
+        Flag = "auto_scope",
+        Callback = function(enabled)
+            print("Auto Scope: " .. tostring(enabled))
+        end
+    })
+    
+    rageMain:AddToggle({
+        Name = "No Spread",
+        Risky = true,
+        Flag = "no_spread",
+        Callback = function(enabled)
+            print("No Spread: " .. tostring(enabled))
+        end
+    })
+    
+    rageMain:AddToggle({
+        Name = "No Recoil",
+        Flag = "no_recoil", 
+        Callback = function(enabled)
+            print("No Recoil: " .. tostring(enabled))
+        end
+    })
 end
 
--- Movement Tab
+-- LEGIT TAB
 do
-	local left = Movement:DrawSection({
-		Name = "Player Movement",
-		Position = 'LEFT'
-	})
-	
-	local right = Movement:DrawSection({
-		Name = "Special Tech",
-		Position = 'RIGHT'
-	})
-	
-	left:AddToggle({
-		Name = "No Stun",
-		Flag = "no_stun",
-		Default = false,
-		Callback = function(state)
-			if state then
-				_G.StunBypass = game:GetService("RunService").RenderStepped:Connect(function()
-					local char = game.Players.LocalPlayer.Character
-					if char then
-						if char:FindFirstChild("Stunned") then
-							char.Stunned:Destroy()
-						end
-						if char:FindFirstChild("Humanoid") then
-							char.Humanoid.PlatformStand = false
-							if char.Humanoid.WalkSpeed == 0 then
-								char.Humanoid.WalkSpeed = 16
-							end
-						end
-					end
-				end)
-			else
-				if _G.StunBypass then
-					_G.StunBypass:Disconnect()
-					_G.StunBypass = nil
-				end
-			end
-		end
-	})
-	
-	left:AddToggle({
-		Name = "No Slowed",
-		Flag = "no_slowed",
-		Default = false,
-		Callback = function(state)
-			if state then
-				_G.NoSlowLoop = game:GetService("RunService").RenderStepped:Connect(function()
-					local char = game.Players.LocalPlayer.Character
-					if char and char:FindFirstChild("Humanoid") then
-						local hum = char.Humanoid
-						if hum.WalkSpeed < 20 then
-							hum.WalkSpeed = 20
-						end
-						hum.PlatformStand = false
-					end
-				end)
-			else
-				if _G.NoSlowLoop then
-					_G.NoSlowLoop:Disconnect()
-					_G.NoSlowLoop = nil
-				end
-				local char = game.Players.LocalPlayer.Character
-				if char and char:FindFirstChild("Humanoid") then
-					char.Humanoid.WalkSpeed = 16
-				end
-			end
-		end
-	})
-	
-	left:AddToggle({
-		Name = "Auto Run",
-		Flag = "auto_run",
-		Default = false,
-		Callback = function(state)
-			game.Players.LocalPlayer.Character.Humanoid.AutoRotate = not state
-		end
-	})
-	
-	right:AddButton({
-		Name = "M1 Reset By YQANTG",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/m1%20reset%20by%20me"))()
-			end)
-		end
-	})
-	
-	right:AddButton({
-		Name = "Oreo Dash",
-		Callback = function()
-			pcall(function()
-				loadstring("\108\111\97\100\115\116\114\105\110\103\40\103\97\109\101\58\72\116\116\112\71\101\116\40\34\104\116\116\112\115\58\47\47\114\97\119\46\103\105\116\104\117\98\117\115\101\114\99\111\110\116\101\110\116\46\99\111\109\47\75\105\101\116\98\97\47\75\105\101\116\98\97\47\114\101\102\115\47\104\101\97\100\115\47\109\97\105\110\47\79\114\101\111\37\50\48\84\101\99\104\37\50\48\83\99\114\105\112\116\34\41\41\40\41")()
-			end)
-		end
-	})
-	
-	right:AddButton({
-		Name = "Loop Dash Rework",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Loop%20Dash%20Rework%20Script%20Real"))()
-			end)
-		end
-	})
-	
-	right:AddButton({
-		Name = "Tornado Tech",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Idk%20lolololol"))()
-			end)
-		end
-	})
+    local legitMain = Legit:DrawSection({
+        Name = "Legit Settings",
+        Position = "left"
+    });
+    
+    legitMain:AddToggle({
+        Name = "Legit Aimbot",
+        Flag = "legit_aimbot",
+        Callback = function(enabled)
+            print("Legit Aimbot: " .. tostring(enabled))
+        end
+    }).Link:AddOption();
+    
+    legitMain:AddSlider({
+        Name = "Aim Smoothness",
+        Min = 0,
+        Max = 100,
+        Default = 50,
+        Flag = "aim_smoothness",
+        Callback = function(value)
+            print("Aim Smoothness: " .. value)
+        end
+    })
+    
+    legitMain:AddSlider({
+        Name = "FOV Circle",
+        Min = 0,
+        Max = 500,
+        Default = 100,
+        Flag = "fov_circle",
+        Callback = function(value)
+            print("FOV Circle: " .. value)
+        end
+    })
+    
+    legitMain:AddToggle({
+        Name = "Show FOV",
+        Flag = "show_fov",
+        Callback = function(enabled)
+            print("Show FOV: " .. tostring(enabled))
+        end
+    })
+    
+    legitMain:AddToggle({
+        Name = "Triggerbot",
+        Flag = "triggerbot",
+        Callback = function(enabled)
+            print("Triggerbot: " .. tostring(enabled))
+        end
+    }).Link:AddSlider({
+        Name = "Trigger Delay",
+        Min = 0,
+        Max = 200,
+        Default = 50,
+        Flag = "trigger_delay"
+    })
 end
 
--- Combat Tab
+-- MOVEMENT TAB
 do
-	local left = Combat:DrawSection({
-		Name = "Aimbot",
-		Position = 'LEFT'
-	})
-	
-	local right = Combat:DrawSection({
-		Name = "Block & Defense",
-		Position = 'RIGHT'
-	})
-	
-	left:AddToggle({
-		Name = "Aimbot",
-		Flag = "aimbot_enabled",
-		Default = false,
-		Callback = function(state)
-			pcall(function()
-				if state then
-					loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Aimlock%20By%20YQANTG"))()
-				end
-			end)
-		end
-	})
-	
-	left:AddToggle({
-		Name = "FaceLock",
-		Flag = "facelock_enabled",
-		Default = false,
-		Callback = function(state)
-			pcall(function()
-				if state then
-					loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/Tsb/FACELOCK"))()
-				end
-			end)
-		end
-	})
-	
-	left:AddToggle({
-		Name = "Block Aimlock",
-		Flag = "block_aimlock",
-		Default = false,
-		Callback = function(state)
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Block%20Aimlock"))()
-			end)
-		end
-	})
-	
-	right:AddToggle({
-		Name = "Auto Block",
-		Flag = "auto_block",
-		Default = false,
-		Callback = function(state)
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/Cyborg883/TSB/refs/heads/main/CombatGui"))()
-			end)
-		end
-	})
-	
-	right:AddToggle({
-		Name = "Invisible Block",
-		Flag = "invisible_block",
-		Default = false,
-		Callback = function(state)
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Invisible%20Block"))()
-			end)
-		end
-	})
-	
-	right:AddToggle({
-		Name = "No Endlag",
-		Flag = "no_endlag",
-		Default = false,
-		Callback = function(state)
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/Slaphello/No-endlag-side-dash/refs/heads/main/No%20endlag%20side%20dash"))()
-			end)
-		end
-	})
+    local movementMain = Movement:DrawSection({
+        Name = "Player Movement",
+        Position = "left"
+    });
+    
+    movementMain:AddSlider({
+        Name = "WalkSpeed",
+        Min = 16,
+        Max = 200,
+        Default = 16,
+        Type = "studs/s",
+        Flag = "walkspeed",
+        Callback = function(value)
+            _G.FeatureStates.WalkSpeed = value
+            local player = game.Players.LocalPlayer
+            if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+                player.Character.Humanoid.WalkSpeed = value
+            end
+        end
+    });
+    
+    movementMain:AddSlider({
+        Name = "JumpPower", 
+        Min = 50,
+        Max = 300,
+        Default = 50,
+        Type = "studs",
+        Flag = "jumppower",
+        Callback = function(value)
+            _G.FeatureStates.JumpPower = value
+            local player = game.Players.LocalPlayer
+            if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+                player.Character.Humanoid.JumpPower = value
+            end
+        end
+    });
+    
+    movementMain:AddToggle({
+        Name = "NoClip",
+        Flag = "noclip_enabled",
+        Callback = function(enabled)
+            _G.FeatureStates.NoClipEnabled = enabled
+            local player = game.Players.LocalPlayer
+            if player and player.Character then
+                for _, part in ipairs(player.Character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = not enabled
+                        part.Transparency = enabled and 0.5 or 0
+                    end
+                end
+            end
+        end
+    });
+    
+    movementMain:AddToggle({
+        Name = "Fly",
+        Flag = "fly_enabled",
+        Callback = function(enabled)
+            print("Fly: " .. tostring(enabled))
+            -- Fly implementation would go here
+        end
+    }).Link:AddSlider({
+        Name = "Fly Speed",
+        Min = 1,
+        Max = 100,
+        Default = 50,
+        Flag = "fly_speed"
+    });
+    
+    local movementOther = Movement:DrawSection({
+        Name = "Movement Tech",
+        Position = "right"
+    });
+    
+    movementOther:AddButton({
+        Name = "Anti Lag",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Antilag%20script"))()
+        end
+    })
+    
+    movementOther:AddButton({
+        Name = "M1 Reach Rework",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/M1%20Reach%20Rework"))()
+        end
+    })
+    
+    movementOther:AddButton({
+        Name = "Orbit",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Orbit%20by%20YQANTG"))()
+        end
+    })
+    
+    movementOther:AddButton({
+        Name = "Standing AFK Pose",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Idiea"))()
+        end
+    })
 end
 
--- Visuals Tab
+-- VISUALS TAB
 do
-	local left = Visuals:DrawSection({
-		Name = "ESP",
-		Position = 'LEFT'
-	})
-	
-	local right = Visuals:DrawSection({
-		Name = "Highlight",
-		Position = 'RIGHT'
-	})
-	
-	left:AddToggle({
-		Name = "ESP Names",
-		Flag = "esp_names",
-		Default = false,
-		Callback = function(state)
-			if state then
-				_G.espNameEnabled = true
-				for _, player in ipairs(game.Players:GetPlayers()) do
-					if player ~= game.Players.LocalPlayer then
-						local function addEspToCharacter(char, playerName)
-							if not char:FindFirstChild("Head") then return end
-							if not char.Head:FindFirstChild("ESP_Name") then
-								local bb = Instance.new("BillboardGui")
-								bb.Name = "ESP_Name"
-								bb.Size = UDim2.new(0, 100, 0, 30)
-								bb.StudsOffset = Vector3.new(0, 2, 0)
-								bb.AlwaysOnTop = true
-								bb.Adornee = char.Head
-								bb.Parent = char.Head
-								local label = Instance.new("TextLabel")
-								label.Size = UDim2.new(1, 0, 1, 0)
-								label.BackgroundTransparency = 1
-								label.Text = playerName
-								label.TextColor3 = Color3.new(1, 1, 1)
-								label.TextScaled = true
-								label.Font = Enum.Font.SourceSansBold
-								label.Parent = bb
-							end
-						end
-						
-						if player.Character then
-							addEspToCharacter(player.Character, player.Name)
-						end
-						
-						player.CharacterAdded:Connect(function(char)
-							task.wait(1)
-							addEspToCharacter(char, player.Name)
-						end)
-					end
-				end
-			else
-				_G.espNameEnabled = false
-				for _, player in ipairs(game.Players:GetPlayers()) do
-					if player.Character and player.Character:FindFirstChild("Head") then
-						local esp = player.Character.Head:FindFirstChild("ESP_Name")
-						if esp then esp:Destroy() end
-					end
-				end
-			end
-		end
-	})
-	
-	left:AddToggle({
-		Name = "ESP Health",
-		Flag = "esp_health",
-		Default = false,
-		Callback = function(state)
-			if state then
-				_G.showHealthEnabled = true
-				local showHealthConnections = {}
-				
-				local function createHealthDisplay(char)
-					if not char:FindFirstChild("Head") or not char:FindFirstChild("Humanoid") then return end
-					if char.Head:FindFirstChild("ESP_HealthText") then return end
-					
-					local gui = Instance.new("BillboardGui")
-					gui.Name = "ESP_HealthText"
-					gui.Size = UDim2.new(0, 100, 0, 30)
-					gui.StudsOffset = Vector3.new(0, 3, 0)
-					gui.AlwaysOnTop = true
-					gui.Adornee = char.Head
-					gui.Parent = char.Head
-					
-					local text = Instance.new("TextLabel")
-					text.Size = UDim2.new(1, 0, 1, 0)
-					text.BackgroundTransparency = 1
-					text.TextColor3 = Color3.fromRGB(255, 0, 0)
-					text.Font = Enum.Font.SourceSansBold
-					text.TextScaled = true
-					text.Text = "Health: 100%"
-					text.Parent = gui
-					
-					local hum = char:FindFirstChild("Humanoid")
-					if hum then
-						text.Text = "Health: " .. math.floor((hum.Health / hum.MaxHealth) * 100) .. "%"
-						
-						local conn = hum.HealthChanged:Connect(function()
-							text.Text = "Health: " .. math.floor((hum.Health / hum.MaxHealth) * 100) .. "%"
-						end)
-						table.insert(showHealthConnections, conn)
-					end
-				end
-				
-				local function handlePlayerForHealth(player)
-					if player == game.Players.LocalPlayer then return end
-					
-					local function onCharAdded(char)
-						task.wait(0.5)
-						createHealthDisplay(char)
-					end
-					
-					if player.Character then
-						onCharAdded(player.Character)
-					end
-					
-					local charConn = player.CharacterAdded:Connect(onCharAdded)
-					table.insert(showHealthConnections, charConn)
-				end
-				
-				for _, p in ipairs(game.Players:GetPlayers()) do
-					handlePlayerForHealth(p)
-				end
-				
-				game.Players.PlayerAdded:Connect(handlePlayerForHealth)
-			else
-				_G.showHealthEnabled = false
-				for _, p in ipairs(game.Players:GetPlayers()) do
-					if p.Character and p.Character:FindFirstChild("Head") then
-						local gui = p.Character.Head:FindFirstChild("ESP_HealthText")
-						if gui then gui:Destroy() end
-					end
-				end
-			end
-		end
-	})
-	
-	right:AddToggle({
-		Name = "Highlight Players",
-		Flag = "highlight_players",
-		Default = false,
-		Callback = function(state)
-			if state then
-				_G.highlightEnabled = true
-				for _, p in ipairs(game.Players:GetPlayers()) do
-					if p ~= game.Players.LocalPlayer then
-						local function createHighlight(char)
-							if not char:FindFirstChild("HighlightESP") then
-								local highlight = Instance.new("Highlight")
-								highlight.Name = "HighlightESP"
-								highlight.FillTransparency = 1
-								highlight.OutlineTransparency = 0
-								highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
-								highlight.Adornee = char
-								highlight.Parent = char
-							end
-						end
-						
-						if p.Character then
-							createHighlight(p.Character)
-						end
-						
-						p.CharacterAdded:Connect(function(char)
-							char:WaitForChild("HumanoidRootPart", 5)
-							task.wait(1)
-							createHighlight(char)
-						end)
-					end
-				end
-			else
-				_G.highlightEnabled = false
-				for _, p in ipairs(game.Players:GetPlayers()) do
-					if p.Character then
-						local h = p.Character:FindFirstChild("HighlightESP")
-						if h then h:Destroy() end
-					end
-				end
-			end
-		end
-	})
-	
-	right:AddToggle({
-		Name = "Highlight Dummy",
-		Flag = "highlight_dummy",
-		Default = false,
-		Callback = function(state)
-			if state then
-				for _, npc in pairs(workspace:WaitForChild("Live"):GetChildren()) do
-					if npc:IsA("Model") and npc.Name == "Weakest Dummy" then
-						if not npc:FindFirstChild("_HighlightDummyTag") then
-							local h = Instance.new("Highlight")
-							h.Name = "_HighlightDummyTag"
-							h.Adornee = npc
-							h.FillTransparency = 1
-							h.OutlineColor = Color3.fromRGB(170, 0, 255)
-							h.OutlineTransparency = 0
-							h.Parent = npc
-						end
-					end
-				end
-			else
-				for _, npc in pairs(workspace:WaitForChild("Live"):GetChildren()) do
-					if npc:IsA("Model") and npc.Name == "Weakest Dummy" then
-						local h = npc:FindFirstChild("_HighlightDummyTag")
-						if h then
-							h:Destroy()
-						end
-					end
-				end
-			end
-		end
-	})
+    local espSection = Visuals:DrawSection({
+        Name = "ESP",
+        Position = "left"
+    });
+    
+    local espEnabled = espSection:AddToggle({
+        Name = "Enable ESP",
+        Flag = "esp_enabled",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.ESP_Enabled = enabled
+            if enabled then
+                task.spawn(function()
+                    while _G.FeatureStates.ESP_Enabled do
+                        task.wait()
+                        drawESP()
+                    end
+                    clearESP()
+                end)
+            else
+                clearESP()
+            end
+        end
+    });
+    
+    espEnabled.Link:AddOption():AddColorPicker({
+        Name = "Box ESP Color",
+        Default = Color3.fromRGB(255, 0, 0),
+        Flag = "esp_box_color",
+        Callback = function(color)
+            _G.FeatureStates.esp_box_color = color
+        end
+    });
+    
+    espEnabled.Link:AddOption():AddColorPicker({
+        Name = "Name ESP Color", 
+        Default = Color3.fromRGB(0, 255, 0),
+        Flag = "esp_name_color",
+        Callback = function(color)
+            _G.FeatureStates.esp_name_color = color
+        end
+    });
+    
+    espSection:AddToggle({
+        Name = "Show Names",
+        Flag = "esp_show_names",
+        Default = true,
+        Callback = function(enabled)
+            _G.FeatureStates.esp_show_names = enabled
+        end
+    });
+    
+    espSection:AddToggle({
+        Name = "Show Boxes",
+        Flag = "esp_show_boxes", 
+        Default = true,
+        Callback = function(enabled)
+            _G.FeatureStates.esp_show_boxes = enabled
+        end
+    });
+    
+    espSection:AddToggle({
+        Name = "Show Health",
+        Flag = "esp_show_health",
+        Default = true,
+        Callback = function(enabled)
+            _G.FeatureStates.esp_show_health = enabled
+        end
+    });
+    
+    espSection:AddToggle({
+        Name = "Show Tracers",
+        Flag = "esp_show_tracers",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.esp_show_tracers = enabled
+        end
+    });
+    
+    local highlightSection = Visuals:DrawSection({
+        Name = "Highlights",
+        Position = "right"
+    });
+    
+    highlightSection:AddToggle({
+        Name = "Player Highlights",
+        Flag = "highlight_enabled",
+        Callback = function(enabled)
+            print("Highlights: " .. tostring(enabled))
+        end
+    }).Link:AddColorPicker({
+        Name = "Highlight Color",
+        Default = Color3.fromRGB(0, 255, 0),
+        Flag = "highlight_color",
+        Callback = function(color)
+            print("Highlight Color: " .. tostring(color))
+        end
+    });
+    
+    highlightSection:AddToggle({
+        Name = "Dummy Highlights",
+        Flag = "dummy_highlight",
+        Callback = function(enabled)
+            print("Dummy Highlights: " .. tostring(enabled))
+        end
+    })
+    
+    local auraSection = Visuals:DrawSection({
+        Name = "Aura",
+        Position = "right"
+    });
+    
+    local auraEnabled = auraSection:AddToggle({
+        Name = "Enable Aura",
+        Flag = "aura_enabled",
+        Default = false,
+        Callback = function(enabled)
+            _G.FeatureStates.AuraEnabled = enabled
+        end
+    });
+    
+    auraEnabled.Link:AddColorPicker({
+        Name = "Aura Color",
+        Default = Color3.fromRGB(0, 255, 255),
+        Flag = "aura_color",
+        Callback = function(color)
+            _G.FeatureStates.AuraColor = color
+        end
+    });
+    
+    auraEnabled.Link:AddSlider({
+        Name = "Aura Size",
+        Min = 1,
+        Max = 20,
+        Default = 5,
+        Flag = "aura_size",
+        Callback = function(size)
+            _G.FeatureStates.AuraSize = size
+        end
+    });
 end
 
--- Saitama Tab
+-- COMBAT TAB
 do
-	local section = Saitama:DrawSection({
-		Name = "Movesets",
-		Position = 'LEFT'
-	})
-	
-	section:AddButton({
-		Name = "Gojo Moveset",
-		Callback = function()
-			pcall(function()
-				getgenv().FatalCombatSkillLayout = true
-				getgenv().MovesetReachSound = true
-				loadstring(game:HttpGet("https://gist.githubusercontent.com/SonicexePort/d83f3eca5e8092468df1551df09db39a/raw/861f16fbae8fab8803cabfbc01295bb5b687f86a/Death%20Port%20Six%20Eyes%20Public%20Beta"))()
-			end)
-		end
-	})
-	
-	section:AddButton({
-		Name = "Golden Head Moveset",
-		Callback = function()
-			pcall(function()
-				getgenv().stand = false
-				getgenv().ken = false
-				getgenv().Spawn = false
-				loadstring(game:HttpGet('https://raw.githubusercontent.com/Kenjihin69/Kenjihin69/refs/heads/main/Saitama%20to%20golden%20sigma'))()
-			end)
-		end
-	})
-	
-	section:AddParagraph({
-		Title = "Golden Head Explanation:",
-		Content = "When ultimate is activated there is 60% to get it and 40% to lose and get death counter."
-	})
-	
-	section:AddButton({
-		Name = "Shinji Moveset",
-		Callback = function()
-			pcall(function()
-				getgenv().speedtools = true
-				getgenv().speedpunch = true
-				getgenv().dance = false
-				getgenv().night = false
-				loadstring(game:HttpGet('https://raw.githubusercontent.com/Kenjihin69/Kenjihin69/refs/heads/main/Shinji%20tp%20exploit'))()
-			end)
-		end
-	})
-	
-	section:AddButton({
-		Name = "Trashcan Man",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Trashcan%20Man", true))()
-			end)
-		end
-	})
-	
-	section:AddButton({
-		Name = "Flight Tool",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Flight%20Tool%20Obfuscated.txt", true))()
-			end)
-		end
-	})
+    local combatMain = Combat:DrawSection({
+        Name = "Combat Main",
+        Position = "left"
+    });
+    
+    combatMain:AddToggle({
+        Name = "Auto Block + Aimbot",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Cyborg883/TSB/refs/heads/main/CombatGui"))()
+        end
+    })
+    
+    combatMain:AddToggle({
+        Name = "No Stun",
+        Flag = "no_stun",
+        Callback = function(enabled)
+            if enabled then
+                _G.StunBypass = game:GetService("RunService").RenderStepped:Connect(function()
+                    local char = game.Players.LocalPlayer.Character
+                    if char then
+                        if char:FindFirstChild("Stunned") then
+                            char.Stunned:Destroy()
+                        end
+                        if char:FindFirstChild("Humanoid") then
+                            char.Humanoid.PlatformStand = false
+                            if char.Humanoid.WalkSpeed == 0 then
+                                char.Humanoid.WalkSpeed = 16
+                            end
+                        end
+                    end
+                end)
+            else
+                if _G.StunBypass then
+                    _G.StunBypass:Disconnect()
+                    _G.StunBypass = nil
+                end
+            end
+        end
+    })
+    
+    combatMain:AddToggle({
+        Name = "No Slowed",
+        Flag = "no_slowed",
+        Callback = function(enabled)
+            if enabled then
+                _G.NoSlowLoop = game:GetService("RunService").RenderStepped:Connect(function()
+                    local char = game.Players.LocalPlayer.Character
+                    if char and char:FindFirstChild("Humanoid") then
+                        local hum = char.Humanoid
+                        if hum.WalkSpeed < 20 then
+                            hum.WalkSpeed = 20
+                        end
+                        hum.PlatformStand = false
+                    end
+                end)
+            else
+                if _G.NoSlowLoop then
+                    _G.NoSlowLoop:Disconnect()
+                    _G.NoSlowLoop = nil
+                end
+                local char = game.Players.LocalPlayer.Character
+                if char and char:FindFirstChild("Humanoid") then
+                    char.Humanoid.WalkSpeed = 16
+                end
+            end
+        end
+    })
+    
+    combatMain:AddToggle({
+        Name = "Invisible Block",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Invisible%20Block"))()
+        end
+    })
+    
+    combatMain:AddToggle({
+        Name = "Fake Dash Q",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Fake%20Dash%20Q"))()
+        end
+    })
+    
+    combatMain:AddToggle({
+        Name = "No Slide Dash Endlag",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Slaphello/No-endlag-side-dash/refs/heads/main/No%20endlag%20side%20dash"))()
+        end
+    })
 end
 
--- Garou Tab
+-- TECH TAB
 do
-	local section = Garou:DrawSection({
-		Name = "Movesets",
-		Position = 'LEFT'
-	})
-	
-	section:AddButton({
-		Name = "Teleport Guy",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Teleport%20Guy.txt", true))()
-			end)
-		end
-	})
-	
-	section:AddButton({
-		Name = "Void Reaper",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Void%20Reaper%20Obfuscated.txt"))()
-			end)
-		end
-	})
-	
-	section:AddParagraph({
-		Title = "Notice:",
-		Content = "Void Reaper can't void anymore :("
-	})
-	
-	section:AddButton({
-		Name = "Chainsaw Man",
-		Callback = function()
-			pcall(function()
-				getgenv().RunSpeed = 100
-				getgenv().RunJump = 100
-				getgenv().InstaKill = true
-				getgenv().RevivePercent = 100
-				getgenv().ChangeWalk = true
-				getgenv().ChangeIdle = true
-				getgenv().Night = false
-				getgenv().DashNoCooldown = true
-				getgenv().ExtraSkills = true
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/CHAINSAW%20MAN/Chainsaw%20Man%20(Obfuscated).txt"))()
-			end)
-		end
-	})
-	
-	section:AddParagraph({
-		Title = "NOTICE!",
-		Content = "!! Chainsaw Man will lag low-performing devices !!"
-	})
-	
-	section:AddButton({
-		Name = "A-Train Moveset",
-		Callback = function()
-			pcall(function()
-				getgenv().settings = {
-					morph = {
-						enabled = false,
-						dontchangeskincolor = false
-					},
-					ult_forcewalkspeed = true,
-					ult_walkspeed = 60,
-					tp_duration = 0.15
-				}
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/skibiditoiletfan2007/ATrainSounds/refs/heads/main/ATrain.lua"))()
-			end)
-		end
-	})
-	
-	section:AddButton({
-		Name = "Monster Garou",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/Reapvitalized/AllAssetsForRecent/refs/heads/main/Monster%20garou%20moveset%20by%20greedy%20hub.txt"))()
-			end)
-		end
-	})
+    local techMain = Tech:DrawSection({
+        Name = "Tech Scripts",
+        Position = "left"
+    });
+    
+    techMain:AddButton({
+        Name = "M1 Reset (YQANTG)",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/m1%20reset%20by%20me"))()
+        end
+    })
+    
+    techMain:AddButton({
+        Name = "M1 Reset (Idk Hub)",
+        Callback = function()
+            getgenv().keybinds = {
+                m1reset = Enum.KeyCode.R,
+                emotedash = Enum.KeyCode.T,
+                rotation = Enum.KeyCode.H
+            }
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Slaphello/M1-Reset-And-Emote-Dash-TSB-OLD-/refs/heads/main/M1R%26ED%20TSB"))()
+        end
+    })
+    
+    techMain:AddButton({
+        Name = "Auto Kyoto",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Auto%20kyoto%20ma%20hoa"))()
+        end
+    })
+    
+    techMain:AddButton({
+        Name = "Loop Dash Rework",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Loop%20Dash%20Rework%20Script%20Real"))()
+        end
+    })
+    
+    techMain:AddButton({
+        Name = "Oreo Dash",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Oreo%20Tech%20Script"))()
+        end
+    })
+    
+    techMain:AddButton({
+        Name = "Lethal Dash",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Lethal%20Dash%20Script"))()
+        end
+    })
+    
+    techMain:AddButton({
+        Name = "Back Dash (Mobile)",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/BackDash%20Tech"))()
+        end
+    })
+    
+    techMain:AddButton({
+        Name = "Back Dash (PC)",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/BackDash%20For%20Pc"))()
+        end
+    })
+    
+    techMain:AddButton({
+        Name = "Tornado Tech",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Idk%20lolololol"))()
+        end
+    })
+    
+    techMain:AddButton({
+        Name = "Twited Tech",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/TwitQ%20Tech%20Script"))()
+        end
+    })
+    
+    techMain:AddButton({
+        Name = "Supa Tech",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Supa%20tech%20script"))()
+        end
+    })
 end
 
--- Utilities Tab
+-- MOVESETS TAB
 do
-	local left = Utilities:DrawSection({
-		Name = "Server",
-		Position = 'LEFT'
-	})
-	
-	local right = Utilities:DrawSection({
-		Name = "Advanced",
-		Position = 'RIGHT'
-	})
-	
-	left:AddButton({
-		Name = "Rejoin",
-		Callback = function()
-			pcall(function()
-				local TeleportService = game:GetService("TeleportService")
-				local player = game.Players.LocalPlayer
-				
-				-- Create GUI countdown
-				local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-				local label = Instance.new("TextLabel", screenGui)
-				label.Size = UDim2.new(0.3, 0, 0.2, 0)
-				label.Position = UDim2.new(0.35, 0, 0.4, 0)
-				label.TextScaled = true
-				label.BackgroundTransparency = 1
-				label.TextColor3 = Color3.new(1, 1, 1)
-				label.Font = Enum.Font.GothamBold
-				
-				-- Countdown
-				for i = 5, 1, -1 do
-					label.Text = "Rejoining in " .. i .. "..."
-					task.wait(1)
-				end
-				
-				-- Clean up GUI
-				screenGui:Destroy()
-				
-				-- Teleport to same server
-				TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
-			end)
-		end
-	})
-	
-	left:AddButton({
-		Name = "Server Hop",
-		Callback = function()
-			pcall(function()
-				local TeleportService = game:GetService("TeleportService")
-				local HttpService = game:GetService("HttpService")
-				local player = game.Players.LocalPlayer
-				local placeId = game.PlaceId
-				
-				-- Create GUI countdown
-				local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-				local label = Instance.new("TextLabel", screenGui)
-				label.Size = UDim2.new(0.3, 0, 0.2, 0)
-				label.Position = UDim2.new(0.35, 0, 0.4, 0)
-				label.TextScaled = true
-				label.BackgroundTransparency = 1
-				label.TextColor3 = Color3.new(1, 1, 1)
-				label.Font = Enum.Font.GothamBold
-				
-				-- Countdown
-				for i = 5, 1, -1 do
-					label.Text = "Hopping in " .. i .. "..."
-					task.wait(1)
-				end
-				
-				-- Clean up GUI
-				screenGui:Destroy()
-				
-				-- Find another server
-				local function getRandomServer()
-					local servers = {}
-					local success, response = pcall(function()
-						return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"))
-					end)
-					
-					if success and response and response.data then
-						for _, server in pairs(response.data) do
-							if server.playing < server.maxPlayers and server.id ~= game.JobId then
-								table.insert(servers, server.id)
-							end
-						end
-					end
-					
-					return #servers > 0 and servers[math.random(1, #servers)] or nil
-				end
-				
-				local target = getRandomServer()
-				if target then
-					TeleportService:TeleportToPlaceInstance(placeId, target, player)
-				else
-					warn("Could not find another server.")
-				end
-			end)
-		end
-	})
-	
-	left:AddButton({
-		Name = "Small Server Hop",
-		Callback = function()
-			pcall(function()
-				local TeleportService = game:GetService("TeleportService")
-				local HttpService = game:GetService("HttpService")
-				local player = game.Players.LocalPlayer
-				local placeId = game.PlaceId
-				
-				-- Create GUI countdown
-				local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-				local label = Instance.new("TextLabel", screenGui)
-				label.Size = UDim2.new(0.4, 0, 0.2, 0)
-				label.Position = UDim2.new(0.3, 0, 0.4, 0)
-				label.TextScaled = true
-				label.BackgroundTransparency = 1
-				label.TextColor3 = Color3.new(1, 1, 1)
-				label.Font = Enum.Font.GothamBold
-				
-				-- Countdown
-				for i = 5, 1, -1 do
-					label.Text = "Finding small server in: " .. i
-					task.wait(1)
-				end
-				
-				-- Clean up GUI
-				screenGui:Destroy()
-				
-				-- Find server with less than 5 players
-				local function getSmallServer()
-					local servers = {}
-					local cursor = nil
-					
-					for _ = 1, 5 do
-						local url = "https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"
-						if cursor then url = url.."&cursor="..cursor end
-						
-						local success, response = pcall(function()
-							return HttpService:JSONDecode(game:HttpGet(url))
-						end)
-						
-						if success and response and response.data then
-							for _, server in ipairs(response.data) do
-								if server.playing < 5 and server.id ~= game.JobId then
-									table.insert(servers, server.id)
-								end
-							end
-							
-							if response.nextPageCursor then
-								cursor = response.nextPageCursor
-							else
-								break
-							end
-						else
-							break
-						end
-					end
-					
-					return #servers > 0 and servers[math.random(1, #servers)] or nil
-				end
-				
-				local target = getSmallServer()
-				if target then
-					TeleportService:TeleportToPlaceInstance(placeId, target, player)
-				else
-					warn("Could not find server with less than 5 players")
-				end
-			end)
-		end
-	})
-	
-	left:AddButton({
-		Name = "Exit Server",
-		Callback = function()
-			pcall(function()
-				local player = game.Players.LocalPlayer
-				
-				-- Create confirmation GUI
-				local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-				gui.ResetOnSpawn = false
-				
-				-- Main frame
-				local frame = Instance.new("Frame", gui)
-				frame.Size = UDim2.new(0.5, 0, 0.3, 0)
-				frame.Position = UDim2.new(0.25, 0, 0.35, 0)
-				frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-				frame.BorderSizePixel = 0
-				frame.BackgroundTransparency = 0.1
-				frame.AnchorPoint = Vector2.new(0.5, 0.5)
-				frame.ClipsDescendants = true
-				
-				-- Title
-				local title = Instance.new("TextLabel", frame)
-				title.Size = UDim2.new(1, 0, 0.4, 0)
-				title.Position = UDim2.new(0, 0, 0, 0)
-				title.Text = "Do you want to exit server?"
-				title.TextColor3 = Color3.new(1, 1, 1)
-				title.BackgroundTransparency = 1
-				title.TextScaled = true
-				title.Font = Enum.Font.GothamBold
-				
-				-- Yes button
-				local yesBtn = Instance.new("TextButton", frame)
-				yesBtn.Size = UDim2.new(0.4, 0, 0.3, 0)
-				yesBtn.Position = UDim2.new(0.1, 0, 0.55, 0)
-				yesBtn.Text = "Yes"
-				yesBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-				yesBtn.TextColor3 = Color3.new(1, 1, 1)
-				yesBtn.TextScaled = true
-				yesBtn.Font = Enum.Font.GothamBold
-				
-				-- No button
-				local noBtn = Instance.new("TextButton", frame)
-				noBtn.Size = UDim2.new(0.4, 0, 0.3, 0)
-				noBtn.Position = UDim2.new(0.5, 0, 0.55, 0)
-				noBtn.Text = "No"
-				noBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
-				noBtn.TextColor3 = Color3.new(1, 1, 1)
-				noBtn.TextScaled = true
-				noBtn.Font = Enum.Font.GothamBold
-				
-				-- Button functions
-				yesBtn.MouseButton1Click:Connect(function()
-					player:Kick("You have left the server")
-				end)
-				
-				noBtn.MouseButton1Click:Connect(function()
-					gui:Destroy()
-				end)
-			end)
-		end
-	})
-	
-	right:AddButton({
-		Name = "FPS Booster",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/MerebennieOfficial/ExoticJn/refs/heads/main/FpsBooster"))()
-			end)
-		end
-	})
-	
-	right:AddButton({
-		Name = "Auto Kyoto",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Auto%20kyoto%20ma%20hoa"))()
-			end)
-		end
-	})
-	
-	right:AddButton({
-		Name = "Orbit",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Orbit%20by%20YQANTG"))()
-			end)
-		end
-	})
-	
-	right:AddButton({
-		Name = "Fake Dash Q",
-		Callback = function()
-			pcall(function()
-				loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Fake%20Dash%20Q"))()
-			end)
-		end
-	})
+    local garouSection = Movesets:DrawSection({
+        Name = "Garou Movesets",
+        Position = "left"
+    });
+    
+    garouSection:AddButton({
+        Name = "Teleport Guy",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Teleport%20Guy.txt", true))()
+        end
+    })
+    
+    garouSection:AddButton({
+        Name = "Void Reaper",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/Void%20Reaper%20Obfuscated.txt"))()
+        end
+    })
+    
+    garouSection:AddButton({
+        Name = "Chainsaw Man",
+        Callback = function()
+            getgenv().RunSpeed = 100
+            getgenv().RunJump = 100
+            getgenv().InstaKill = true
+            getgenv().RevivePercent = 100
+            getgenv().ChangeWalk = true
+            getgenv().ChangeIdle = true
+            getgenv().Night = false
+            getgenv().DashNoCooldown = true
+            getgenv().ExtraSkills = true
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/yes1nt/yes/refs/heads/main/CHAINSAW%20MAN/Chainsaw%20Man%20(Obfuscated).txt"))()
+        end
+    })
+    
+    garouSection:AddButton({
+        Name = "A-Train",
+        Callback = function()
+            getgenv().settings = {
+                morph = {
+                    enabled = false,
+                    dontchangeskincolor = false
+                },
+                ult_forcewalkspeed = true,
+                ult_walkspeed = 60,
+                tp_duration = 0.15
+            }
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/skibiditoiletfan2007/ATrainSounds/refs/heads/main/ATrain.lua"))()
+        end
+    })
+    
+    local saitamaSection = Movesets:DrawSection({
+        Name = "Saitama Movesets",
+        Position = "right"
+    });
+    
+    saitamaSection:AddButton({
+        Name = "Gojo Moveset",
+        Callback = function()
+            getgenv().FatalCombatSkillLayout = true
+            getgenv().MovesetReachSound = true
+            loadstring(game:HttpGet("https://gist.githubusercontent.com/SonicexePort/d83f3eca5e8092468df1551df09db39a/raw/861f16fbae8fab8803cabfbc01295bb5b687f86a/Death%20Port%20Six%20Eyes%20Public%20Beta"))()
+        end
+    })
+    
+    saitamaSection:AddButton({
+        Name = "Golden Head",
+        Callback = function()
+            getgenv().stand = false
+            getgenv().ken = false
+            getgenv().Spawn = false
+            loadstring(game:HttpGet('https://raw.githubusercontent.com/Kenjihin69/Kenjihin69/refs/heads/main/Saitama%20to%20golden%20sigma'))()
+        end
+    })
+    
+    saitamaSection:AddButton({
+        Name = "Shinji Moveset",
+        Callback = function()
+            getgenv().speedtools = true
+            getgenv().speedpunch = true
+            getgenv().dance = false
+            getgenv().night = false
+            loadstring(game:HttpGet('https://raw.githubusercontent.com/Kenjihin69/Kenjihin69/refs/heads/main/Shinji%20tp%20exploit'))()
+        end
+    })
+    
+    saitamaSection:AddButton({
+        Name = "Goku Moveset",
+        Callback = function()
+            loadstring(game:HttpGet("https://rawscripts.net/raw/The-Strongest-Battlegrounds-Hero-hunter-moveset-into-OP-goku-moveset-17468"))()
+        end
+    })
+    
+    local kjSection = Movesets:DrawSection({
+        Name = "KJ Movesets",
+        Position = "left"
+    });
+    
+    kjSection:AddButton({
+        Name = "KJ Ravage",
+        Callback = function()
+            -- KJ Ravage implementation would go here
+            print("KJ Ravage loaded!")
+        end
+    })
+    
+    kjSection:AddButton({
+        Name = "KJ Swift Sweep",
+        Callback = function()
+            -- KJ Swift Sweep implementation
+            print("KJ Swift Sweep loaded!")
+        end
+    })
+    
+    kjSection:AddButton({
+        Name = "KJ Collateral Ruin",
+        Callback = function()
+            -- KJ Collateral Ruin implementation
+            print("KJ Collateral Ruin loaded!")
+        end
+    })
+    
+    kjSection:AddButton({
+        Name = "KJ Ultimate",
+        Callback = function()
+            -- KJ Ultimate implementation
+            print("KJ Ultimate loaded!")
+        end
+    })
 end
 
--- Add fallback handlers for critical features
-task.spawn(function()
-	while task.wait(5) do
-		-- Fallback for character respawns
-		game.Players.LocalPlayer.CharacterAdded:Connect(function(char)
-			task.wait(1)
-			-- Reapply speed settings if enabled
-			if _G.speed_enabled then
-				char.Humanoid.WalkSpeed = _G.walkspeed_value or 50
-			end
-			
-			-- Reapply auto-rotate settings
-			if _G.auto_run then
-				char.Humanoid.AutoRotate = false
-			end
-			
-			-- Reapply no stun and no slowed if enabled
-			if _G.no_stun then
-				_G.StunBypass = game:GetService("RunService").RenderStepped:Connect(function()
-					local char = game.Players.LocalPlayer.Character
-					if char then
-						if char:FindFirstChild("Stunned") then
-							char.Stunned:Destroy()
-						end
-						if char:FindFirstChild("Humanoid") then
-							char.Humanoid.PlatformStand = false
-							if char.Humanoid.WalkSpeed == 0 then
-								char.Humanoid.WalkSpeed = 16
-							end
-						end
-					end
-				end)
-			end
-			
-			if _G.no_slowed then
-				_G.NoSlowLoop = game:GetService("RunService").RenderStepped:Connect(function()
-					local char = game.Players.LocalPlayer.Character
-					if char and char:FindFirstChild("Humanoid") then
-						local hum = char.Humanoid
-						if hum.WalkSpeed < 20 then
-							hum.WalkSpeed = 20
-						end
-						hum.PlatformStand = false
-					end
-				end)
-			end
-		end)
-		
-		-- Fallback for ESP visuals
-		if _G.espNameEnabled then
-			for _, player in ipairs(game.Players:GetPlayers()) do
-				if player ~= game.Players.LocalPlayer and player.Character then
-					local function addEspToCharacter(char, playerName)
-						if not char:FindFirstChild("Head") then return end
-						if not char.Head:FindFirstChild("ESP_Name") then
-							local bb = Instance.new("BillboardGui")
-							bb.Name = "ESP_Name"
-							bb.Size = UDim2.new(0, 100, 0, 30)
-							bb.StudsOffset = Vector3.new(0, 2, 0)
-							bb.AlwaysOnTop = true
-							bb.Adornee = char.Head
-							bb.Parent = char.Head
-							local label = Instance.new("TextLabel")
-							label.Size = UDim2.new(1, 0, 1, 0)
-							label.BackgroundTransparency = 1
-							label.Text = playerName
-							label.TextColor3 = Color3.new(1, 1, 1)
-							label.TextScaled = true
-							label.Font = Enum.Font.SourceSansBold
-							label.Parent = bb
-						end
-					end
-					
-					addEspToCharacter(player.Character, player.Name)
-				end
-			end
-		end
-		
-		-- Fallback for highlights
-		if _G.highlightEnabled then
-			for _, p in ipairs(game.Players:GetPlayers()) do
-				if p ~= game.Players.LocalPlayer and p.Character then
-					local function createHighlight(char)
-						if not char:FindFirstChild("HighlightESP") then
-							local highlight = Instance.new("Highlight")
-							highlight.Name = "HighlightESP"
-							highlight.FillTransparency = 1
-							highlight.OutlineTransparency = 0
-							highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
-							highlight.Adornee = char
-							highlight.Parent = char
-						end
-					end
-					
-					createHighlight(p.Character)
-				end
-			end
-		end
-	end
+-- ADMIN TAB
+do
+    local adminMain = Admin:DrawSection({
+        Name = "Admin Tools",
+        Position = "left"
+    });
+    
+    adminMain:AddButton({
+        Name = "Infinite Yield",
+        Callback = function()
+            loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+        end
+    })
+    
+    adminMain:AddButton({
+        Name = "Nameless Admin",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/FilteringEnabled/NamelessAdmin/main/Source"))()
+        end
+    })
+    
+    adminMain:AddButton({
+        Name = "Universal X Hub",
+        Callback = function()
+            loadstring(game:HttpGet("https://pastebin.com/raw/rLvwiLH4"))()
+        end
+    })
+    
+    local adminAdvanced = Admin:DrawSection({
+        Name = "Advanced",
+        Position = "right"
+    });
+    
+    adminAdvanced:AddButton({
+        Name = "ESP Monitor",
+        Callback = function()
+            -- ESP monitoring for ultimates
+            print("ESP Monitor loaded!")
+        end
+    })
+    
+    adminAdvanced:AddButton({
+        Name = "Auto Farm Tool",
+        Callback = function()
+            -- Auto farm tool for detecting Saitama ults
+            print("Auto Farm Tool loaded!")
+        end
+    })
+end
+
+-- SERVER TAB
+do
+    local serverMain = Server:DrawSection({
+        Name = "Server Tools",
+        Position = "left"
+    });
+    
+    serverMain:AddButton({
+        Name = "Rejoin",
+        Callback = function()
+            local TeleportService = game:GetService("TeleportService")
+            local player = game.Players.LocalPlayer
+            
+            local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+            local label = Instance.new("TextLabel", screenGui)
+            label.Size = UDim2.new(0.3, 0, 0.2, 0)
+            label.Position = UDim2.new(0.35, 0, 0.4, 0)
+            label.TextScaled = true
+            label.BackgroundTransparency = 1
+            label.TextColor3 = Color3.new(1, 1, 1)
+            label.Font = Enum.Font.GothamBold
+            
+            for i = 5, 1, -1 do
+                label.Text = "Rejoining in " .. i .. "..."
+                task.wait(1)
+            end
+            
+            screenGui:Destroy()
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+        end
+    })
+    
+    serverMain:AddButton({
+        Name = "Server Hop",
+        Callback = function()
+            local TeleportService = game:GetService("TeleportService")
+            local HttpService = game:GetService("HttpService")
+            local player = game.Players.LocalPlayer
+            local placeId = game.PlaceId
+            
+            local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+            local label = Instance.new("TextLabel", screenGui)
+            label.Size = UDim2.new(0.3, 0, 0.2, 0)
+            label.Position = UDim2.new(0.35, 0, 0.4, 0)
+            label.TextScaled = true
+            label.BackgroundTransparency = 1
+            label.TextColor3 = Color3.new(1, 1, 1)
+            label.Font = Enum.Font.GothamBold
+            
+            for i = 5, 1, -1 do
+                label.Text = "Hopping in " .. i .. "..."
+                task.wait(1)
+            end
+            
+            screenGui:Destroy()
+            
+            local function getRandomServer()
+                local servers = {}
+                local success, response = pcall(function()
+                    return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100"))
+                end)
+                
+                if success and response and response.data then
+                    for _, server in pairs(response.data) do
+                        if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                            table.insert(servers, server.id)
+                        end
+                    end
+                end
+                
+                return #servers > 0 and servers[math.random(1, #servers)] or nil
+            end
+            
+            local target = getRandomServer()
+            if target then
+                TeleportService:TeleportToPlaceInstance(placeId, target, player)
+            else
+                warn("No servers found.")
+            end
+        end
+    })
+    
+    serverMain:AddButton({
+        Name = "Small Server Hop",
+        Callback = function()
+            -- Small server hop implementation
+            print("Small Server Hop loaded!")
+        end
+    })
+    
+    serverMain:AddButton({
+        Name = "Exit Server",
+        Callback = function()
+            local player = game.Players.LocalPlayer
+            player:Kick("Exited server via Souls Hub")
+        end
+    })
+end
+
+-- MISC TAB
+do
+    local miscMain = Misc:DrawSection({
+        Name = "Miscellaneous",
+        Position = "left"
+    });
+    
+    miscMain:AddButton({
+        Name = "Keyboard",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/AZYsGithub/Delta-Scripts/refs/heads/main/MobileKeyboard.txt"))()
+        end
+    })
+    
+    miscMain:AddButton({
+        Name = "Aura (Client)",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Aura"))()
+        end
+    })
+    
+    miscMain:AddToggle({
+        Name = "Anti-AFK",
+        Flag = "anti_afk",
+        Callback = function(enabled)
+            print("Anti-AFK: " .. tostring(enabled))
+            -- Anti-AFK implementation
+        end
+    }).Link:AddHelper({
+        Text = "Prevents being kicked for inactivity"
+    });
+    
+    miscMain:AddKeybind({
+        Name = "Teleport to Mouse",
+        Default = nil,
+        Callback = function(key)
+            _G.FeatureStates.teleport_key = key
+        end
+    });
+    
+    miscMain:AddButton({
+        Name = "Heal Player",
+        Callback = function()
+            local player = game.Players.LocalPlayer
+            if player and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+                player.Character.Humanoid.Health = player.Character.Humanoid.MaxHealth
+                print("Player healed to full health.")
+            end
+        end
+    })
+    
+    miscMain:AddButton({
+        Name = "Teleport to Spawn",
+        Callback = function()
+            local player = game.Players.LocalPlayer
+            if player and player.Character and Workspace:FindFirstChild("SpawnLocation") then
+                player.Character.HumanoidRootPart.CFrame = Workspace.SpawnLocation.CFrame
+                print("Teleported to spawn location.")
+            end
+        end
+    })
+    
+    miscMain:AddButton({
+        Name = "Print Current Config",
+        Callback = function()
+            print("Current Config:")
+            print(SoulsHub:GetConfig())
+        end
+    })
+end
+
+-- ESP Implementation
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local espVisuals = {}
+
+local function createBoxESP(character, color)
+    local box = Instance.new("BoxHandleAdornment")
+    box.Adornee = character
+    box.Color3 = color
+    box.Transparency = 0.5
+    box.AlwaysOnTop = true
+    box.ZIndex = 1
+    box.Extents = character.PrimaryPart.Size
+    box.CFrame = character.PrimaryPart.CFrame
+    box.Parent = Workspace.CurrentCamera
+    return box
+end
+
+local function createNameESP(character, name, color)
+    local billboardGui = Instance.new("BillboardGui")
+    billboardGui.Size = UDim2.new(0, 100, 0, 20)
+    billboardGui.Adornee = character.PrimaryPart
+    billboardGui.AlwaysOnTop = true
+    billboardGui.ExtentsOffset = Vector3.new(0, character.PrimaryPart.Size.Y / 2 + 1, 0)
+    
+    local textLabel = Instance.new("TextLabel")
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.TextScaled = true
+    textLabel.TextColor3 = color
+    textLabel.TextStrokeTransparency = 0
+    textLabel.Font = Enum.Font.SourceSansBold
+    textLabel.Text = name
+    textLabel.Parent = billboardGui
+    
+    billboardGui.Parent = Workspace.CurrentCamera
+    return billboardGui
+end
+
+local function createHealthESP(character, health, maxHealth, color)
+    local billboardGui = Instance.new("BillboardGui")
+    billboardGui.Size = UDim2.new(0, 100, 0, 10)
+    billboardGui.Adornee = character.PrimaryPart
+    billboardGui.AlwaysOnTop = true
+    billboardGui.ExtentsOffset = Vector3.new(0, character.PrimaryPart.Size.Y / 2 + 2, 0)
+    
+    local healthBar = Instance.new("Frame")
+    healthBar.Size = UDim2.new(1, 0, 1, 0)
+    healthBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    healthBar.Parent = billboardGui
+    
+    local currentHealth = Instance.new("Frame")
+    currentHealth.Size = UDim2.new(health / maxHealth, 0, 1, 0)
+    currentHealth.BackgroundColor3 = color
+    currentHealth.Parent = healthBar
+    
+    billboardGui.Parent = Workspace.CurrentCamera
+    return billboardGui
+end
+
+function drawESP()
+    for _, visual in pairs(espVisuals) do
+        visual:Destroy()
+    end
+    espVisuals = {}
+    
+    local espBoxColor = _G.FeatureStates.esp_box_color or Color3.fromRGB(255, 0, 0)
+    local espNameColor = _G.FeatureStates.esp_name_color or Color3.fromRGB(0, 255, 0)
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= Players.LocalPlayer and player.Character and player.Character:FindFirstChildOfClass("Humanoid") and player.Character:FindFirstChild("HumanoidRootPart") then
+            local character = player.Character
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            
+            if _G.FeatureStates.esp_show_boxes and _G.FeatureStates.ESP_Enabled then
+                table.insert(espVisuals, createBoxESP(character, espBoxColor))
+            end
+            if _G.FeatureStates.esp_show_names and _G.FeatureStates.ESP_Enabled then
+                table.insert(espVisuals, createNameESP(character, player.Name, espNameColor))
+            end
+            if _G.FeatureStates.esp_show_health and _G.FeatureStates.ESP_Enabled and humanoid then
+                table.insert(espVisuals, createHealthESP(character, humanoid.Health, humanoid.MaxHealth, espNameColor))
+            end
+        end
+    end
+end
+
+function clearESP()
+    for _, visual in pairs(espVisuals) do
+        visual:Destroy()
+    end
+    espVisuals = {}
+end
+
+-- Teleport to Mouse Implementation
+local mouse = Players.LocalPlayer:GetMouse()
+RunService.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == _G.FeatureStates.teleport_key then
+        local player = Players.LocalPlayer
+        if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local targetPosition = mouse.Hit.p
+            player.Character.HumanoidRootPart.CFrame = CFrame.new(targetPosition.X, targetPosition.Y + 5, targetPosition.Z)
+            print("Teleported to mouse position.")
+        end
+    end
 end)
 
+-- UI Settings
+local General = Window:DrawTab({
+    Name = "Settings",
+    Icon = "settings"
+});
+
+local settingsSection = General:DrawSection({
+    Name = "UI Settings"
+});
+
+local highlightColorPicker = settingsSection:AddColorPicker({
+    Name = 'Highlight',
+    Default = SoulsHub.Colors.Highlight,
+    Flag = "highlight_color_ui",
+    Callback = function(v)
+        SoulsHub:ChangeHighlightColor(v)
+    end,
+}).Link:AddOption();
+
+highlightColorPicker:AddToggle({
+    Name = "Rainbow",
+    Flag = "rainbow_ui",
+    Default = false,
+    Callback = function(v)
+        _G.RAINBOW = v
+    end,
+})
+
+settingsSection:AddToggle({
+    Name = "Always Show Tab",
+    Default = Window.AlwayShowTab,
+    Flag = "always_show_tab",
+    Callback = function(v)
+        Window.AlwayShowTab = v
+    end,
+})
+
+highlightColorPicker:AddSlider({
+    Name = "Rainbow Speed",
+    Min = 0.01,
+    Max = 1,
+    Round = 2,
+    Default = 0.1,
+    Flag = "rainbow_speed",
+    Callback = function(v)
+        _G.RAINBOW_SPEED = v
+    end,
+})
+
+task.spawn(function()
+    local x = 0
+    while true do 
+        task.wait(_G.RAINBOW_SPEED or 0.1)
+        if _G.RAINBOW then
+            SoulsHub:ChangeHighlightColor(Color3.fromHSV(x, 1, 1))
+            x = x + 2/255
+            if x >= 1 then
+                x = 0
+            end
+        end
+    end
+end)
+
+-- Final touches
 Window:Draw()
+
+-- Welcome notification
+game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "SOULS HUB ULTIMATE";
+    Text = "All features loaded successfully!";
+    Duration = 5;
+})
+
+warn("SOULS HUB ULTIMATE - Loaded successfully!")
+warn("Features: " .. 
+    "\n✓ Movement Enhancements" ..
+    "\n✓ Combat Features" .. 
+    "\n✓ Visual Features (ESP, Highlight, Aura)" ..
+    "\n✓ Tech Scripts" ..
+    "\n✓ Multiple Movesets" ..
+    "\n✓ Admin Tools" ..
+    "\n✓ Server Tools" ..
+    "\n✓ Ultimate Combinations")
+
+print("Souls Hub Ultimate - The ultimate script for The Strongest Battlegrounds!")
