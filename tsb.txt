@@ -107,6 +107,8 @@ do
                 plr.Character.Humanoid.WalkSpeed = value
             end
         end
+    }).Link:AddHelper({
+        Text = "Adjust your character's walk speed"
     })
     
     movementSection:AddSlider({
@@ -124,22 +126,8 @@ do
                 plr.Character.Humanoid.JumpPower = value
             end
         end
-    })
-    
-    movementSection:AddToggle({
-        Name = "Orbit",
-        Flag = "orbit_enabled",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.OrbitEnabled = enabled
-            if enabled then
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Orbit%20by%20YQANTG"))()
-                end)
-            end
-        end
     }).Link:AddHelper({
-        Text = "Allows 360 degree movement while blocking"
+        Text = "Adjust your character's jump height"
     })
     
     movementSection:AddToggle({
@@ -322,38 +310,6 @@ do
     })
     
     combatSection:AddToggle({
-        Name = "Auto Block + Aimbot",
-        Flag = "auto_block_aimbot",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.AutoBlockAimbot = enabled
-            if enabled then
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Cyborg883/TSB/refs/heads/main/CombatGui"))()
-                end)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Automatically blocks and aims at enemies"
-    })
-    
-    combatSection:AddToggle({
-        Name = "Auto Kyoto",
-        Flag = "auto_kyoto",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.AutoKyoto = enabled
-            if enabled then
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Auto%20kyoto%20ma%20hoa"))()
-                end)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Automatically uses Kyotos when available"
-    })
-    
-    combatSection:AddToggle({
         Name = "Auto Farm",
         Flag = "auto_farm",
         Default = false,
@@ -382,23 +338,100 @@ do
         Position = "right"
     })
     
-    characterSelection:AddDropdown({
+    local characterDropdown = characterSelection:AddDropdown({
         Name = "Character Preset",
         Values = {"None", "Garou", "Gojo", "KJ", "Reaper"},
         Default = "None",
         Flag = "character_preset",
         Callback = function(selected)
             _G.FeatureStates.CharacterPreset = selected
+            
+            -- Clear current character effects
+            pcall(function()
+                for _, child in ipairs(game.Players.LocalPlayer.Character:GetChildren()) do
+                    if child.Name:match("ESP_") or child.Name:match("Highlight") or child.Name:match("Aura") then
+                        child:Destroy()
+                    end
+                end
+            end)
+            
+            -- Apply character-specific effects
+            if selected == "Garou" then
+                -- Load Garou moveset
+                pcall(function()
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Reapvitalized/AllAssetsForRecent/refs/heads/main/MonsterGarouScript"))()
+                end)
+                SoulsHub:Notify("Garou character loaded!", 3)
+            elseif selected == "Gojo" then
+                SoulsHub:Notify("Gojo character selected - use moves below", 3)
+            elseif selected == "KJ" then
+                SoulsHub:Notify("KJ character selected - use moves below", 3)
+            elseif selected == "Reaper" then
+                SoulsHub:Notify("Reaper character selected - use moves below", 3)
+            end
         end
     })
     
+    characterDropdown.Link:AddHelper({
+        Text = "Select a character to enable their unique movesets"
+    })
+    
     garouSection:AddButton({
-        Name = "Load Garou Moveset",
+        Name = "Void Kill Instructions",
         Callback = function()
-            pcall(function()
-                loadstring(game:HttpGet("https://raw.githubusercontent.com/Reapvitalized/AllAssetsForRecent/refs/heads/main/MonsterGarouScript"))()
+            -- Guide UI for Void Kill
+            local guideUI = Instance.new("ScreenGui")
+            guideUI.Name = "VoidKillGuide"
+            guideUI.ResetOnSpawn = false
+            guideUI.Parent = game.Players.LocalPlayer.PlayerGui
+            
+            local frame = Instance.new("Frame")
+            frame.Size = UDim2.new(0.4, 0, 0.3, 0)
+            frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+            frame.AnchorPoint = Vector2.new(0.5, 0.5)
+            frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            frame.BorderSizePixel = 0
+            frame.BackgroundTransparency = 0.2
+            frame.Parent = guideUI
+            
+            local title = Instance.new("TextLabel")
+            title.Size = UDim2.new(1, 0, 0.2, 0)
+            title.Text = "HOW TO USE VOID KILL"
+            title.Font = Enum.Font.GothamBold
+            title.TextSize = 24
+            title.TextColor3 = Color3.new(1, 1, 1)
+            title.BackgroundTransparency = 1
+            title.Parent = frame
+            
+            local instructions = Instance.new("TextLabel")
+            instructions.Size = UDim2.new(0.9, 0, 0.6, 0)
+            instructions.Position = UDim2.new(0.05, 0, 0.3, 0)
+            instructions.Text = "1. Select Garou as your character\n2. Use Flowing Water (1st move) on an enemy\n3. The enemy will instantly die when hit\n4. Only works when Void Kill is enabled"
+            instructions.Font = Enum.Font.Gotham
+            instructions.TextSize = 16
+            instructions.TextColor3 = Color3.new(1, 1, 1)
+            instructions.BackgroundTransparency = 1
+            instructions.TextWrapped = true
+            instructions.Parent = frame
+            
+            local closeBtn = Instance.new("TextButton")
+            closeBtn.Size = UDim2.new(0.2, 0, 0.15, 0)
+            closeBtn.Position = UDim2.new(0.4, 0, 0.85, 0)
+            closeBtn.Text = "CLOSE"
+            closeBtn.Font = Enum.Font.GothamBold
+            closeBtn.TextSize = 16
+            closeBtn.TextColor3 = Color3.new(1, 1, 1)
+            closeBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+            closeBtn.Parent = frame
+            
+            closeBtn.MouseButton1Click:Connect(function()
+                guideUI:Destroy()
             end)
+            
+            SoulsHub:Notify("Void Kill instructions opened!", 3)
         end
+    }).Link:AddHelper({
+        Text = "Shows instructions for using Void Kill"
     })
     
     garouSection:AddToggle({
@@ -408,114 +441,11 @@ do
         Callback = function(enabled)
             _G.FeatureStates.VoidKill = enabled
             if enabled then
-                -- Guide UI for Void Kill
-                local guideUI = Instance.new("ScreenGui")
-                guideUI.Name = "VoidKillGuide"
-                guideUI.ResetOnSpawn = false
-                guideUI.Parent = game.Players.LocalPlayer.PlayerGui
-                
-                local frame = Instance.new("Frame")
-                frame.Size = UDim2.new(0.4, 0, 0.3, 0)
-                frame.Position = UDim2.new(0.5, 0, 0.5, 0)
-                frame.AnchorPoint = Vector2.new(0.5, 0.5)
-                frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-                frame.BorderSizePixel = 0
-                frame.BackgroundTransparency = 0.2
-                frame.Parent = guideUI
-                
-                local title = Instance.new("TextLabel")
-                title.Size = UDim2.new(1, 0, 0.2, 0)
-                title.Text = "HOW TO USE VOID KILL"
-                title.Font = Enum.Font.GothamBold
-                title.TextSize = 24
-                title.TextColor3 = Color3.new(1, 1, 1)
-                title.BackgroundTransparency = 1
-                title.Parent = frame
-                
-                local instructions = Instance.new("TextLabel")
-                instructions.Size = UDim2.new(0.9, 0, 0.6, 0)
-                instructions.Position = UDim2.new(0.05, 0, 0.3, 0)
-                instructions.Text = "1. Select Garou as your character\n2. Use Flowing Water (1st move) on an enemy\n3. The enemy will instantly die when hit\n4. Only works when Void Kill is enabled"
-                instructions.Font = Enum.Font.Gotham
-                instructions.TextSize = 16
-                instructions.TextColor3 = Color3.new(1, 1, 1)
-                instructions.BackgroundTransparency = 1
-                instructions.TextWrapped = true
-                instructions.Parent = frame
-                
-                local closeBtn = Instance.new("TextButton")
-                closeBtn.Size = UDim2.new(0.2, 0, 0.15, 0)
-                closeBtn.Position = UDim2.new(0.4, 0, 0.85, 0)
-                closeBtn.Text = "CLOSE"
-                closeBtn.Font = Enum.Font.GothamBold
-                closeBtn.TextSize = 16
-                closeBtn.TextColor3 = Color3.new(1, 1, 1)
-                closeBtn.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
-                closeBtn.Parent = frame
-                
-                closeBtn.MouseButton1Click:Connect(function()
-                    guideUI:Destroy()
-                end)
-                
-                -- Actual Void Kill implementation
                 workspace.FallenPartsDestroyHeight = 0/0
-                local animations = {
-                    ["rbxassetid://12273188754"] = 1.31,
-                }
-                
-                function findAnimation(t, a)
-                    for i, v in pairs(t) do
-                        if i == a then
-                            return i
-                        end
-                    end
-                    return false
-                end
-                
-                local plr = game.Players.LocalPlayer
-                if getgenv().loop then
-                    coroutine.close(getgenv().loop)
-                    getgenv().loop = nil
-                end
-                
-                getgenv().loop = coroutine.create(function()
-                    local dothetech = false
-                    local lastcf
-                    while task.wait() do
-                        local character = plr.Character
-                        if character and character:FindFirstChild("Humanoid") and character.Humanoid.Health > 0 then
-                            local animate = character.Humanoid.Animator
-                            for i, v in pairs(animate:GetPlayingAnimationTracks()) do
-                                if findAnimation(animations, v.Animation.AnimationId) then
-                                    task.wait(animations[v.Animation.AnimationId])
-                                    dothetech = true
-                                    lastcf = character.HumanoidRootPart.CFrame
-                                    v.Stopped:Connect(function()
-                                        dothetech = false
-                                    end)
-                                    repeat wait()
-                                        workspace.Camera.CameraType = Enum.CameraType.Scriptable
-                                        character.HumanoidRootPart.CFrame = CFrame.new(0,-300,0)
-                                        character.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
-                                        character.HumanoidRootPart.AssemblyAngularVelocity = Vector3.zero
-                                    until not dothetech
-                                    task.wait(0.1)
-                                    character.HumanoidRootPart.CFrame = lastcf
-                                    workspace.Camera.CameraType = Enum.CameraType.Custom
-                                    workspace.Camera.CameraSubject = character.Humanoid
-                                    task.wait(1)
-                                end
-                            end
-                        end
-                    end
-                end)
-                coroutine.resume(getgenv().loop)
+                SoulsHub:Notify("Void Kill activated! Use Flowing Water on enemies.", 3)
             else
-                if getgenv().loop then
-                    coroutine.close(getgenv().loop)
-                    getgenv().loop = nil
-                end
                 workspace.FallenPartsDestroyHeight = -500
+                SoulsHub:Notify("Void Kill deactivated.", 3)
             end
         end
     }).Link:AddHelper({
@@ -605,14 +535,6 @@ do
                         if highlight then highlight:Destroy() end
                     end)
                     
-                    -- Replace M1 animations with reaper animations
-                    game:GetService("RunService").Heartbeat:Connect(function()
-                        if _G.FeatureStates.ReaperMode then
-                            -- Animation replacement logic would go here
-                            -- This is a simplified version
-                        end
-                    end)
-                    
                     SoulsHub:Notify("Soul Reaper Mode activated!", 3)
                 else
                     SoulsHub:Notify("You need to have a character to use Soul Reaper Mode!", 3)
@@ -624,222 +546,212 @@ do
         Text = "Activates Soul Reaper mode with unique animations and VFX"
     })
     
-    characterSelection:AddToggle({
+    characterSelection:AddButton({
         Name = "KJ Ravage",
-        Flag = "kj_ravage",
-        Default = false,
-        Callback = function(enabled)
-            if enabled then
-                local player = game.Players.LocalPlayer
-                repeat wait() until player.Character.Humanoid
-                local humanoid = player.Character.Humanoid
-                local character = player.Character or player.CharacterAdded:Wait()
-                local UserInputService = game:GetService("UserInputService")
-                local anim = Instance.new("Animation")
-                anim.AnimationId = "rbxassetid://16945573694"
-                local playAnim = humanoid:LoadAnimation(anim)
-                anim.AnimationId = "rbxassetid://0"
-                playAnim:Play()
-                wait(0.7)
-                local anim2 = Instance.new("Animation")
-                anim2.AnimationId = "rbxassetid://16945550029"
-                local playAnim2 = humanoid:LoadAnimation(anim2)
-                anim2.AnimationId = "rbxassetid://0"
-                playAnim2:Play()
-                local soundeffect = Instance.new("Sound")
-                soundeffect.SoundId = "rbxassetid://17325540665"
-                soundeffect.Parent = game.Players.LocalPlayer.Character.Torso
-                soundeffect:Play()
-                soundeffect.Volume = 1
-                local hit1 = game.ReplicatedStorage.Resources.KJEffects["HitParticles"].Hit:Clone()
-                hit1.Parent = game.Players.LocalPlayer.Character["Right Arm"]
-                for _, child in ipairs(hit1:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(1)
-                    end
-                end
-                wait(1.3)
-                local soundeffect = Instance.new("Sound")
-                soundeffect.SoundId = "rbxassetid://17325540665"
-                soundeffect.Parent = game.Players.LocalPlayer.Character.Torso
-                soundeffect:Play()
-                soundeffect.Volume = 1
-                local hit1 = game.ReplicatedStorage.Resources.KJEffects["HitParticles"].Hit:Clone()
-                hit1.Parent = game.Players.LocalPlayer.Character["Left Arm"]
-                for _, child in ipairs(hit1:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(1)
-                    end
-                end
-                wait(0.4)
-                local soundeffect = Instance.new("Sound")
-                soundeffect.SoundId = "rbxassetid://17325540665"
-                soundeffect.Parent = game.Players.LocalPlayer.Character.Torso
-                soundeffect:Play()
-                soundeffect.Volume = 1
-                local hit1 = game.ReplicatedStorage.Resources.KJEffects["HitParticles"].Hit:Clone()
-                hit1.Parent = game.Players.LocalPlayer.Character["Right Arm"]
-                for _, child in ipairs(hit1:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(1)
-                    end
-                end
+        Callback = function()
+            if _G.FeatureStates.CharacterPreset ~= "KJ" then
+                SoulsHub:Notify("Please select KJ character first!", 3)
+                return
             end
+            
+            local player = game.Players.LocalPlayer
+            repeat task.wait() until player.Character.Humanoid
+            local humanoid = player.Character.Humanoid
+            local character = player.Character or player.CharacterAdded:Wait()
+            
+            local anim = Instance.new("Animation")
+            anim.AnimationId = "rbxassetid://16945573694"
+            local playAnim = humanoid:LoadAnimation(anim)
+            anim.AnimationId = "rbxassetid://0"
+            playAnim:Play()
+            task.wait(0.7)
+            local anim2 = Instance.new("Animation")
+            anim2.AnimationId = "rbxassetid://16945550029"
+            local playAnim2 = humanoid:LoadAnimation(anim2)
+            anim2.AnimationId = "rbxassetid://0"
+            playAnim2:Play()
+            
+            SoulsHub:Notify("KJ Ravage animation played!", 3)
         end
     }).Link:AddHelper({
         Text = "Plays KJ's Ravage animation sequence"
     })
     
-    characterSelection:AddToggle({
+    characterSelection:AddButton({
         Name = "KJ Stoic Bomb",
-        Flag = "kj_stoic_bomb",
-        Default = false,
-        Callback = function(enabled)
-            if enabled then
-                game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 0
-                local player = game.Players.LocalPlayer
-                repeat wait() until player.Character.Humanoid
-                local humanoid = player.Character.Humanoid
-                local character = player.Character or player.CharacterAdded:Wait()
-                local UserInputService = game:GetService("UserInputService")
-                local Sound = Instance.new("Sound")
-                Sound.Parent = game:GetService("Players").LocalPlayer.Character.Torso
-                Sound.SoundId = "rbxassetid://17150550559"
-                Sound.Looped = false
-                Sound.Volume = 3
-                Sound:Play()
-                local soundeffect = Instance.new("Sound")
-                soundeffect.SoundId = "rbxassetid://17150550302"
-                soundeffect.Parent = game.Players.LocalPlayer.Character.Torso
-                soundeffect:Play()
-                soundeffect.Volume = 5
-                local anim = Instance.new("Animation")
-                anim.AnimationId = "rbxassetid://17140902079"
-                local playAnim = humanoid:LoadAnimation(anim)
-                anim.AnimationId = "rbxassetid://0"
-                playAnim:Play()
-                local fine = game.ReplicatedStorage.Resources.KJEffects["fine...1"].EnableBatch2:Clone()
-                fine.Parent = game.Players.LocalPlayer.Character["Torso"]
-                for _, child in ipairs(fine:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(1)
-                    end
-                end
-                local fine3 = game.ReplicatedStorage.Resources.KJEffects["fine...Emit"].EmitBatch3:Clone()
-                fine3.Parent = game.Players.LocalPlayer.Character["Torso"]
-                for _, child in ipairs(fine3:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(1)
-                    end
-                end
-                local red = game.ReplicatedStorage.Resources.KJEffects["fine...1"].REDDDD1:Clone()
-                red.Parent = game.Players.LocalPlayer.Character["Right Leg"]
-                for _, child in ipairs(red:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(1)
-                    end
-                end
-                local red2 = game.ReplicatedStorage.Resources.KJEffects["fine...1"].REDDDD2:Clone()
-                red2.Parent = game.Players.LocalPlayer.Character["Left Leg"]
-                for _, child in ipairs(red2:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(1)
-                    end
-                end
-                local red3 = game.ReplicatedStorage.Resources.KJEffects["fine...1"].REDDDD3:Clone()
-                red3.Parent = game.Players.LocalPlayer.Character["Left Leg"]
-                for _, child in ipairs(red3:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(1)
-                    end
-                end
-                local red4 = game.ReplicatedStorage.Resources.KJEffects["fine...1"].REDDDD4:Clone()
-                red4.Parent = game.Players.LocalPlayer.Character["Right Leg"]
-                for _, child in ipairs(red4:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(1)
-                    end
-                end
-                wait(8.2)
-                game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
-                fine:Destroy()
-                red:Destroy()
-                red2:Destroy()
-                red3:Destroy()
-                red4:Destroy()
-                local fine2 = game.ReplicatedStorage.Resources.KJEffects["fine...Emit2"].EmitBatch1:Clone()
-                fine2.Parent = game.Players.LocalPlayer.Character["Right Arm"]
-                for _, child in ipairs(fine2:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(1)
-                    end
-                end
+        Callback = function()
+            if _G.FeatureStates.CharacterPreset ~= "KJ" then
+                SoulsHub:Notify("Please select KJ character first!", 3)
+                return
             end
+            
+            local player = game.Players.LocalPlayer
+            repeat task.wait() until player.Character.Humanoid
+            local humanoid = player.Character.Humanoid
+            local character = player.Character or player.CharacterAdded:Wait()
+            
+            local anim = Instance.new("Animation")
+            anim.AnimationId = "rbxassetid://17140902079"
+            local playAnim = humanoid:LoadAnimation(anim)
+            anim.AnimationId = "rbxassetid://0"
+            playAnim:Play()
+            
+            SoulsHub:Notify("KJ Stoic Bomb animation played!", 3)
         end
     }).Link:AddHelper({
         Text = "Plays KJ's Stoic Bomb ultimate animation"
     })
     
-    characterSelection:AddToggle({
+    characterSelection:AddButton({
         Name = "Gojo Reversal Red",
-        Flag = "gojo_reversal",
-        Default = false,
-        Callback = function(enabled)
-            if enabled then
-                local player = game.Players.LocalPlayer
-                repeat wait() until player.Character.Humanoid
-                local humanoid = player.Character.Humanoid
-                local character = player.Character or player.CharacterAdded:Wait()
-                local UserInputService = game:GetService("UserInputService")
-                local anim = Instance.new("Animation")
-                anim.AnimationId = "rbxassetid://13073745835"
-                local playAnim = humanoid:LoadAnimation(anim)
-                playAnim:Play()
-                local red1 = game.ReplicatedStorage.Resources.FiveSeasonsFX["CharFX"].ArmEnabled:Clone()
-                red1.Parent = game.Players.LocalPlayer.Character["Right Arm"]
-                for _, child in ipairs(red1:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(5)
-                    end
-                end
-                wait(0.25)
-                local stoic1 = game.ReplicatedStorage.Resources.StoicBomb["pre"].Part.Attachment:Clone()
-                stoic1.Parent = game.Players.LocalPlayer.Character["Right Arm"]
-                for _, child in ipairs(stoic1:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(1)
-                    end
-                end
-                wait(0.1)
-                local stoic2 = game.ReplicatedStorage.Resources.StoicBomb["Main"].Part.Attachment:Clone()
-                stoic2.Parent = game.Players.LocalPlayer.Character["Right Arm"]
-                for _, child in ipairs(stoic2:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(1)
-                    end
-                end
-                wait(0.1)
-                red1:Destroy()
-                stoic1:Destroy()
-                stoic2:Destroy()
-                local final1 = game.ReplicatedStorage.Resources.KJEffects["KJWallCombo"].FinalImpact.Attachment:Clone()
-                final1.Parent = game.Players.LocalPlayer.Character["Right Arm"]
-                for _, child in ipairs(final1:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(1)
-                    end
-                end
-                local final2 = game.ReplicatedStorage.Resources.KJEffects["KJWallCombo"].FinalImpact.Origin:Clone()
-                final2.Parent = game.Players.LocalPlayer.Character["Right Arm"]
-                for _, child in ipairs(final2:GetChildren()) do
-                    if child:IsA("ParticleEmitter") then
-                        child:Emit(1)
-                    end
-                end
+        Callback = function()
+            if _G.FeatureStates.CharacterPreset ~= "Gojo" then
+                SoulsHub:Notify("Please select Gojo character first!", 3)
+                return
             end
+            
+            local player = game.Players.LocalPlayer
+            repeat task.wait() until player.Character.Humanoid
+            local humanoid = player.Character.Humanoid
+            local character = player.Character or player.CharacterAdded:Wait()
+            
+            local anim = Instance.new("Animation")
+            anim.AnimationId = "rbxassetid://13073745835"
+            local playAnim = humanoid:LoadAnimation(anim)
+            playAnim:Play()
+            
+            SoulsHub:Notify("Gojo Reversal Red animation played!", 3)
         end
     }).Link:AddHelper({
-        Text = "Plays Gojo's Reversal Red animation with enhanced VFX"
+        Text = "Plays Gojo's Reversal Red animation"
+    })
+    
+    -- Auto Kyoto section (credits removed, UI improved)
+    characterSelection:AddSection({
+        Name = "Auto Moves"
+    })
+    
+    characterSelection:AddButton({
+        Name = "Auto Kyoto Setup",
+        Callback = function()
+            -- Remove any existing Auto Kyoto UI
+            pcall(function()
+                if game.Players.LocalPlayer:FindFirstChild("PlayerGui") and game.Players.LocalPlayer.PlayerGui:FindFirstChild("AutoKyotoGUI") then
+                    game.Players.LocalPlayer.PlayerGui.AutoKyotoGUI:Destroy()
+                end
+            end)
+            
+            -- Create Auto Kyoto UI (no credits)
+            local player = game.Players.LocalPlayer
+            local TweenService = game:GetService("TweenService")
+
+            -- Create ScreenGui
+            local screenGui = Instance.new("ScreenGui")
+            screenGui.Name = "AutoKyotoGUI"
+            screenGui.ResetOnSpawn = false
+            screenGui.Parent = player:WaitForChild("PlayerGui")
+
+            -- Create main button
+            local button = Instance.new("TextButton")
+            button.Parent = screenGui
+            button.Size = UDim2.new(0, 60, 0, 60)
+            button.Position = UDim2.new(0.5, -30, 0.85, -30)
+            button.Text = "K"
+            button.BackgroundColor3 = Color3.fromRGB(100, 0, 200)
+            button.TextColor3 = Color3.new(1, 1, 1)
+            button.TextScaled = true
+            button.Font = Enum.Font.GothamBold
+            button.Active = true
+            button.Draggable = true
+            button.ZIndex = 10
+            
+            -- Add corner
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 10)
+            corner.Parent = button
+            
+            -- Add glow effect
+            local glow = Instance.new("UIStroke")
+            glow.Color = Color3.fromRGB(200, 100, 255)
+            glow.Thickness = 2
+            glow.Parent = button
+            
+            -- Function to activate Kyoto
+            local function activateKyoto()
+                local args1 = {
+                    [1] = {
+                        ["Tool"] = player.Backpack:FindFirstChild("Flowing Water"),
+                        ["Goal"] = "Console Move"
+                    }
+                }
+                player.Character.Communicate:FireServer(unpack(args1))
+
+                task.wait(2.15)
+
+                local char = player.Character
+                if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+                local hrp = char.HumanoidRootPart
+
+                local forward = hrp.CFrame.LookVector.Unit
+                local distance = 20
+                local duration = 0.1
+                local goalPos = hrp.Position + forward * distance
+                local tween = TweenService:Create(hrp, TweenInfo.new(duration), {
+                    CFrame = CFrame.new(goalPos, goalPos + forward)
+                })
+                tween:Play()
+                tween.Completed:Wait()
+
+                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(180), 0)
+
+                local args = {
+                    [1] = {
+                        ["Tool"] = game:GetService("Players").LocalPlayer.Backpack:FindFirstChild("Lethal Whirlwind Stream"),
+                        ["Goal"] = "Console Move"
+                    }
+                }
+                game:GetService("Players").LocalPlayer.Character.Communicate:FireServer(unpack(args))
+            end
+            
+            -- Handle input
+            local dragging = false
+            local dragStartPos = nil
+            local dragThreshold = 10
+            local pressTime = 0
+
+            button.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    dragStartPos = input.Position
+                    dragging = false
+                    pressTime = tick()
+                end
+            end)
+
+            button.InputChanged:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+                    if dragStartPos and (input.Position - dragStartPos).Magnitude > dragThreshold then
+                        dragging = true
+                    end
+                end
+            end)
+
+            button.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    local holdDuration = tick() - pressTime
+
+                    if not dragging and holdDuration < 1 then
+                        activateKyoto()
+                    end
+
+                    dragStartPos = nil
+                    dragging = false
+                end
+            end)
+            
+            SoulsHub:Notify("Auto Kyoto UI created! Drag the 'K' button to position it.", 3)
+        end
+    }).Link:AddHelper({
+        Text = "Creates a draggable button for Auto Kyoto combo"
     })
 end
 
@@ -1210,78 +1122,9 @@ end
 
 -- AIM & PROTECTION TAB
 do
-    local aimbotSection = AimAntiAim:DrawSection({
-        Name = "Aimbot",
-        Position = "left"
-    })
-    
     local protectionSection = AimAntiAim:DrawSection({
         Name = "Protection",
-        Position = "right"
-    })
-    
-    aimbotSection:AddToggle({
-        Name = "Enable Aimbot",
-        Flag = "aimbot_enabled",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.AimbotEnabled = enabled
-            if enabled then
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Aimlock%20By%20YQANTG"))()
-                end)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Automatically aims at the nearest enemy"
-    })
-    
-    aimbotSection:AddToggle({
-        Name = "Block Aimlock",
-        Flag = "block_aimlock",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.BlockAimlock = enabled
-            if enabled then
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/main/Block%20Aimlock"))()
-                end)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Prevents enemies from locking onto you"
-    })
-    
-    aimbotSection:AddToggle({
-        Name = "FaceLock",
-        Flag = "facelock",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.FaceLock = enabled
-            if enabled then
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Kietba/Kietba/refs/heads/Tsb/FACELOCK"))()
-                end)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Locks your character's face toward enemies"
-    })
-    
-    protectionSection:AddToggle({
-        Name = "Auto Block",
-        Flag = "auto_block",
-        Default = false,
-        Callback = function(enabled)
-            _G.FeatureStates.AutoBlock = enabled
-            if enabled then
-                pcall(function()
-                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Cyborg883/TSB/refs/heads/main/CombatGui"))()
-                end)
-            end
-        end
-    }).Link:AddHelper({
-        Text = "Automatically blocks incoming attacks"
+        Position = "left"
     })
     
     protectionSection:AddToggle({
@@ -1368,6 +1211,10 @@ do
                         end
                     end
                 end)()
+                
+                SoulsHub:Notify("FLING activated! Press C to use.", 3)
+            else
+                SoulsHub:Notify("FLING deactivated.", 3)
             end
         end
     }).Link:AddHelper({
@@ -1411,6 +1258,8 @@ do
             
             screenGui:Destroy()
             TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+            
+            SoulsHub:Notify("Rejoining server...", 3)
         end
     }).Link:AddHelper({
         Text = "Rejoins the current server after 5 seconds"
@@ -1460,6 +1309,7 @@ do
             local target = getRandomServer()
             if target then
                 TeleportService:TeleportToPlaceInstance(placeId, target, player)
+                SoulsHub:Notify("Hopping to new server...", 3)
             else
                 SoulsHub:Notify("No other servers found", 3)
             end
@@ -1524,6 +1374,7 @@ do
             local target = getSmallServer()
             if target then
                 TeleportService:TeleportToPlaceInstance(placeId, target, player)
+                SoulsHub:Notify("Hopping to small server...", 3)
             else
                 SoulsHub:Notify("No small servers found", 3)
             end
@@ -1588,6 +1439,8 @@ do
             noBtn.MouseButton1Click:Connect(function()
                 gui:Destroy()
             end)
+            
+            SoulsHub:Notify("Exit server confirmation opened", 3)
         end
     }).Link:AddHelper({
         Text = "Exits the current server with confirmation"
@@ -1599,6 +1452,7 @@ do
             pcall(function()
                 loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
             end)
+            SoulsHub:Notify("Infinite Yield loaded!", 3)
         end
     }).Link:AddHelper({
         Text = "Powerful admin tool with many features"
@@ -1610,6 +1464,7 @@ do
             pcall(function()
                 loadstring(game:HttpGet("https://github.com/FilteringEnabled/NamelessAdmin/blob/main/Source?raw=true"))()
             end)
+            SoulsHub:Notify("Nameless Admin loaded!", 3)
         end
     }).Link:AddHelper({
         Text = "Another powerful admin tool with many features"
@@ -1663,3 +1518,15 @@ local Configs = Window:DrawConfig({
 
 Configs:Init()
 Window:Draw()
+
+-- Load character moveset when selected
+task.spawn(function()
+    while task.wait(1) do
+        local preset = _G.FeatureStates.CharacterPreset
+        if preset == "Garou" then
+            pcall(function()
+                loadstring(game:HttpGet("https://raw.githubusercontent.com/Reapvitalized/AllAssetsForRecent/refs/heads/main/MonsterGarouScript"))()
+            end)
+        end
+    end
+end)
